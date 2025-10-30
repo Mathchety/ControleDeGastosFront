@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext } from 'react';
 import httpClient from '../services/httpClient';
+import * as FileSystem from 'expo-file-system';
 
 const DataContext = createContext();
 
@@ -7,7 +8,9 @@ export const DataProvider = ({ children }) => {
     const [receipts, setReceipts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [previewData, setPreviewData] = useState(null); // Para armazenar o preview antes de confirmar
-
+    const [dateList, setDateList] = useState([]); // <-- novo estado exportável
+    const [itemCountList, setItemCountList] = useState([]); // <-- novo estado exportável
+    const [storeNameList, setStoreNameList] = useState([]); // <-- novo estado exportável
     /**
      * PASSO 1: Preview da Nota Fiscal
      * Chama POST /receipts/qr-code/preview
@@ -87,13 +90,48 @@ export const DataProvider = ({ children }) => {
             console.log('[Data] Buscando lista de receipts (básico)...');
             
             const response = await httpClient.get('/receipts-basic');
-            
-            if (response && response.receipts) {
-                setReceipts(response.receipts);
-                console.log(`[Data] ${response.receipts.length} receipts carregados`);
+
+            // Normaliza formatos diferentes que a API pode retornar
+            // Possíveis formas observadas:
+            //  - { receipts: [...] }
+            //  - [...array de receipts...]
+            //  - { data: { receipts: [...] } }
+            console.log('[Data] Receipts response:', response);
+
+            let receiptsData = [];
+            if (!response) {
+                receiptsData = [];
+            } else if (Array.isArray(response)) {
+                receiptsData = response;
+            } else if (response.receipts && Array.isArray(response.receipts)) {
+                receiptsData = response.receipts;
+            } else if (response.data && Array.isArray(response.data)) {
+                receiptsData = response.data;
+            } else if (response.data && response.data.receipts && Array.isArray(response.data.receipts)) {
+                receiptsData = response.data.receipts;
+            } else {
+                // Caso caída: tentar extrair qualquer array presente
+                const possible = Object.values(response).find(v => Array.isArray(v));
+                receiptsData = possible || [];
             }
+
+            // Separa cada campo dos receipts em arrays individuais
+            // Exemplo: currencyList, itemCountList, storeNameList, totalList, dateList, idList
+            const currencyList = receiptsData.map(r => r.currency);
+            const itemCountList = receiptsData.map(r => r.itemCount);
+            const storeNameList = receiptsData.map(r => r.storeName);
+            const totalList = receiptsData.map(r => r.total);
+            const dateList = receiptsData.map(r => r.date);
+            const idList = receiptsData.map(r => r.id);
             
-            return response;
+
+            setDateList(dateList);
+            setItemCountList(itemCountList);
+            setStoreNameList(storeNameList);
+            setReceipts(receiptsData);
+            console.log(`[Data] ${receiptsData.length} receipts carregados (normalizado)`);
+
+            return { response, receiptsData, currencyList, itemCountList, storeNameList, totalList, dateList, idList };
         } catch (error) {
             console.error('[Data] Erro ao buscar receipts básicos:', error);
             throw error;
@@ -211,6 +249,8 @@ export const DataProvider = ({ children }) => {
         setPreviewData(null);
     };
 
+
+
     return (
         <DataContext.Provider
             value={{
@@ -225,6 +265,9 @@ export const DataProvider = ({ children }) => {
                 fetchReceiptById,
                 deleteReceipt,
                 clearPreview,
+                dateList,
+                itemCountList,
+                storeNameList,
             }}
         >
             {children}
@@ -233,9 +276,12 @@ export const DataProvider = ({ children }) => {
 };
 
 export const useData = () => {
+
     const context = useContext(DataContext);
     if (!context) {
         throw new Error('useData must be used within DataProvider');
     }
     return context;
 };
+
+

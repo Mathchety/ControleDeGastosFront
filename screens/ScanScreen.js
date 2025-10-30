@@ -1,12 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { Text, View, StyleSheet, Button, ActivityIndicator, Alert, Animated, Easing } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../contexts/DataContext';
@@ -14,131 +7,180 @@ import { useData } from '../contexts/DataContext';
 export default function ScanScreen({ navigation }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
-  const { confirmQRCode, loading } = useData();
+  const [scannedData, setScannedData] = useState(null);
+  const [localLoading, setLocalLoading] = useState(false);
 
-  if (!permission) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.message}>Verificando permissão...</Text>
-      </View>
-    );
-  }
+  const { loading: contextLoading } = useData();
+  const loading = contextLoading || localLoading;
+
+  // animação da tela de scan (fecha a câmera)
+  const screenAnim = useRef(new Animated.Value(1)).current; // 1 = aberto, 0 = fechado
+
+  useEffect(() => {
+    if (!permission?.granted) {
+      requestPermission();
+    }
+  }, [permission]);
+
+  // Reset scanner quando a tela voltar a foco (permite escanear novamente)
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      setScanned(false);
+      setScannedData(null);
+      setLocalLoading(false);
+      screenAnim.setValue(1);
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  // ao ler o QR: anima a tela de scan fechando, mostra loading e navega para Preview com o link
+  const handleBarCodeScanned = ({ data }) => {
+    if (scanned || loading) return;
+    setScanned(true);
+    setScannedData(data);
+
+    // anima a "fechadura" da tela: diminui e some
+    Animated.timing(screenAnim, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      // mostra overlay de loading e aguarda um instante antes de navegar
+      setLocalLoading(true);
+      setTimeout(() => {
+        // navega para preview (Preview é responsável por chamar POST /scan-qrcode/preview e confirmar)
+        navigation.navigate('Preview', { qrLink: data });
+        // não resetar scanned aqui — será resetado no focus do Preview quando voltar
+      }, 300);
+    });
+  };
+
+  if (!permission) return <View style={styles.centerContainer}><ActivityIndicator size="large" /></View>;
 
   if (!permission.granted) {
     return (
-      <View style={styles.centerContainer}>
-        <Ionicons name="camera-off" size={80} color="#999" />
+      <View style={styles.container}>
+        <Ionicons name="camera-off" size={80} color="#ccc" />
         <Text style={styles.message}>Permissão de câmera necessária</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={requestPermission}>
-          <Text style={styles.retryButtonText}>Permitir Câmera</Text>
-        </TouchableOpacity>
+        <Button onPress={requestPermission} title="Permitir Câmera" />
       </View>
     );
   }
 
-  const handleBarCodeScanned = async ({ data }) => {
-    if (scanned || loading) return;
-    setScanned(true);
-
-    Alert.alert(
-      'Nota Fiscal Encontrada',
-      'Deseja processar esta nota fiscal com IA?',
-      [
-        { text: 'Cancelar', onPress: () => setScanned(false), style: 'cancel' },
-        {
-          text: 'Processar',
-          onPress: async () => {
-            try {
-              const receipt = await confirmQRCode(data);
-              Alert.alert(
-                'Sucesso! 🎉',
-                `Nota processada!\n\nTotal: R$ ${receipt.total}\nItens: ${receipt.items?.length || 0}`,
-                [
-                  { text: 'Ver Dashboard', onPress: () => navigation.navigate('Home') },
-                  { text: 'Escanear Outra', onPress: () => setScanned(false) },
-                ]
-              );
-            } catch (error) {
-              Alert.alert('Erro', error.message || 'Erro ao processar nota');
-              setScanned(false);
-            }
-          },
-        },
-      ]
-    );
+  // interpolations para animar a tela inteira de camera/overlay
+  const interpolatedStyle = {
+    opacity: screenAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
+    transform: [
+      { scale: screenAnim.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] }) },
+      { translateY: screenAnim.interpolate({ inputRange: [0, 1], outputRange: [-40, 0] }) },
+    ],
   };
 
   return (
     <View style={styles.container}>
-      <CameraView
-        style={StyleSheet.absoluteFillObject}
-        onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-        barcodeScannerSettings={{
-          barcodeTypes: ['qr'],
-        }}
-      />
+      <Animated.View style={[StyleSheet.absoluteFillObject, interpolatedStyle]}>
+        <CameraView
+          style={StyleSheet.absoluteFillObject}
+          onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+        />
 
-      <View style={styles.overlay}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Escanear QR Code</Text>
-        </View>
-
-        <View style={styles.scannerContainer}>
-          <View style={styles.scannerFrame}>
-            <View style={[styles.corner, styles.cornerTL]} />
-            <View style={[styles.corner, styles.cornerTR]} />
-            <View style={[styles.corner, styles.cornerBL]} />
-            <View style={[styles.corner, styles.cornerBR]} />
-            
-            {loading && (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#fff" />
-                <Text style={styles.loadingText}>Processando com IA...</Text>
-              </View>
-            )}
+        <View style={styles.overlay}>
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Escanear QR Code</Text>
           </View>
-          
-          <Text style={styles.instructionText}>
-            {loading
-              ? 'Aguarde, processando nota fiscal...'
-              : 'Posicione o QR Code da nota fiscal no centro'}
-          </Text>
-        </View>
 
-        <View style={styles.footer}>
-          <View style={styles.infoCard}>
-            <Ionicons name="information-circle" size={24} color="#667eea" />
-            <Text style={styles.infoText}>
-              O QR Code está no rodapé da nota fiscal eletrônica (NFC-e)
+          <View style={styles.scannerContainer}>
+            <View style={styles.scannerFrame}>
+              <View style={[styles.corner, styles.cornerTL]} />
+              <View style={[styles.corner, styles.cornerTR]} />
+              <View style={[styles.corner, styles.cornerBL]} />
+              <View style={[styles.corner, styles.cornerBR]} />
+
+              {loading && (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#fff" />
+                  <Text style={styles.loadingText}>Processando...</Text>
+                </View>
+              )}
+            </View>
+
+            <Text style={styles.instructionText}>
+              {loading ? 'Aguarde, processando nota...' : 'Posicione o QR Code no centro'}
             </Text>
           </View>
+
+          <View style={styles.footer}>
+            <View style={styles.infoCard}>
+              <Ionicons name="information-circle" size={20} color="#333" />
+              <Text style={styles.infoText}>O QR Code está no rodapé da NFC-e</Text>
+            </View>
+          </View>
         </View>
-      </View>
+      </Animated.View>
+
+      {/* overlay de loading fullscreen exibida após animação de fechamento */}
+      {localLoading && (
+        <View style={styles.fullLoading}>
+          <ActivityIndicator size="large" color="#00ff8c" />
+          <Text style={styles.fullLoadingText}>Carregando preview...</Text>
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
-  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 20 },
-  message: { fontSize: 18, color: '#666', marginTop: 20, textAlign: 'center' },
-  retryButton: { marginTop: 20, backgroundColor: '#667eea', paddingHorizontal: 30, paddingVertical: 15, borderRadius: 25 },
-  retryButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  message: { marginVertical: 16, textAlign: 'center', color: '#fff' },
+
   overlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'space-between' },
-  header: { paddingTop: 50, paddingBottom: 20, paddingHorizontal: 20, backgroundColor: 'rgba(0,0,0,0.5)' },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#fff', textAlign: 'center' },
+  header: { height: 60, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', paddingHorizontal: 16 },
+  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '600' },
+
   scannerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scannerFrame: { width: 300, height: 300, position: 'relative', justifyContent: 'center', alignItems: 'center' },
-  corner: { position: 'absolute', width: 40, height: 40, borderColor: '#fff', borderWidth: 4 },
-  cornerTL: { top: 0, left: 0, borderRightWidth: 0, borderBottomWidth: 0, borderTopLeftRadius: 8 },
-  cornerTR: { top: 0, right: 0, borderLeftWidth: 0, borderBottomWidth: 0, borderTopRightRadius: 8 },
-  cornerBL: { bottom: 0, left: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomLeftRadius: 8 },
-  cornerBR: { bottom: 0, right: 0, borderLeftWidth: 0, borderTopWidth: 0, borderBottomRightRadius: 8 },
-  loadingContainer: { alignItems: 'center' },
-  loadingText: { color: '#fff', fontSize: 16, marginTop: 10, fontWeight: '600' },
-  instructionText: { color: '#fff', fontSize: 16, marginTop: 30, textAlign: 'center', paddingHorizontal: 40, textShadowColor: 'rgba(0,0,0,0.75)', textShadowOffset: { width: -1, height: 1 }, textShadowRadius: 10 },
-  footer: { padding: 20, backgroundColor: 'rgba(0,0,0,0.5)' },
-  infoCard: { backgroundColor: '#fff', padding: 15, borderRadius: 12, flexDirection: 'row', alignItems: 'center' },
-  infoText: { flex: 1, marginLeft: 12, fontSize: 14, color: '#666', lineHeight: 20 },
+  scannerFrame: {
+    width: 300,
+    height: 300,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  corner: {
+    position: 'absolute',
+    width: 30,
+    height: 30,
+    borderColor: '#fff',
+  },
+  cornerTL: { top: 0, left: 0, borderLeftWidth: 4, borderTopWidth: 4 },
+  cornerTR: { top: 0, right: 0, borderRightWidth: 4, borderTopWidth: 4 },
+  cornerBL: { bottom: 0, left: 0, borderLeftWidth: 4, borderBottomWidth: 4 },
+  cornerBR: { bottom: 0, right: 0, borderRightWidth: 4, borderBottomWidth: 4 },
+
+  loadingContainer: {
+    position: 'absolute',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  loadingText: { color: '#fff', marginTop: 8 },
+
+  instructionText: { color: '#fff', marginTop: 16, textAlign: 'center', fontSize: 14 },
+
+  footer: { height: 100, justifyContent: 'center', alignItems: 'center' },
+  infoCard: { backgroundColor: '#fff', padding: 10, borderRadius: 8, flexDirection: 'row', alignItems: 'center' },
+  infoText: { marginLeft: 8, color: '#333' },
+
+  // overlay full-screen que aparece enquanto o Preview é carregado
+  fullLoading: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 20,
+  },
+  fullLoadingText: { color: '#00ff8c', marginTop: 12 },
 });

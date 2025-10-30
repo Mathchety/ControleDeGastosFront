@@ -47,11 +47,16 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await httpClient.get('/me');
       
-      console.log('[Auth] Resposta do /me:', JSON.stringify(response).substring(0, 200));
-      
-      // A API pode retornar {user: {...}} ou diretamente {...}
-      const userData = response.user || response;
-      
+      console.log('[Auth] Resposta do /me:', JSON.stringify(response).substring(0, 400));
+
+      // Suporta várias formas que a API pode retornar:
+      //  - { user: {...} }
+      //  - { data: {...} }
+      //  - { id: ..., name: ... } (direto)
+      const userData = response.user || response.data || response;
+
+      console.log('[Auth] userData extraído do /me:', JSON.stringify(userData).substring(0, 400));
+
       if (userData && userData.id) {
         setUser(userData);
         setIsAuthenticated(true);

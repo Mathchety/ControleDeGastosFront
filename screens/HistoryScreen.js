@@ -3,9 +3,8 @@ import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity } fr
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../contexts/DataContext';
-
 export default function HistoryScreen({ navigation }) {
-  const { receipts, loading, fetchReceiptsBasic } = useData();
+  const { receipts, loading, fetchReceiptsBasic, dateList, itemCountList, storeNameList } = useData();
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -26,19 +25,6 @@ export default function HistoryScreen({ navigation }) {
     setRefreshing(false);
   };
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR', { 
-      day: '2-digit', 
-      month: 'short', 
-      year: 'numeric' 
-    });
-  };
-
-  const formatCurrency = (value) => {
-    return `R$ ${parseFloat(value).toFixed(2)}`;
-  };
-
   const renderReceiptCard = ({ item }) => (
     <TouchableOpacity 
       style={styles.card}
@@ -50,13 +36,13 @@ export default function HistoryScreen({ navigation }) {
           <Ionicons name="receipt" size={24} color="#667eea" />
         </View>
         <View style={styles.cardInfo}>
-          <Text style={styles.storeName}>{item.store_name || 'Loja'}</Text>
-          <Text style={styles.date}>{formatDate(item.purchase_date)}</Text>
+          <Text style={styles.storeName}>{storeNameList[1] || 'Loja'}</Text>
+          <Text style={styles.date}>{(dateList[1] && new Date(dateList[1]).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })) }</Text>
         </View>
         <View style={styles.cardRight}>
-          <Text style={styles.amount}>{formatCurrency(item.total)}</Text>
-          {item.item_count && (
-            <Text style={styles.itemCount}>{item.item_count} itens</Text>
+          <Text style={styles.amount}>R$ {(item.total)}</Text>
+          {itemCountList[1] && (
+            <Text style={styles.itemCount}>{itemCountList[1]} itens</Text>
           )}
         </View>
       </View>

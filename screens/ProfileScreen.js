@@ -78,7 +78,7 @@ export default function ProfileScreen({ navigation }) {
                 colors={['#667eea', '#764ba2']}
                 style={styles.header}
             >
-                <MotiView
+                <View
                     from={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ type: 'timing', duration: 500 }}
@@ -97,9 +97,9 @@ export default function ProfileScreen({ navigation }) {
                     >
                         <Ionicons name="camera" size={18} color="#fff" />
                     </TouchableOpacity>
-                </MotiView>
+                </View>
 
-                <MotiView
+                <View
                     from={{ opacity: 0, translateY: 20 }}
                     animate={{ opacity: 1, translateY: 0 }}
                     transition={{ type: 'timing', duration: 500, delay: 200 }}
@@ -110,7 +110,7 @@ export default function ProfileScreen({ navigation }) {
                         <Ionicons name="star" size={14} color="#fbbf24" />
                         <Text style={styles.memberText}>Membro desde {user.memberSince}</Text>
                     </View>
-                </MotiView>
+                </View>
             </LinearGradient>
 
             <ScrollView 

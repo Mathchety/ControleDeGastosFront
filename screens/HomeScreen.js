@@ -13,8 +13,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 
-const { width } = Dimensions.get('window');
-
 // Componente de Estatística
 const StatCard = ({ icon, title, value, color }) => (
     <View style={styles.statCard}>
@@ -28,14 +26,14 @@ const StatCard = ({ icon, title, value, color }) => (
 
 export default function HomeScreen({ navigation }) {
     const { user } = useAuth();
-    const { receipts, loading, fetchReceiptsBasic } = useData();
+    const { receipts, loading, fetchReceiptsBasic, dateList, itemCountList, storeNameList } = useData();
     const [refreshing, setRefreshing] = useState(false);
 
     useEffect(() => {
         loadData();
     }, []);
 
-    const loadData = async () => {
+ const loadData = async () => {
         try {
             await fetchReceiptsBasic();
         } catch (error) {
@@ -55,14 +53,7 @@ export default function HomeScreen({ navigation }) {
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
-    
-    const monthlyReceipts = receipts.filter(r => {
-        const date = new Date(r.purchase_date);
-        return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
-    });
-    
-    const monthlySpent = monthlyReceipts.reduce((sum, r) => sum + parseFloat(r.total || 0), 0);
-    
+        
     // Agrupar por categoria
     const categoryTotals = {};
     receipts.forEach(receipt => {
@@ -116,7 +107,7 @@ export default function HomeScreen({ navigation }) {
                     <StatCard 
                         icon="calendar" 
                         title="Este Mês" 
-                        value={`R$ ${monthlySpent.toFixed(2)}`} 
+                        value={`R$ 2`} 
                         color="#10b981" 
                     />
                     <StatCard 
@@ -173,9 +164,10 @@ export default function HomeScreen({ navigation }) {
                                         <Ionicons name="receipt" size={20} color="#667eea" />
                                     </View>
                                     <View style={styles.receiptDetails}>
-                                        <Text style={styles.receiptStore}>{receipt.store_name || 'Loja'}</Text>
+                                        <Text style={styles.receiptStore}>{storeNameList[1] || 'Loja'}</Text>
+                                        <Text style={styles.receiptItemsCount}>{itemCountList[1] || 0} itens</Text>
                                         <Text style={styles.receiptDate}>
-                                            {new Date(receipt.purchase_date).toLocaleDateString('pt-BR')}
+                                           {(dateList[1] && new Date(dateList[1]).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })) }
                                         </Text>
                                     </View>
                                     <Text style={styles.receiptAmount}>R$ {parseFloat(receipt.total).toFixed(2)}</Text>
