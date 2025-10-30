@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../contexts/AuthContext';
 
 // Componente de Card Animado
 const AnimatedCard = ({ children, delay = 0 }) => (
@@ -40,10 +41,11 @@ const InfoItem = ({ icon, label, value, onPress, delay }) => (
 );
 
 export default function ProfileScreen({ navigation }) {
+    const { user: authUser, logout } = useAuth();
+    
     const [user] = useState({
-        name: 'João Silva',
-        email: 'joao.silva@email.com',
-        phone: '+55 (11) 98765-4321',
+        name: authUser?.name || 'João Silva',
+        email: authUser?.email || 'joao.silva@email.com',
         memberSince: 'Outubro 2025',
         avatar: null, // URL da imagem ou null para placeholder
     });
@@ -65,7 +67,9 @@ export default function ProfileScreen({ navigation }) {
                 { 
                     text: 'Sair', 
                     style: 'destructive',
-                    onPress: () => navigation.replace('Auth')
+                    onPress: async () => {
+                        await logout();
+                    }
                 }
             ]
         );
@@ -168,7 +172,7 @@ export default function ProfileScreen({ navigation }) {
                 </View>
 
                 {/* Estatísticas */}
-                <AnimatedCard delay={350}>
+                {/* <AnimatedCard delay={350}>
                     <View style={styles.statsCard}>
                         <Text style={styles.sectionTitle}>Estatísticas</Text>
                         <View style={styles.statsGrid}>
@@ -189,7 +193,7 @@ export default function ProfileScreen({ navigation }) {
                             </View>
                         </View>
                     </View>
-                </AnimatedCard>
+                </AnimatedCard> */}
 
                 {/* Botão de Sair */}
                 <AnimatedCard delay={400}>
