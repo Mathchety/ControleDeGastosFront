@@ -3,6 +3,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { useAuth } from '../contexts/AuthContext';
 import AuthScreen from '../screens/AuthScreen';
 import MainTabNavigator from './MainTabNavigator';
+import PreViewScreen from '../screens/PreViewScreen';
 
 const Stack = createStackNavigator();
 
@@ -16,7 +17,10 @@ export default function AppNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {isAuthenticated ? (
-        <Stack.Screen name="Main" component={MainTabNavigator} />
+        <>
+          <Stack.Screen name="Main" component={MainTabNavigator} />
+          <Stack.Screen name="Preview" component={PreViewScreen} />
+        </>
       ) : (
         <Stack.Screen name="Auth" component={AuthScreen} />
       )}

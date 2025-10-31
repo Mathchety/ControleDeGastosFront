@@ -13,7 +13,7 @@ export const DataProvider = ({ children }) => {
     const [storeNameList, setStoreNameList] = useState([]); // <-- novo estado exportável
     /**
      * PASSO 1: Preview da Nota Fiscal
-     * Chama POST /receipts/qr-code/preview
+     * Chama POST /scan-qrcode/preview
      * Retorna os dados da nota para o usuário revisar antes de salvar
      */
     const previewQRCode = async (qrCodeUrl) => {
@@ -21,8 +21,8 @@ export const DataProvider = ({ children }) => {
             setLoading(true);
             console.log('[Data] Gerando preview do QR Code...');
             
-            const response = await httpClient.post('/receipts/qr-code/preview', {
-                qr_code_url: qrCodeUrl
+            const response = await httpClient.post('/scan-qrcode/preview', {
+                qrCodeUrl: qrCodeUrl  // Corrigido para camelCase conforme Swagger
             });
 
             if (response && response.data) {
@@ -43,7 +43,7 @@ export const DataProvider = ({ children }) => {
 
     /**
      * PASSO 2: Confirmar e Salvar a Nota Fiscal
-     * Chama POST /receipts/qr-code/confirm
+     * Chama POST /scan-qrcode/confirm
      * IMPORTANTE: Envia APENAS o objeto 'data' do preview
      */
     const confirmQRCode = async (dataToSave = null) => {
@@ -59,7 +59,7 @@ export const DataProvider = ({ children }) => {
             }
 
             // CRÍTICO: Enviar APENAS o campo 'data' conforme documentação
-            const response = await httpClient.post('/receipts/qr-code/confirm', {
+            const response = await httpClient.post('/scan-qrcode/confirm', {
                 data: finalData
             });
 
