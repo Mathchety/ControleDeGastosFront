@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity } fr
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../contexts/DataContext';
+import { EmptyCard } from '../components/cards';
 export default function HistoryScreen({ navigation }) {
   const { receipts, loading, fetchReceiptsBasic, dateList, itemCountList, storeNameList } = useData();
   const [refreshing, setRefreshing] = useState(false);
@@ -63,23 +64,13 @@ export default function HistoryScreen({ navigation }) {
 
       {receipts.length === 0 && !loading ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="receipt-outline" size={80} color="#ccc" />
-          <Text style={styles.emptyTitle}>Nenhuma nota fiscal</Text>
-          <Text style={styles.emptyMessage}>
-            Escaneie QR Codes de notas fiscais para ver o histórico aqui
-          </Text>
-          <TouchableOpacity 
-            style={styles.scanButton}
-            onPress={() => navigation.navigate('Scan')}
-          >
-            <LinearGradient
-              colors={['#667eea', '#764ba2']}
-              style={styles.scanButtonGradient}
-            >
-              <Ionicons name="qr-code" size={24} color="#fff" />
-              <Text style={styles.scanButtonText}>Escanear Nota</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+          <EmptyCard 
+            icon="receipt-outline"
+            title="Nenhuma nota fiscal"
+            message="Escaneie QR Codes de notas fiscais para ver o histórico aqui"
+            action="Escanear Nota"
+            onAction={() => navigation.navigate('Scan')}
+          />
         </View>
       ) : (
         <FlatList

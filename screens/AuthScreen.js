@@ -13,9 +13,9 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
-import { PrimaryButton } from '../components/Buttons';
-import { Input } from '../components/Inputs';
-import { LoadingModal } from '../components/Modals';
+import { PrimaryButton } from '../components/buttons';
+import { Input } from '../components/inputs';
+import { LoadingModal } from '../components/modals';
 
 const { width } = Dimensions.get('window');
 

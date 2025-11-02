@@ -12,6 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
  * @param {string} keyboardType - Tipo de teclado
  * @param {boolean} showToggle - Mostrar botão de toggle senha
  * @param {function} onToggle - Função do toggle
+ * @param {object} style - Estilos adicionais
+ * @param {string} error - Mensagem de erro
  */
 export const Input = ({ 
     icon, 
@@ -60,27 +62,6 @@ export const Input = ({
     </View>
 );
 
-/**
- * Input de busca
- */
-export const SearchInput = ({ value, onChangeText, placeholder = 'Buscar...', style }) => (
-    <View style={[styles.searchContainer, style]}>
-        <Ionicons name="search-outline" size={20} color="#999" style={styles.searchIcon} />
-        <TextInput
-            style={styles.searchInput}
-            placeholder={placeholder}
-            placeholderTextColor="#999"
-            value={value}
-            onChangeText={onChangeText}
-        />
-        {value !== '' && (
-            <TouchableOpacity onPress={() => onChangeText('')}>
-                <Ionicons name="close-circle" size={20} color="#999" />
-            </TouchableOpacity>
-        )}
-    </View>
-);
-
 const styles = StyleSheet.create({
     inputContainer: {
         flexDirection: 'row',
@@ -114,21 +95,5 @@ const styles = StyleSheet.create({
         marginTop: -10,
         marginBottom: 10,
         marginLeft: 15,
-    },
-    searchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#f8f9fa',
-        borderRadius: 12,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-    },
-    searchIcon: {
-        marginRight: 8,
-    },
-    searchInput: {
-        flex: 1,
-        fontSize: 15,
-        color: '#333',
     },
 });

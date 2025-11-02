@@ -33,7 +33,7 @@ export default function ScanScreen({ navigation }) {
     return unsubscribe;
   }, [navigation]);
 
-  // ao ler o QR: anima a tela de scan fechando, mostra loading e navega para Preview com o link
+  // ao ler o QR: anima a tela de scan fechando e navega para Preview (loading será mostrado na tela Preview)
   const handleBarCodeScanned = ({ data }) => {
     if (scanned || loading) return;
     setScanned(true);
@@ -46,13 +46,9 @@ export default function ScanScreen({ navigation }) {
       easing: Easing.in(Easing.cubic),
       useNativeDriver: true,
     }).start(() => {
-      // mostra overlay de loading e aguarda um instante antes de navegar
-      setLocalLoading(true);
-      setTimeout(() => {
-        // navega para preview (Preview é responsável por chamar POST /scan-qrcode/preview e confirmar)
-        navigation.navigate('Preview', { qrLink: data });
-        // não resetar scanned aqui — será resetado no focus do Preview quando voltar
-      }, 300);
+      // navega direto para preview sem mostrar loading aqui
+      // Preview mostrará o loading enquanto chama previewQRCode
+      navigation.navigate('Preview', { qrLink: data });
     });
   };
 
@@ -119,14 +115,6 @@ export default function ScanScreen({ navigation }) {
           </View>
         </View>
       </Animated.View>
-
-      {/* overlay de loading fullscreen exibida após animação de fechamento */}
-      {localLoading && (
-        <View style={styles.fullLoading}>
-          <ActivityIndicator size="large" color="#00ff8c" />
-          <Text style={styles.fullLoadingText}>Carregando preview...</Text>
-        </View>
-      )}
     </View>
   );
 }
@@ -173,14 +161,4 @@ const styles = StyleSheet.create({
   footer: { height: 100, justifyContent: 'center', alignItems: 'center' },
   infoCard: { backgroundColor: '#fff', padding: 10, borderRadius: 8, flexDirection: 'row', alignItems: 'center' },
   infoText: { marginLeft: 8, color: '#333' },
-
-  // overlay full-screen que aparece enquanto o Preview é carregado
-  fullLoading: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 20,
-  },
-  fullLoadingText: { color: '#00ff8c', marginTop: 12 },
 });
