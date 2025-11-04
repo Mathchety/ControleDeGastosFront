@@ -26,7 +26,11 @@
       "permissions": [
         "CAMERA"
       ],
-      "package": "com.controle.gastos"
+      "package": "com.controle.gastos",
+      "softwareKeyboardLayoutMode": "pan",
+      "navigationBar": {
+        "visible": "immersive"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"

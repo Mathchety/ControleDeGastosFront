@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RecentReceiptItem } from './RecentReceiptItem';
 
@@ -10,13 +10,17 @@ import { RecentReceiptItem } from './RecentReceiptItem';
  * @param {Array} storeNameList - Lista de nomes de lojas
  * @param {Array} itemCountList - Lista de quantidade de itens
  * @param {Array} dateList - Lista de datas
+ * @param {function} onReceiptPress - Função ao clicar em uma nota
+ * @param {function} onViewAll - Função ao clicar em "Ver mais"
  */
 export const RecentReceiptsSection = ({ 
     loading, 
     receipts, 
     storeNameList, 
     itemCountList, 
-    dateList 
+    dateList,
+    onReceiptPress,
+    onViewAll
 }) => {
     return (
         <View style={styles.section}>
@@ -35,21 +39,31 @@ export const RecentReceiptsSection = ({
                     <Text style={styles.emptySubtext}>Escaneie seu primeiro QR Code!</Text>
                 </View>
             ) : (
-                <View style={styles.receiptsList}>
-                    {receipts.slice(0, 5).map((receipt, index) => (
-                        <RecentReceiptItem
-                            key={receipt.id}
-                            receipt={receipt}
-                            storeName={storeNameList[index]}
-                            itemCount={itemCountList[index]}
-                            date={dateList[index] ? new Date(dateList[index]).toLocaleDateString('pt-BR', { 
-                                day: '2-digit', 
-                                month: '2-digit', 
-                                year: 'numeric' 
-                            }) : ''}
-                        />
-                    ))}
-                </View>
+                <>
+                    <View style={styles.receiptsList}>
+                        {receipts.slice(0, 3).map((receipt, index) => (
+                            <RecentReceiptItem
+                                key={receipt.id}
+                                receipt={receipt}
+                                storeName={storeNameList[index]}
+                                itemCount={itemCountList[index]}
+                                date={dateList[index] ? new Date(dateList[index]).toLocaleDateString('pt-BR', { 
+                                    day: '2-digit', 
+                                    month: '2-digit', 
+                                    year: 'numeric' 
+                                }) : ''}
+                                onPress={() => onReceiptPress && onReceiptPress(receipt.id)}
+                            />
+                        ))}
+                    </View>
+                    
+                    {receipts.length > 3 && (
+                        <TouchableOpacity style={styles.viewAllButton} onPress={onViewAll}>
+                            <Text style={styles.viewAllText}>Ver todas as notas</Text>
+                            <Ionicons name="arrow-forward" size={18} color="#667eea" />
+                        </TouchableOpacity>
+                    )}
+                </>
             )}
         </View>
     );
@@ -103,5 +117,20 @@ const styles = StyleSheet.create({
     },
     receiptsList: {
         marginTop: 5,
+    },
+    viewAllButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 15,
+        paddingVertical: 12,
+        borderRadius: 10,
+        backgroundColor: '#f0f0ff',
+    },
+    viewAllText: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: '#667eea',
+        marginRight: 8,
     },
 });

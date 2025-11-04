@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 /**
@@ -8,9 +8,10 @@ import { Ionicons } from '@expo/vector-icons';
  * @param {string} storeName - Nome da loja
  * @param {string} date - Data formatada
  * @param {number} itemCount - Quantidade de itens
+ * @param {function} onPress - Função ao clicar no item
  */
-export const RecentReceiptItem = ({ receipt, storeName, date, itemCount }) => (
-    <View style={styles.receiptItem}>
+export const RecentReceiptItem = ({ receipt, storeName, date, itemCount, onPress }) => (
+    <TouchableOpacity style={styles.receiptItem} onPress={onPress} activeOpacity={0.7}>
         <View style={styles.receiptIcon}>
             <Ionicons name="receipt" size={20} color="#667eea" />
         </View>
@@ -19,10 +20,13 @@ export const RecentReceiptItem = ({ receipt, storeName, date, itemCount }) => (
             <Text style={styles.receiptItemsCount}>{itemCount || 0} itens</Text>
             <Text style={styles.receiptDate}>{date}</Text>
         </View>
-        <Text style={styles.receiptAmount}>
-            R$ {parseFloat(receipt.total || 0).toFixed(2)}
-        </Text>
-    </View>
+        <View style={styles.receiptRight}>
+            <Text style={styles.receiptAmount}>
+                R$ {parseFloat(receipt.total || 0).toFixed(2)}
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color="#999" style={styles.chevron} />
+        </View>
+    </TouchableOpacity>
 );
 
 const styles = StyleSheet.create({
@@ -60,9 +64,15 @@ const styles = StyleSheet.create({
         color: '#999',
         marginTop: 2,
     },
+    receiptRight: {
+        alignItems: 'flex-end',
+    },
     receiptAmount: {
         fontSize: 16,
         fontWeight: 'bold',
         color: '#ef4444',
+    },
+    chevron: {
+        marginTop: 4,
     },
 });

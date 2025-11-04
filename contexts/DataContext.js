@@ -11,6 +11,7 @@ export const DataProvider = ({ children }) => {
     const [dateList, setDateList] = useState([]); // <-- novo estado exportável
     const [itemCountList, setItemCountList] = useState([]); // <-- novo estado exportável
     const [storeNameList, setStoreNameList] = useState([]); // <-- novo estado exportável
+    const [isProcessingReceipt, setIsProcessingReceipt] = useState(false); // Notificação de processamento
     /**
      * PASSO 1: Preview da Nota Fiscal
      * Chama POST /scan-qrcode/preview
@@ -44,9 +45,13 @@ export const DataProvider = ({ children }) => {
     /**
      * PASSO 2: Confirmar e Salvar a Nota Fiscal
      * Chama POST /scan-qrcode/confirm
-     * IMPORTANTE: Envia APENAS o objeto 'data' do preview
+     * IMPORTANTE: Envia APENAS o objeto 'data' do preview (SEM wrapper)
+     * 
+     * @param {Object} dataToSave - Dados do preview para salvar
+     * @param {Function} onTimeout - Callback chamado se demorar mais de 5s
+     * @returns {Promise} - Retorna { timedOut: boolean, response?: any }
      */
-    const confirmQRCode = async (dataToSave = null) => {
+    const confirmQRCode = async (dataToSave = null, onTimeout = null) => {
         try {
             setLoading(true);
             console.log('[Data] Confirmando e salvando nota fiscal...');
@@ -58,20 +63,47 @@ export const DataProvider = ({ children }) => {
                 throw new Error('Nenhum dado de preview disponível para confirmar');
             }
 
-            // CRÍTICO: Enviar APENAS o campo 'data' conforme documentação
-            const response = await httpClient.post('/scan-qrcode/confirm', {
-                data: finalData
+            // CRÍTICO: Enviar APENAS o objeto data (SEM wrapper { data: ... })
+            // Conforme documentação: envie APENAS o campo 'data' do preview
+            
+            // Cria uma Promise de timeout de 5 segundos
+            let timeoutReached = false;
+            const timeoutPromise = new Promise((resolve) => {
+                setTimeout(() => {
+                    timeoutReached = true;
+                    if (onTimeout) {
+                        console.log('[Data] Timeout de 5s atingido, processamento continua em background...');
+                        setIsProcessingReceipt(true); // Ativa a notificação
+                        onTimeout();
+                    }
+                    resolve({ timedOut: true });
+                }, 5000);
             });
 
-            console.log('[Data] Nota fiscal salva com sucesso!');
+            // Faz a requisição
+            const requestPromise = httpClient.post('/scan-qrcode/confirm', finalData)
+                .then(response => {
+                    if (!timeoutReached) {
+                        console.log('[Data] Nota fiscal salva com sucesso!');
+                        return { timedOut: false, response };
+                    }
+                    // Se já deu timeout, continua processando em background
+                    console.log('[Data] Nota fiscal salva (após timeout)');
+                    setIsProcessingReceipt(false); // Desativa a notificação
+                    fetchReceiptsBasic(); // Atualiza lista em background
+                    return { timedOut: true, response };
+                });
+
+            // Espera a primeira que resolver (timeout ou resposta)
+            const result = await Promise.race([timeoutPromise, requestPromise]);
+
+            // Se não deu timeout, limpa preview e recarrega lista
+            if (!result.timedOut) {
+                setPreviewData(null);
+                await fetchReceiptsBasic();
+            }
             
-            // Limpa o preview após salvar
-            setPreviewData(null);
-            
-            // Recarrega a lista de receipts
-            await fetchReceiptsBasic();
-            
-            return response;
+            return result;
         } catch (error) {
             console.error('[Data] Erro ao confirmar nota:', error);
             throw error;
@@ -156,8 +188,6 @@ export const DataProvider = ({ children }) => {
                 setReceipts(response.receipts);
                 console.log(`[Data] ${response.receipts.length} receipts completos carregados`);
             }
-            
-            return response;
         } catch (error) {
             console.error('[Data] Erro ao buscar receipts completos:', error);
             throw error;
@@ -167,25 +197,78 @@ export const DataProvider = ({ children }) => {
     };
 
     /**
-     * Busca receipts por período
-     * GET /receipts-basic/period?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD
+     * Busca receipts por data específica
+     * GET /receipts-basic/date/{date}
+     * @param {string} date - Data no formato YYYY-MM-DD
      */
-    const fetchReceiptsByPeriod = async (startDate, endDate, fullData = false) => {
+    const fetchReceiptsByDate = async (date) => {
         try {
             setLoading(true);
-            const endpoint = fullData ? '/receipts/period' : '/receipts-basic/period';
-            const params = `?start_date=${startDate}&end_date=${endDate}`;
+            console.log(`[Data] Buscando receipts da data ${date}...`);
             
-            console.log(`[Data] Buscando receipts por período: ${startDate} a ${endDate}`);
+            const response = await httpClient.get(`/receipts-basic/date/${date}`);
             
-            const response = await httpClient.get(endpoint + params);
-            
-            if (response && response.receipts) {
-                console.log(`[Data] ${response.receipts.length} receipts encontrados no período`);
-                return response.receipts;
+            let receiptsData = [];
+            if (Array.isArray(response)) {
+                receiptsData = response;
+            } else if (response && response.data && Array.isArray(response.data)) {
+                receiptsData = response.data;
+            } else if (response && response.receipts && Array.isArray(response.receipts)) {
+                receiptsData = response.receipts;
             }
+
+            const dateList = receiptsData.map(r => r.date);
+            const itemCountList = receiptsData.map(r => r.itemCount);
+            const storeNameList = receiptsData.map(r => r.storeName);
+
+            setDateList(dateList);
+            setItemCountList(itemCountList);
+            setStoreNameList(storeNameList);
+            setReceipts(receiptsData);
             
-            return [];
+            console.log(`[Data] ${receiptsData.length} receipts da data ${date} carregados`);
+            return receiptsData;
+        } catch (error) {
+            console.error('[Data] Erro ao buscar receipts por data:', error);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    /**
+     * Busca receipts por período
+     * GET /receipts-basic/period?startDate={start}&endDate={end}
+     * @param {string} startDate - Data inicial no formato YYYY-MM-DD
+     * @param {string} endDate - Data final no formato YYYY-MM-DD
+     */
+    const fetchReceiptsByPeriod = async (startDate, endDate) => {
+        try {
+            setLoading(true);
+            console.log(`[Data] Buscando receipts do período ${startDate} a ${endDate}...`);
+            
+            const response = await httpClient.get(`/receipts-basic/period?startDate=${startDate}&endDate=${endDate}`);
+            
+            let receiptsData = [];
+            if (Array.isArray(response)) {
+                receiptsData = response;
+            } else if (response && response.data && Array.isArray(response.data)) {
+                receiptsData = response.data;
+            } else if (response && response.receipts && Array.isArray(response.receipts)) {
+                receiptsData = response.receipts;
+            }
+
+            const dateList = receiptsData.map(r => r.date);
+            const itemCountList = receiptsData.map(r => r.itemCount);
+            const storeNameList = receiptsData.map(r => r.storeName);
+
+            setDateList(dateList);
+            setItemCountList(itemCountList);
+            setStoreNameList(storeNameList);
+            setReceipts(receiptsData);
+            
+            console.log(`[Data] ${receiptsData.length} receipts do período carregados`);
+            return receiptsData;
         } catch (error) {
             console.error('[Data] Erro ao buscar receipts por período:', error);
             throw error;
@@ -205,11 +288,32 @@ export const DataProvider = ({ children }) => {
             
             const response = await httpClient.get(`/receipt/${id}`);
             
+            console.log('[Data] Resposta do endpoint /receipt/:id:', JSON.stringify(response).substring(0, 500));
+            
+            // Tenta diferentes formatos de resposta
+            let receiptData = null;
+            
             if (response && response.receipt) {
-                console.log('[Data] Detalhes do receipt carregados');
-                return response.receipt;
+                receiptData = response.receipt;
+            } else if (response && response.data && response.data.receipt) {
+                receiptData = response.data.receipt;
+            } else if (response && typeof response === 'object' && response.id) {
+                // A resposta já é o receipt diretamente
+                receiptData = response;
+            } else if (response && response.data && typeof response.data === 'object' && response.data.id) {
+                receiptData = response.data;
             }
             
+            if (receiptData) {
+                console.log('[Data] Detalhes do receipt carregados:', {
+                    id: receiptData.id,
+                    storeName: receiptData.storeName,
+                    itemsCount: receiptData.items?.length || receiptData.itemsCount
+                });
+                return receiptData;
+            }
+            
+            console.error('[Data] Formato de resposta não reconhecido:', response);
             throw new Error('Receipt não encontrado');
         } catch (error) {
             console.error('[Data] Erro ao buscar receipt:', error);
@@ -261,6 +365,7 @@ export const DataProvider = ({ children }) => {
                 confirmQRCode,
                 fetchReceiptsBasic,
                 fetchReceiptsFull,
+                fetchReceiptsByDate,
                 fetchReceiptsByPeriod,
                 fetchReceiptById,
                 deleteReceipt,
@@ -268,6 +373,8 @@ export const DataProvider = ({ children }) => {
                 dateList,
                 itemCountList,
                 storeNameList,
+                isProcessingReceipt,
+                setIsProcessingReceipt,
             }}
         >
             {children}
