@@ -30,6 +30,7 @@ export const TopCategoriesSection = ({ categories }) => {
 
 const styles = StyleSheet.create({
     section: {
+        width: '100%',
         backgroundColor: '#fff',
         borderRadius: 20,
         padding: 20,

@@ -3,12 +3,12 @@ import {
     View, 
     Text, 
     StyleSheet, 
-    SafeAreaView, 
     ActivityIndicator, 
     Alert, 
     ScrollView, 
     Platform 
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useData } from '../contexts/DataContext';
 import { ConfirmButton } from '../components/buttons';
 import { PreviewHeader, ReceiptSummaryCard, EditableReceiptItemCard } from '../components/cards';
