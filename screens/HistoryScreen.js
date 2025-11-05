@@ -1,11 +1,12 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Platform, StatusBar, Modal } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useData } from '../contexts/DataContext';
 import { EmptyCard } from '../components/cards';
+import { moderateScale } from '../utils/responsive';
+import { theme } from '../utils/theme';
 
 export default function HistoryScreen({ navigation }) {
   const { 
@@ -154,11 +155,11 @@ export default function HistoryScreen({ navigation }) {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <StatusBar 
         barStyle="light-content" 
-        backgroundColor="#667eea" 
-        translucent={false}
+        backgroundColor="transparent" 
+        translucent={true}
       />
       
       <LinearGradient 
@@ -244,7 +245,7 @@ export default function HistoryScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -254,21 +255,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa' 
   },
   header: { 
-    paddingTop: Platform.OS === 'android' ? 20 : 50,
-    paddingBottom: 30, 
-    paddingHorizontal: 20, 
-    borderBottomLeftRadius: 30, 
-    borderBottomRightRadius: 30 
+    paddingTop: moderateScale(60),
+    paddingBottom: moderateScale(30), 
+    paddingHorizontal: theme.spacing.lg, 
+    borderBottomLeftRadius: moderateScale(30), 
+    borderBottomRightRadius: moderateScale(30) 
   },
   headerTitle: { 
-    fontSize: 28, 
+    fontSize: theme.fonts.h1, 
     fontWeight: 'bold', 
     color: '#fff' 
   },
   headerSubtitle: { 
-    fontSize: 14, 
+    fontSize: theme.fonts.body, 
     color: 'rgba(255,255,255,0.9)', 
-    marginTop: 5 
+    marginTop: theme.spacing.xs 
   },
   list: { 
     padding: 20 

@@ -7,15 +7,17 @@ import {
     Platform,
     Alert,
     Dimensions,
-    TouchableOpacity
+    TouchableOpacity,
+    StatusBar
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { PrimaryButton } from '../components/buttons';
 import { Input } from '../components/inputs';
 import { LoadingModal } from '../components/modals';
+import { moderateScale } from '../utils/responsive';
+import { theme } from '../utils/theme';
 
 const { width } = Dimensions.get('window');
 
@@ -183,7 +185,12 @@ const AuthScreen = ({ navigation }) => {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
+        <View style={styles.container}>
+            <StatusBar 
+                barStyle="light-content" 
+                backgroundColor="transparent" 
+                translucent={true}
+            />
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.keyboardView}
@@ -217,7 +224,7 @@ const AuthScreen = ({ navigation }) => {
                     </View>
                 </View>
             </KeyboardAvoidingView>
-        </SafeAreaView>
+        </View>
     );
 };
 
@@ -230,28 +237,25 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     header: {
-        paddingVertical: 50,
-        paddingHorizontal: 20,
+        paddingTop: moderateScale(60),
+        paddingBottom: moderateScale(50),
+        paddingHorizontal: theme.spacing.lg,
         alignItems: 'center',
-        borderBottomLeftRadius: 30,
-        borderBottomRightRadius: 30,
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
+        borderBottomLeftRadius: moderateScale(30),
+        borderBottomRightRadius: moderateScale(30),
+        ...theme.shadows.medium,
     },
     headerTitle: {
-        fontSize: 28,
+        fontSize: theme.fonts.h1,
         fontWeight: '700',
         color: '#fff',
-        marginTop: 15,
+        marginTop: theme.spacing.md,
     },
     headerSubtitle: {
-        fontSize: 16,
+        fontSize: theme.fonts.body,
         color: '#fff',
         opacity: 0.9,
-        marginTop: 5,
+        marginTop: theme.spacing.xs,
     },
     content: {
         flex: 1,

@@ -1,12 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { moderateScale, fontScale } from '../../utils/responsive';
+import { theme } from '../../utils/theme';
 
-/**
- * Item de categoria com medalha e valor
- * @param {string} category - Nome da categoria
- * @param {number} total - Valor total gasto
- * @param {number} index - Índice para determinar a medalha (0=🥇, 1=🥈, 2=🥉)
- */
 export const CategoryItem = ({ category, total, index }) => {
     const medals = ['🥇', '🥈', '🥉'];
     const medal = medals[index] || '🏅';
@@ -15,7 +11,7 @@ export const CategoryItem = ({ category, total, index }) => {
         <View style={styles.categoryItem}>
             <View style={styles.categoryLeft}>
                 <Text style={styles.categoryMedal}>{medal}</Text>
-                <Text style={styles.categoryName}>{category}</Text>
+                <Text style={styles.categoryName} numberOfLines={1}>{category}</Text>
             </View>
             <Text style={styles.categoryValue}>R$ {total.toFixed(2)}</Text>
         </View>
@@ -27,26 +23,29 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 12,
+        paddingVertical: theme.spacing.md,
         borderBottomWidth: 1,
         borderBottomColor: '#f0f0f0',
     },
     categoryLeft: {
         flexDirection: 'row',
         alignItems: 'center',
+        flex: 1,
+        marginRight: theme.spacing.sm,
     },
     categoryMedal: {
-        fontSize: 24,
-        marginRight: 12,
+        fontSize: fontScale(24),
+        marginRight: theme.spacing.md,
     },
     categoryName: {
-        fontSize: 16,
+        fontSize: theme.fonts.body,
         fontWeight: '600',
-        color: '#333',
+        color: theme.colors.text,
+        flex: 1,
     },
     categoryValue: {
-        fontSize: 16,
+        fontSize: theme.fonts.body,
         fontWeight: 'bold',
-        color: '#667eea',
+        color: theme.colors.primary,
     },
 });

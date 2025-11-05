@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { CategoryItem } from './CategoryItem';
+import { fontScale } from '../../utils/responsive';
+import { theme } from '../../utils/theme';
 
 /**
  * Seção de top categorias
@@ -32,27 +34,23 @@ const styles = StyleSheet.create({
     section: {
         width: '100%',
         backgroundColor: '#fff',
-        borderRadius: 20,
-        padding: 20,
-        marginBottom: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
+        borderRadius: theme.radius.xl,
+        padding: theme.spacing.lg,
+        marginBottom: theme.spacing.lg,
+        ...theme.shadows.medium,
     },
     sectionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 15,
+        marginBottom: theme.spacing.md,
     },
     sectionTitle: {
-        fontSize: 20,
+        fontSize: fontScale(20),
         fontWeight: 'bold',
-        color: '#333',
+        color: theme.colors.text,
     },
     categoriesList: {
-        marginTop: 5,
+        marginTop: theme.spacing.xs,
     },
 });

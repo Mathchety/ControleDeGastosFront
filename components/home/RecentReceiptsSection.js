@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RecentReceiptItem } from './RecentReceiptItem';
+import { moderateScale, fontScale } from '../../utils/responsive';
+import { theme } from '../../utils/theme';
 
 /**
  * Seção de notas recentes
@@ -34,7 +36,7 @@ export const RecentReceiptsSection = ({
                 </View>
             ) : receipts.length === 0 ? (
                 <View style={styles.emptyContainer}>
-                    <Ionicons name="receipt-outline" size={64} color="#ccc" />
+                    <Ionicons name="receipt-outline" size={moderateScale(64)} color="#ccc" />
                     <Text style={styles.emptyText}>Nenhuma nota fiscal ainda</Text>
                     <Text style={styles.emptySubtext}>Escaneie seu primeiro QR Code!</Text>
                 </View>
@@ -60,7 +62,7 @@ export const RecentReceiptsSection = ({
                     {receipts.length >= 3 && (
                         <TouchableOpacity style={styles.viewAllButton} onPress={onViewAll}>
                             <Text style={styles.viewAllText}>Ver todas as notas</Text>
-                            <Ionicons name="arrow-forward" size={18} color="#667eea" />
+                            <Ionicons name="arrow-forward" size={theme.iconSizes.md} color={theme.colors.primary} />
                         </TouchableOpacity>
                     )}
                 </>
@@ -72,65 +74,61 @@ export const RecentReceiptsSection = ({
 const styles = StyleSheet.create({
     section: {
         backgroundColor: '#fff',
-        borderRadius: 20,
-        padding: 20,
-        marginBottom: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
+        borderRadius: theme.radius.xl,
+        padding: theme.spacing.lg,
+        marginBottom: theme.spacing.lg,
+        ...theme.shadows.medium,
     },
     sectionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 15,
+        marginBottom: theme.spacing.md,
     },
     sectionTitle: {
-        fontSize: 20,
+        fontSize: fontScale(20),
         fontWeight: 'bold',
-        color: '#333',
+        color: theme.colors.text,
     },
     loadingContainer: {
-        padding: 40,
+        padding: moderateScale(40),
         alignItems: 'center',
     },
     loadingText: {
-        fontSize: 16,
-        color: '#999',
+        fontSize: theme.fonts.body,
+        color: theme.colors.textLight,
     },
     emptyContainer: {
-        padding: 40,
+        padding: moderateScale(40),
         alignItems: 'center',
     },
     emptyText: {
-        fontSize: 18,
+        fontSize: fontScale(18),
         fontWeight: '600',
-        color: '#666',
-        marginTop: 15,
+        color: theme.colors.textSecondary,
+        marginTop: theme.spacing.md,
     },
     emptySubtext: {
-        fontSize: 14,
-        color: '#999',
-        marginTop: 5,
+        fontSize: theme.fonts.body,
+        color: theme.colors.textLight,
+        marginTop: theme.spacing.xs,
     },
     receiptsList: {
-        marginTop: 5,
+        marginTop: theme.spacing.xs,
     },
     viewAllButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 15,
-        paddingVertical: 12,
-        borderRadius: 10,
+        marginTop: theme.spacing.md,
+        paddingVertical: theme.spacing.md,
+        borderRadius: theme.radius.sm,
         backgroundColor: '#f0f0ff',
     },
     viewAllText: {
-        fontSize: 15,
+        fontSize: fontScale(15),
         fontWeight: '600',
-        color: '#667eea',
-        marginRight: 8,
+        color: theme.colors.primary,
+        marginRight: theme.spacing.xs,
     },
 });

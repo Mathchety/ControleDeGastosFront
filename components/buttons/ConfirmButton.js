@@ -2,13 +2,9 @@ import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { moderateScale, fontScale } from '../../utils/responsive';
+import { theme } from '../../utils/theme';
 
-/**
- * Botão de confirmar (usado na tela de preview)
- * @param {function} onPress - Função ao pressionar
- * @param {string} title - Texto do botão (padrão: "Confirmar e Salvar")
- * @param {object} style - Estilos adicionais
- */
 export const ConfirmButton = ({ onPress, title = 'Confirmar e Salvar', style }) => (
     <TouchableOpacity 
         style={[styles.confirmButton, style]}
@@ -19,7 +15,7 @@ export const ConfirmButton = ({ onPress, title = 'Confirmar e Salvar', style }) 
             colors={['#667eea', '#764ba2']}
             style={styles.confirmButtonGradient}
         >
-            <Ionicons name="checkmark-circle" size={24} color="#fff" />
+            <Ionicons name="checkmark-circle" size={theme.iconSizes.lg} color="#fff" />
             <Text style={styles.confirmButtonText}>{title}</Text>
         </LinearGradient>
     </TouchableOpacity>
@@ -27,25 +23,21 @@ export const ConfirmButton = ({ onPress, title = 'Confirmar e Salvar', style }) 
 
 const styles = StyleSheet.create({
     confirmButton: {
-        borderRadius: 15,
+        borderRadius: theme.radius.lg,
         overflow: 'hidden',
-        shadowColor: '#667eea',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 6,
+        ...theme.shadows.medium,
     },
     confirmButtonGradient: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 18,
-        paddingHorizontal: 24,
-        gap: 10,
+        paddingVertical: moderateScale(18),
+        paddingHorizontal: moderateScale(24),
+        gap: theme.spacing.sm,
     },
     confirmButtonText: {
         color: '#fff',
-        fontSize: 18,
+        fontSize: fontScale(18),
         fontWeight: '700',
     },
 });

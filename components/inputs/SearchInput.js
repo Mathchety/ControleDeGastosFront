@@ -1,27 +1,22 @@
 import React from 'react';
 import { View, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { moderateScale } from '../../utils/responsive';
+import { theme } from '../../utils/theme';
 
-/**
- * Input de busca
- * @param {string} value - Valor do input
- * @param {function} onChangeText - Função de mudança
- * @param {string} placeholder - Placeholder do input
- * @param {object} style - Estilos adicionais
- */
 export const SearchInput = ({ value, onChangeText, placeholder = 'Buscar...', style }) => (
     <View style={[styles.searchContainer, style]}>
-        <Ionicons name="search-outline" size={20} color="#999" style={styles.searchIcon} />
+        <Ionicons name="search-outline" size={theme.iconSizes.md} color={theme.colors.textLight} style={styles.searchIcon} />
         <TextInput
             style={styles.searchInput}
             placeholder={placeholder}
-            placeholderTextColor="#999"
+            placeholderTextColor={theme.colors.textLight}
             value={value}
             onChangeText={onChangeText}
         />
         {value !== '' && (
             <TouchableOpacity onPress={() => onChangeText('')}>
-                <Ionicons name="close-circle" size={20} color="#999" />
+                <Ionicons name="close-circle" size={theme.iconSizes.md} color={theme.colors.textLight} />
             </TouchableOpacity>
         )}
     </View>
@@ -32,16 +27,16 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#f8f9fa',
-        borderRadius: 12,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
+        borderRadius: theme.radius.md,
+        paddingHorizontal: theme.spacing.md,
+        paddingVertical: theme.spacing.sm,
     },
     searchIcon: {
-        marginRight: 8,
+        marginRight: theme.spacing.xs,
     },
     searchInput: {
         flex: 1,
-        fontSize: 15,
-        color: '#333',
+        fontSize: theme.fonts.body,
+        color: theme.colors.text,
     },
 });

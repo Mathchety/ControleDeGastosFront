@@ -2,24 +2,17 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AnimatedCard } from './AnimatedCard';
+import { moderateScale, fontScale } from '../../utils/responsive';
+import { theme } from '../../utils/theme';
 
-/**
- * Card de estatística
- * @param {string} icon - Nome do ícone (Ionicons)
- * @param {string} title - Título do stat
- * @param {string} value - Valor do stat
- * @param {string} color - Cor do ícone
- * @param {number} delay - Delay da animação
- * @param {function} onPress - Função ao pressionar
- */
 export const StatCard = ({ icon, title, value, color, delay = 0, onPress }) => (
     <AnimatedCard delay={delay} style={styles.statCard}>
         <TouchableOpacity onPress={onPress} disabled={!onPress} style={styles.statCardContent}>
             <View style={[styles.statIconContainer, { backgroundColor: color + '20' }]}>
-                <Ionicons name={icon} size={28} color={color} />
+                <Ionicons name={icon} size={theme.iconSizes.lg} color={color} />
             </View>
-            <Text style={styles.statValue}>{value}</Text>
-            <Text style={styles.statTitle}>{title}</Text>
+            <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+            <Text style={styles.statTitle} numberOfLines={2}>{title}</Text>
         </TouchableOpacity>
     </AnimatedCard>
 );
@@ -27,29 +20,29 @@ export const StatCard = ({ icon, title, value, color, delay = 0, onPress }) => (
 const styles = StyleSheet.create({
     statCard: {
         flex: 1,
-        marginHorizontal: 5,
-        padding: 15,
+        marginHorizontal: moderateScale(5),
+        padding: moderateScale(12),
     },
     statCardContent: {
         alignItems: 'center',
     },
     statIconContainer: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
+        width: moderateScale(48),
+        height: moderateScale(48),
+        borderRadius: moderateScale(24),
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 10,
+        marginBottom: theme.spacing.sm,
     },
     statValue: {
-        fontSize: 18,
+        fontSize: theme.fonts.h4,
         fontWeight: 'bold',
-        color: '#333',
-        marginBottom: 5,
+        color: theme.colors.text,
+        marginBottom: theme.spacing.xs,
     },
     statTitle: {
-        fontSize: 11,
-        color: '#666',
+        fontSize: theme.fonts.caption,
+        color: theme.colors.textSecondary,
         textAlign: 'center',
     },
 });

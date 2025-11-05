@@ -9,7 +9,7 @@ import { BackButton } from '../buttons';
  */
 export const PreviewHeader = ({ onBack, title = 'Preview da Nota' }) => (
     <View style={styles.header}>
-        <BackButton onPress={onBack} />
+        <BackButton onPress={onBack} color="#fff" />
         <Text style={styles.headerTitle}>{title}</Text>
         <View style={{ width: 40 }} />
     </View>
@@ -22,13 +22,13 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 20,
         paddingVertical: 15,
-        backgroundColor: '#fff',
-        borderBottomWidth: 1,
-        borderBottomColor: '#e5e7eb',
+        backgroundColor: 'transparent',
+        borderRadius: 15,
     },
     headerTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#333',
+        color: '#fff',
+        
     },
 });
