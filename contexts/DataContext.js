@@ -238,7 +238,7 @@ export const DataProvider = ({ children }) => {
 
     /**
      * Busca receipts por período
-     * GET /receipts-basic/period?startDate={start}&endDate={end}
+     * GET /receipts-basic/period?start_date={start}&end_date={end}
      * @param {string} startDate - Data inicial no formato YYYY-MM-DD
      * @param {string} endDate - Data final no formato YYYY-MM-DD
      */
@@ -247,7 +247,8 @@ export const DataProvider = ({ children }) => {
             setLoading(true);
             console.log(`[Data] Buscando receipts do período ${startDate} a ${endDate}...`);
             
-            const response = await httpClient.get(`/receipts-basic/period?startDate=${startDate}&endDate=${endDate}`);
+            // Backend espera start_date e end_date (com underscore)
+            const response = await httpClient.get(`/receipts-basic/period?start_date=${startDate}&end_date=${endDate}`);
             
             let receiptsData = [];
             if (Array.isArray(response)) {
@@ -369,6 +370,62 @@ export const DataProvider = ({ children }) => {
         setPreviewData(null);
     };
 
+    /**
+     * Busca dados do gráfico de categorias
+     * GET /categories/graph
+     * @param {Date} startDate - Data inicial (opcional)
+     * @param {Date} endDate - Data final (opcional)
+     */
+    const fetchCategoriesGraph = async (startDate = null, endDate = null) => {
+        try {
+            setLoading(true);
+            console.log('[Data] Buscando dados do gráfico de categorias...');
+            
+            let url = '/categories/graph';
+            
+            // Adiciona filtros de data se fornecidos
+            if (startDate && endDate) {
+                const formatDate = (date) => {
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                };
+                
+                const start = formatDate(startDate);
+                const end = formatDate(endDate);
+                url = `/categories/graph?start_date=${start}&end_date=${end}`;
+                console.log('[Data] Filtro de período:', start, 'até', end);
+            }
+            
+            const response = await httpClient.get(url);
+            
+            console.log('[Data] Resposta /categories/graph:', JSON.stringify(response).substring(0, 300));
+            
+            let categoriesData = [];
+            
+            // Tenta diferentes formatos de resposta
+            if (response && response.data && response.data.categories) {
+                categoriesData = response.data.categories;
+            } else if (response && response.categories) {
+                categoriesData = response.categories;
+            } else if (Array.isArray(response)) {
+                categoriesData = response;
+            }
+            
+            // Filtra categorias com total > 0
+            const filteredCategories = categoriesData.filter(cat => cat.total > 0);
+            
+            console.log('[Data] Categorias com valores:', filteredCategories.length);
+            return filteredCategories;
+        } catch (error) {
+            console.error('[Data] Erro ao buscar gráfico de categorias:', error);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    };
+
 
 
     return (
@@ -386,6 +443,7 @@ export const DataProvider = ({ children }) => {
                 fetchReceiptById,
                 deleteReceipt,
                 clearPreview,
+                fetchCategoriesGraph,
                 dateList,
                 itemCountList,
                 storeNameList,

@@ -6,8 +6,11 @@ import {
     RefreshControl,
     Platform,
     StatusBar,
+    TouchableOpacity,
+    Text,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { ScanButton } from '../components/buttons';
@@ -24,11 +27,18 @@ export default function HomeScreen({ navigation }) {
     const { receipts, loading, fetchReceiptsBasic, fetchReceiptsByPeriod, dateList, itemCountList, storeNameList, isProcessingReceipt } = useData();
     const [refreshing, setRefreshing] = useState(false);
     const [monthSpent, setMonthSpent] = useState(0);
+    const insets = useSafeAreaInsets();
 
     useEffect(() => {
         loadData();
-        loadMonthlyTotal();
     }, []);
+
+    useEffect(() => {
+        // Recalcula o total mensal sempre que receipts mudar
+        if (receipts.length > 0) {
+            loadMonthlyTotal();
+        }
+    }, [receipts]);
 
     const loadData = async () => {
         try {
@@ -55,8 +65,17 @@ export default function HomeScreen({ navigation }) {
             const startDate = formatDate(firstDayOfMonth);
             const endDate = formatDate(today);
             
-            const monthReceipts = await fetchReceiptsByPeriod(startDate, endDate);
+            console.log('[Home] Calculando total mensal de', startDate, 'até', endDate);
+            
+            // Calcula localmente sem sobrescrever o estado global
+            const monthReceipts = receipts.filter(r => {
+                const receiptDate = new Date(r.date);
+                const receiptDateStr = formatDate(receiptDate);
+                return receiptDateStr >= startDate && receiptDateStr <= endDate;
+            });
+            
             const total = monthReceipts.reduce((sum, r) => sum + parseFloat(r.total || 0), 0);
+            console.log('[Home] Total mensal calculado:', total, 'de', monthReceipts.length, 'notas');
             setMonthSpent(total);
         } catch (error) {
             console.error('Erro ao calcular total do mês:', error);
@@ -98,9 +117,12 @@ export default function HomeScreen({ navigation }) {
                 translucent={false}
             />
             
-            <HomeHeader 
-                userName={user?.name}
-            />
+            {/* Header fixo com zIndex alto para ficar na frente */}
+            <View style={styles.headerContainer}>
+                <HomeHeader 
+                    userName={user?.name}
+                />
+            </View>
 
             {/* Notificação de processamento */}
             <ProcessingNotification 
@@ -110,6 +132,9 @@ export default function HomeScreen({ navigation }) {
 
             <ScrollView 
                 style={styles.content}
+                contentContainerStyle={{ 
+                    paddingTop: insets.top + 95, // Espaço dinâmico baseado na safe area + altura do header (reduzido)
+                }}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -123,6 +148,12 @@ export default function HomeScreen({ navigation }) {
 
                 <TopCategoriesSection categories={topCategories} />
 
+                <ScanButton 
+                    title="Escanear Nova Nota"
+                    onPress={() => navigation.navigate('Scan')}
+                    style={styles.addButton}
+                />
+
                 <RecentReceiptsSection 
                     loading={loading}
                     receipts={receipts}
@@ -133,11 +164,16 @@ export default function HomeScreen({ navigation }) {
                     onViewAll={() => navigation.navigate('History')}
                 />
 
-                <ScanButton 
-                    title="Escanear Nova Nota"
-                    onPress={() => navigation.navigate('Scan')}
-                    style={styles.addButton}
-                />
+                {/* Botão para ver gráficos */}
+                <TouchableOpacity 
+                    style={styles.graphicsButton}
+                    onPress={() => navigation.navigate('GraphicsScreenTest')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="bar-chart" size={24} color="#667eea" />
+                    <Text style={styles.graphicsButtonText}>Ver Análise de Gastos</Text>
+                    <Ionicons name="arrow-forward" size={20} color="#667eea" />
+                </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>
     );
@@ -148,13 +184,43 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#f8f9fa',
     },
+    headerContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 10,
+        elevation: 10,
+        overflow: 'hidden',
+    },
     content: {
         flex: 1,
         paddingHorizontal: 20,
-        marginTop: -20,
     },
     addButton: {
-        marginBottom: 30,
+        marginBottom: 20,
         marginTop: 10,
+    },
+    graphicsButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#fff',
+        padding: 16,
+        borderRadius: 15,
+        marginBottom: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    graphicsButtonText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#667eea',
+        marginLeft: 10,
+        marginRight: 10,
+        flex: 1,
     },
 });

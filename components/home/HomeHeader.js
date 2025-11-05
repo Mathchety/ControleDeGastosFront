@@ -23,7 +23,7 @@ export const HomeHeader = ({ userName }) => (
 const styles = StyleSheet.create({
     header: {
         paddingTop: Platform.OS === 'android' ? 20 : 50,
-        paddingBottom: 30,
+        paddingBottom: 25,
         paddingHorizontal: 20,
         borderBottomLeftRadius: 30,
         borderBottomRightRadius: 30,

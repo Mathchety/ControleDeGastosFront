@@ -35,6 +35,7 @@ const styles = StyleSheet.create({
     statsContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 20,
+        /* marginBottom: 5, */
+        marginTop: 20
     },
 });

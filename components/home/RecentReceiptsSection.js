@@ -57,7 +57,7 @@ export const RecentReceiptsSection = ({
                         ))}
                     </View>
                     
-                    {receipts.length > 3 && (
+                    {receipts.length >= 3 && (
                         <TouchableOpacity style={styles.viewAllButton} onPress={onViewAll}>
                             <Text style={styles.viewAllText}>Ver todas as notas</Text>
                             <Ionicons name="arrow-forward" size={18} color="#667eea" />
