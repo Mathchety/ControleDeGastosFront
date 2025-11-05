@@ -1,20 +1,20 @@
 import React from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { moderateScale, fontScale, verticalScale } from '../../utils/responsive';
 import { theme } from '../../utils/theme';
 
-export const HomeHeader = ({ userName }) => (
+export const HomeHeader = ({ userName, opacity }) => (
     <LinearGradient
         colors={['#667eea', '#764ba2']}
         style={styles.header}
     >
-        <View style={styles.headerContent}>
+        <Animated.View style={[styles.headerContent, { opacity: opacity || 1 }]}>
             <View>
                 <Text style={styles.greeting}>Olá, 👋</Text>
                 <Text style={styles.userName}>{userName || 'Usuário'}</Text>
             </View>
-        </View>
+        </Animated.View>
     </LinearGradient>
 );
 

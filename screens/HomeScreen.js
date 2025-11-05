@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
     View, 
     Text,
@@ -8,6 +8,7 @@ import {
     Platform,
     StatusBar,
     TouchableOpacity,
+    Animated,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,6 +32,12 @@ export default function HomeScreen({ navigation }) {
     const [monthSpent, setMonthSpent] = useState(0);
     const [allReceipts, setAllReceipts] = useState([]); // Estado local para não ser afetado por filtros
     const insets = useSafeAreaInsets();
+    
+    // Animação do header
+    const scrollY = useRef(new Animated.Value(0)).current;
+    const HEADER_MAX_HEIGHT = 140;
+    const HEADER_MIN_HEIGHT = 70;
+    const HEADER_SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
 
     useEffect(() => {
         loadData();
@@ -103,6 +110,20 @@ export default function HomeScreen({ navigation }) {
         .sort((a, b) => b[1] - a[1])
         .slice(0, 3);
 
+    // Animação da altura do header
+    const headerHeight = scrollY.interpolate({
+        inputRange: [0, HEADER_SCROLL_DISTANCE],
+        outputRange: [HEADER_MAX_HEIGHT, HEADER_MIN_HEIGHT],
+        extrapolate: 'clamp',
+    });
+
+    // Animação da opacidade do texto
+    const headerOpacity = scrollY.interpolate({
+        inputRange: [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
+        outputRange: [1, 0.5, 0],
+        extrapolate: 'clamp',
+    });
+
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             <StatusBar 
@@ -111,12 +132,13 @@ export default function HomeScreen({ navigation }) {
                 translucent={false}
             />
             
-            {/* Header fixo com zIndex alto para ficar na frente */}
-            <View style={styles.headerContainer}>
+            {/* Header animado com zIndex alto para ficar na frente */}
+            <Animated.View style={[styles.headerContainer, { height: headerHeight }]}>
                 <HomeHeader 
                     userName={user?.name}
+                    opacity={headerOpacity}
                 />
-            </View>
+            </Animated.View>
 
             {/* Notificação de processamento */}
             <ProcessingNotification 
@@ -124,12 +146,17 @@ export default function HomeScreen({ navigation }) {
                 message="A IA está categorizando sua nota fiscal..."
             />
 
-            <ScrollView 
+            <Animated.ScrollView 
                 style={styles.content}
                 contentContainerStyle={{ 
-                    paddingTop: insets.top + 90, // Espaço dinâmico baseado na safe area + altura do header
+                    paddingTop: HEADER_MAX_HEIGHT, // Espaço para o header
                 }}
                 showsVerticalScrollIndicator={false}
+                scrollEventThrottle={16}
+                onScroll={Animated.event(
+                    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                    { useNativeDriver: false }
+                )}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
                 }
@@ -171,7 +198,7 @@ export default function HomeScreen({ navigation }) {
                     onPress={() => navigation.navigate('Scan')}
                     style={styles.addButton}
                 />
-            </ScrollView>
+            </Animated.ScrollView>
         </SafeAreaView>
     );
 }
