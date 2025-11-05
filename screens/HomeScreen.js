@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { 
     View, 
+    Text,
     StyleSheet, 
     ScrollView, 
     RefreshControl,
     Platform,
     StatusBar,
+    TouchableOpacity,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { ScanButton } from '../components/buttons';
@@ -26,6 +30,7 @@ export default function HomeScreen({ navigation }) {
     const [refreshing, setRefreshing] = useState(false);
     const [monthSpent, setMonthSpent] = useState(0);
     const [allReceipts, setAllReceipts] = useState([]); // Estado local para não ser afetado por filtros
+    const insets = useSafeAreaInsets();
 
     useEffect(() => {
         loadData();
@@ -99,16 +104,19 @@ export default function HomeScreen({ navigation }) {
         .slice(0, 3);
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top']}>
             <StatusBar 
                 barStyle="light-content" 
-                backgroundColor="transparent" 
-                translucent={true}
+                backgroundColor="#667eea" 
+                translucent={false}
             />
             
-            <HomeHeader 
-                userName={user?.name}
-            />
+            {/* Header fixo com zIndex alto para ficar na frente */}
+            <View style={styles.headerContainer}>
+                <HomeHeader 
+                    userName={user?.name}
+                />
+            </View>
 
             {/* Notificação de processamento */}
             <ProcessingNotification 
@@ -118,6 +126,9 @@ export default function HomeScreen({ navigation }) {
 
             <ScrollView 
                 style={styles.content}
+                contentContainerStyle={{ 
+                    paddingTop: insets.top + 90, // Espaço dinâmico baseado na safe area + altura do header
+                }}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -141,13 +152,27 @@ export default function HomeScreen({ navigation }) {
                     onViewAll={() => navigation.navigate('History')}
                 />
 
+                {/* Botão para acessar a tela de gráficos */}
+                <TouchableOpacity 
+                    style={styles.graphicsButton}
+                    onPress={() => navigation.navigate('GraphicsScreenTest')}
+                >
+                    <View style={styles.graphicsButtonContent}>
+                        <View style={styles.graphicsButtonLeft}>
+                            <Ionicons name="bar-chart" size={24} color={theme.colors.primary} />
+                            <Text style={styles.graphicsButtonText}>Ver Análise de Gastos</Text>
+                        </View>
+                        <Ionicons name="arrow-forward" size={20} color="#666" />
+                    </View>
+                </TouchableOpacity>
+
                 <ScanButton 
                     title="Escanear Nova Nota"
                     onPress={() => navigation.navigate('Scan')}
                     style={styles.addButton}
                 />
             </ScrollView>
-        </View>
+        </SafeAreaView>
     );
 }
 
@@ -156,10 +181,45 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#f8f9fa',
     },
+    headerContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 10,
+        elevation: 10,
+        overflow: 'hidden',
+    },
     content: {
         flex: 1,
         paddingHorizontal: theme.spacing.lg,
-        marginTop: moderateScale(-20),
+    },
+    graphicsButton: {
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: moderateScale(16),
+        marginTop: theme.spacing.md,
+        marginBottom: theme.spacing.md,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    graphicsButtonContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    graphicsButtonLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    graphicsButtonText: {
+        fontSize: moderateScale(16),
+        fontWeight: '600',
+        color: '#333',
     },
     addButton: {
         marginBottom: moderateScale(30),

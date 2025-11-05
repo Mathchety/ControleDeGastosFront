@@ -20,8 +20,8 @@ export const HomeHeader = ({ userName }) => (
 
 const styles = StyleSheet.create({
     header: {
-        paddingTop: moderateScale(60),
-        paddingBottom: moderateScale(30),
+        paddingTop: Platform.OS === 'android' ? 20 : 50,
+        paddingBottom: 20,
         paddingHorizontal: theme.spacing.lg,
         borderBottomLeftRadius: moderateScale(30),
         borderBottomRightRadius: moderateScale(30),

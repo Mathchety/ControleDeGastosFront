@@ -245,6 +245,49 @@ export const DataProvider = ({ children }) => {
         }
     };
 
+    // Busca dados de categorias para gráfico - GET /categories/graph
+    const fetchCategoriesGraph = async (startDate, endDate) => {
+        try {
+            setLoading(true);
+            
+            // Formata as datas para YYYY-MM-DD
+            const formatDate = (date) => {
+                const d = new Date(date);
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
+            const start = formatDate(startDate);
+            const end = formatDate(endDate);
+
+            const response = await httpClient.get(`/categories/graph?start_date=${start}&end_date=${end}`);
+            
+            // Normaliza a resposta
+            let categoriesData = [];
+            if (response?.categories && Array.isArray(response.categories)) {
+                categoriesData = response.categories;
+            } else if (response?.data?.categories && Array.isArray(response.data.categories)) {
+                categoriesData = response.data.categories;
+            } else if (Array.isArray(response)) {
+                categoriesData = response;
+            } else if (Array.isArray(response?.data)) {
+                categoriesData = response.data;
+            }
+
+            // Filtra categorias com total > 0
+            const filteredCategories = categoriesData.filter(cat => cat.total > 0);
+            
+            return filteredCategories;
+        } catch (error) {
+            console.error('[Data] Erro ao buscar dados do gráfico de categorias:', error);
+            return [];
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const clearPreview = () => setPreviewData(null);
 
     return (
@@ -260,6 +303,7 @@ export const DataProvider = ({ children }) => {
                 fetchReceiptsByDate,
                 fetchReceiptsByPeriod,
                 fetchReceiptById,
+                fetchCategoriesGraph,
                 deleteReceipt,
                 clearPreview,
                 dateList,
