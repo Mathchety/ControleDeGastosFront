@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Text, View, StyleSheet, Button, ActivityIndicator, Alert, Animated, Easing } from 'react-native';
+import { Text, View, StyleSheet, Button, ActivityIndicator, Alert, Animated, Easing, Platform, StatusBar } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../contexts/DataContext';
@@ -10,10 +10,10 @@ export default function ScanScreen({ navigation }) {
   const [scannedData, setScannedData] = useState(null);
   const [localLoading, setLocalLoading] = useState(false);
 
-  const { loading: contextLoading } = useData();
+  const { loading: contextLoading, previewQRCode } = useData();
   const loading = contextLoading || localLoading;
 
-  // animação da tela de scan (fecha a câmera)
+  // Animação da tela de scan (fecha a câmera)
   const screenAnim = useRef(new Animated.Value(1)).current; // 1 = aberto, 0 = fechado
 
   useEffect(() => {
@@ -33,26 +33,51 @@ export default function ScanScreen({ navigation }) {
     return unsubscribe;
   }, [navigation]);
 
-  // ao ler o QR: anima a tela de scan fechando e navega para Preview (loading será mostrado na tela Preview)
-  const handleBarCodeScanned = ({ data }) => {
+  // Ao ler o QR: processa e navega para Preview
+  const handleBarCodeScanned = async ({ data }) => {
     if (scanned || loading) return;
+    
     setScanned(true);
     setScannedData(data);
+    setLocalLoading(true);
 
-    // anima a "fechadura" da tela: diminui e some
-    Animated.timing(screenAnim, {
-      toValue: 0,
-      duration: 300,
-      easing: Easing.in(Easing.cubic),
-      useNativeDriver: true,
-    }).start(() => {
-      // navega direto para preview sem mostrar loading aqui
-      // Preview mostrará o loading enquanto chama previewQRCode
-      navigation.navigate('Preview', { qrLink: data });
-    });
+    try {
+      // Anima a "fechadura" da tela: diminui e some
+      Animated.timing(screenAnim, {
+        toValue: 0,
+        duration: 300,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+
+      // Chama o preview
+      console.log('[Scan] QR Code lido:', data);
+      const previewData = await previewQRCode(data);
+      console.log('[Scan] Preview recebido');
+
+      // Navega para tela de preview com os dados
+      navigation.navigate('Preview', { 
+        previewData,
+        qrLink: data 
+      });
+
+      setLocalLoading(false);
+    } catch (error) {
+      setLocalLoading(false);
+      setScanned(false);
+      screenAnim.setValue(1);
+      Alert.alert('Erro', error.message || 'Não foi possível processar a nota fiscal');
+      console.error('[Scan] Erro:', error);
+    }
   };
 
-  if (!permission) return <View style={styles.centerContainer}><ActivityIndicator size="large" /></View>;
+  if (!permission) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   if (!permission.granted) {
     return (
@@ -64,7 +89,7 @@ export default function ScanScreen({ navigation }) {
     );
   }
 
-  // interpolations para animar a tela inteira de camera/overlay
+  // Interpolations para animar a tela inteira de camera/overlay
   const interpolatedStyle = {
     opacity: screenAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
     transform: [
@@ -75,6 +100,12 @@ export default function ScanScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor="transparent" 
+        translucent={true}
+      />
+      
       <Animated.View style={[StyleSheet.absoluteFillObject, interpolatedStyle]}>
         <CameraView
           style={StyleSheet.absoluteFillObject}
@@ -93,25 +124,9 @@ export default function ScanScreen({ navigation }) {
               <View style={[styles.corner, styles.cornerTR]} />
               <View style={[styles.corner, styles.cornerBL]} />
               <View style={[styles.corner, styles.cornerBR]} />
-
-              {loading && (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color="#fff" />
-                  <Text style={styles.loadingText}>Processando...</Text>
-                </View>
-              )}
             </View>
 
-            <Text style={styles.instructionText}>
-              {loading ? 'Aguarde, processando nota...' : 'Posicione o QR Code no centro'}
-            </Text>
-          </View>
-
-          <View style={styles.footer}>
-            <View style={styles.infoCard}>
-              <Ionicons name="information-circle" size={20} color="#333" />
-              <Text style={styles.infoText}>O QR Code está no rodapé da NFC-e</Text>
-            </View>
+           
           </View>
         </View>
       </Animated.View>
@@ -120,45 +135,103 @@ export default function ScanScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  message: { marginVertical: 16, textAlign: 'center', color: '#fff' },
-
-  overlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'space-between' },
-  header: { height: 60, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', paddingHorizontal: 16 },
-  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '600' },
-
-  scannerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  message: {
+    textAlign: 'center',
+    paddingHorizontal: 20,
+    fontSize: 16,
+    color: '#666',
+    marginTop: 20,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  header: {
+    paddingTop: Platform.OS === 'android' ? 50 : 60,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
+  },
+  scannerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
   scannerFrame: {
-    width: 300,
-    height: 300,
-    borderRadius: 8,
+    width: 250,
+    height: 250,
+    position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
   },
   corner: {
     position: 'absolute',
-    width: 30,
-    height: 30,
-    borderColor: '#fff',
+    width: 40,
+    height: 40,
+    borderColor: '#667eea',
+    borderWidth: 4,
   },
-  cornerTL: { top: 0, left: 0, borderLeftWidth: 4, borderTopWidth: 4 },
-  cornerTR: { top: 0, right: 0, borderRightWidth: 4, borderTopWidth: 4 },
-  cornerBL: { bottom: 0, left: 0, borderLeftWidth: 4, borderBottomWidth: 4 },
-  cornerBR: { bottom: 0, right: 0, borderRightWidth: 4, borderBottomWidth: 4 },
-
+  cornerTL: {
+    top: 0,
+    left: 0,
+    borderRightWidth: 0,
+    borderBottomWidth: 0,
+  },
+  cornerTR: {
+    top: 0,
+    right: 0,
+    borderLeftWidth: 0,
+    borderBottomWidth: 0,
+  },
+  cornerBL: {
+    bottom: 0,
+    left: 0,
+    borderRightWidth: 0,
+    borderTopWidth: 0,
+  },
+  cornerBR: {
+    bottom: 0,
+    right: 0,
+    borderLeftWidth: 0,
+    borderTopWidth: 0,
+  },
   loadingContainer: {
-    position: 'absolute',
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    padding: 12,
-    borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  loadingText: { color: '#fff', marginTop: 8 },
-
-  instructionText: { color: '#fff', marginTop: 16, textAlign: 'center', fontSize: 14 },
-
-  footer: { height: 100, justifyContent: 'center', alignItems: 'center' },
-  infoCard: { backgroundColor: '#fff', padding: 10, borderRadius: 8, flexDirection: 'row', alignItems: 'center' },
-  infoText: { marginLeft: 8, color: '#333' },
+  loadingText: {
+    color: '#fff',
+    fontSize: 16,
+    marginTop: 10,
+    fontWeight: '600',
+  },
+  instructionText: {
+    marginTop: 30,
+    fontSize: 16,
+    color: '#fff',
+    textAlign: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
 });
