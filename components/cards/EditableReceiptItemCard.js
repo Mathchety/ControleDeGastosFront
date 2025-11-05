@@ -11,13 +11,36 @@ import { PrimaryButton, SecondaryButton } from '../buttons';
  * @param {Function} onUpdate - Callback quando item é atualizado
  * @param {Function} onDelete - Callback quando item é deletado
  */
-export default function EditableReceiptItemCard({ item, itemIndex, onUpdate, onDelete }) {
+export default function EditableReceiptItemCard({ item, itemIndex, onUpdate, onDelete, readOnly }) {
     const [expanded, setExpanded] = useState(false);
+    
+    // Debug: Log do item recebido
+    console.log(`[EditableCard] Item ${itemIndex}:`, {
+        hasProduct: !!item.product,
+        productName: item.product?.name,
+        hasCategory: !!item.category,
+        categoryName: item.category?.name,
+        description: item.description,
+        rawItem: JSON.stringify(item).substring(0, 200)
+    });
+    
+    // Extrai o nome do produto e categoria da nova estrutura
+    const productName = item.product?.name || item.description || '';
+    const categoryName = item.category?.name || item.categoryName || '';
+    const unity = item.product?.unity || item.unit || 'UN';
+    
+    console.log(`[EditableCard] Dados processados:`, {
+        productName,
+        categoryName,
+        unity
+    });
+    
     const [editedItem, setEditedItem] = useState({
-        description: item.description || '',
+        description: productName,
         quantity: item.quantity?.toString() || '1',
         unitPrice: item.unitPrice?.toString() || '0',
-        unit: item.unit || 'UN',
+        unit: unity,
+        categoryName: categoryName,
     });
 
     const isKg = editedItem.unit?.toUpperCase() === 'KG';
@@ -47,10 +70,11 @@ export default function EditableReceiptItemCard({ item, itemIndex, onUpdate, onD
 
     const handleCancel = () => {
         setEditedItem({
-            description: item.description || '',
+            description: productName,
             quantity: item.quantity?.toString() || '1',
             unitPrice: item.unitPrice?.toString() || '0',
-            unit: item.unit || 'UN',
+            unit: unity,
+            categoryName: categoryName,
         });
         setExpanded(false);
     };
@@ -60,18 +84,24 @@ export default function EditableReceiptItemCard({ item, itemIndex, onUpdate, onD
             {/* Header do item (sempre visível) */}
             <TouchableOpacity 
                 style={styles.header}
-                onPress={() => setExpanded(!expanded)}
-                activeOpacity={0.7}
+                onPress={() => !readOnly && setExpanded(!expanded)}
+                activeOpacity={readOnly ? 1 : 0.7}
+                disabled={readOnly}
             >
                 <View style={styles.headerLeft}>
                     <Text 
                         style={[styles.description, item.deleted && styles.deletedText]}
                         numberOfLines={2}
                     >
-                        {item.description}
+                        {productName}
                     </Text>
+                    {categoryName && (
+                        <Text style={styles.categoryBadge}>
+                            {categoryName}
+                        </Text>
+                    )}
                     <Text style={styles.subtitle}>
-                        {item.quantity} {item.unit} × R$ {parseFloat(item.unitPrice || 0).toFixed(2)}
+                        {item.quantity} {unity} × R$ {parseFloat(item.unitPrice || 0).toFixed(2)}
                         {isKg && '/kg'}
                     </Text>
                 </View>
@@ -79,11 +109,13 @@ export default function EditableReceiptItemCard({ item, itemIndex, onUpdate, onD
                     <Text style={[styles.totalText, item.deleted && styles.deletedText]}>
                         R$ {parseFloat(item.total || 0).toFixed(2)}
                     </Text>
-                    <Ionicons 
-                        name={expanded ? "chevron-up" : "chevron-down"} 
-                        size={18} 
-                        color="#667eea" 
-                    />
+                    {!readOnly && (
+                        <Ionicons 
+                            name={expanded ? "chevron-up" : "chevron-down"} 
+                            size={18} 
+                            color="#667eea" 
+                        />
+                    )}
                 </View>
             </TouchableOpacity>
 
@@ -211,6 +243,17 @@ const styles = StyleSheet.create({
         color: '#333',
         marginBottom: 3,
         lineHeight: 18,
+    },
+    categoryBadge: {
+        fontSize: 11,
+        color: '#667eea',
+        backgroundColor: '#f0f0ff',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 10,
+        alignSelf: 'flex-start',
+        marginBottom: 4,
+        overflow: 'hidden',
     },
     deletedText: {
         textDecorationLine: 'line-through',

@@ -288,7 +288,8 @@ export const DataProvider = ({ children }) => {
             
             const response = await httpClient.get(`/receipt/${id}`);
             
-            console.log('[Data] Resposta do endpoint /receipt/:id:', JSON.stringify(response).substring(0, 500));
+            console.log('[Data] ========== RESPOSTA COMPLETA /receipt/:id ==========');
+            console.log('[Data] Response:', JSON.stringify(response, null, 2));
             
             // Tenta diferentes formatos de resposta
             let receiptData = null;
@@ -302,21 +303,36 @@ export const DataProvider = ({ children }) => {
                 receiptData = response;
             } else if (response && response.data && typeof response.data === 'object' && response.data.id) {
                 receiptData = response.data;
+            } else if (Array.isArray(response) && response.length > 0) {
+                // Se vier um array, pega o primeiro item
+                receiptData = response[0];
+            } else if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
+                receiptData = response.data[0];
             }
             
             if (receiptData) {
-                console.log('[Data] Detalhes do receipt carregados:', {
-                    id: receiptData.id,
-                    storeName: receiptData.storeName,
-                    itemsCount: receiptData.items?.length || receiptData.itemsCount
-                });
-                return receiptData;
+                console.log('[Data] ========== RECEIPT DATA PROCESSADO ==========');
+                console.log('[Data] ID:', receiptData.id);
+                console.log('[Data] Store Name:', receiptData.storeName);
+                console.log('[Data] Date:', receiptData.date);
+                console.log('[Data] Items Count:', receiptData.items?.length);
+                console.log('[Data] First Item:', receiptData.items?.[0] ? JSON.stringify(receiptData.items[0], null, 2) : 'N/A');
+                
+                // Normaliza a estrutura para garantir compatibilidade
+                const normalizedData = {
+                    ...receiptData,
+                    storeName: receiptData.storeName || receiptData.store_name || 'Loja',
+                    itemsCount: receiptData.items?.length || receiptData.itemsCount || 0,
+                };
+                
+                console.log('[Data] Normalized Data:', JSON.stringify(normalizedData, null, 2).substring(0, 800));
+                return normalizedData;
             }
             
-            console.error('[Data] Formato de resposta não reconhecido:', response);
+            console.error('[Data] ❌ Formato de resposta não reconhecido:', response);
             throw new Error('Receipt não encontrado');
         } catch (error) {
-            console.error('[Data] Erro ao buscar receipt:', error);
+            console.error('[Data] ❌ Erro ao buscar receipt:', error);
             throw error;
         } finally {
             setLoading(false);

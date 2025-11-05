@@ -45,12 +45,17 @@ export default function PreViewScreen({ route, navigation }) {
 
     const loadReceiptById = async () => {
         try {
-            console.log('[Preview] Buscando receipt completo com ID:', receiptId);
+            console.log('[Preview] ========== CARREGANDO RECEIPT ==========');
+            console.log('[Preview] Receipt ID:', receiptId);
             const data = await fetchReceiptById(receiptId);
-            console.log('[Preview] Receipt carregado:', JSON.stringify(data).substring(0, 300));
+            console.log('[Preview] ========== DADOS RECEBIDOS ==========');
+            console.log('[Preview] Data completo:', JSON.stringify(data, null, 2));
+            console.log('[Preview] Store Name:', data.storeName);
+            console.log('[Preview] Items:', data.items?.length);
+            console.log('[Preview] First Item Product:', data.items?.[0]?.product);
             setPreviewData(data);
         } catch (error) {
-            console.error('[Preview] Erro ao carregar receipt:', error);
+            console.error('[Preview] ❌ Erro ao carregar receipt:', error);
             console.error('[Preview] Stack trace:', error.stack);
             Alert.alert(
                 'Erro',
