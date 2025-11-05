@@ -2,16 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AnimatedCard } from './AnimatedCard';
+import { moderateScale, fontScale } from '../../utils/responsive';
+import { theme } from '../../utils/theme';
 
-/**
- * Card de nota fiscal
- * @param {string} storeName - Nome da loja
- * @param {string} date - Data da compra
- * @param {string} total - Valor total
- * @param {number} itemCount - Quantidade de itens
- * @param {number} delay - Delay da animação
- * @param {function} onPress - Função ao pressionar
- */
 export const ReceiptCard = ({ 
     storeName, 
     date, 
@@ -23,16 +16,16 @@ export const ReceiptCard = ({
     <AnimatedCard delay={delay} style={styles.receiptCard}>
         <TouchableOpacity onPress={onPress} style={styles.receiptContent}>
             <View style={styles.receiptIcon}>
-                <Ionicons name="receipt-outline" size={32} color="#667eea" />
+                <Ionicons name="receipt-outline" size={theme.iconSizes.xxl} color={theme.colors.primary} />
             </View>
             <View style={styles.receiptDetails}>
-                <Text style={styles.receiptStoreName}>{storeName}</Text>
+                <Text style={styles.receiptStoreName} numberOfLines={1}>{storeName}</Text>
                 <Text style={styles.receiptDate}>{date}</Text>
                 <Text style={styles.receiptItems}>{itemCount} itens</Text>
             </View>
             <View style={styles.receiptRight}>
                 <Text style={styles.receiptTotal}>R$ {total}</Text>
-                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                <Ionicons name="chevron-forward" size={theme.iconSizes.md} color="#ccc" />
             </View>
         </TouchableOpacity>
     </AnimatedCard>
@@ -45,28 +38,28 @@ const styles = StyleSheet.create({
     receiptContent: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 15,
+        padding: theme.spacing.md,
     },
     receiptIcon: {
-        marginRight: 15,
+        marginRight: theme.spacing.md,
     },
     receiptDetails: {
         flex: 1,
     },
     receiptStoreName: {
-        fontSize: 16,
+        fontSize: theme.fonts.body,
         fontWeight: 'bold',
-        color: '#333',
-        marginBottom: 4,
+        color: theme.colors.text,
+        marginBottom: theme.spacing.xs,
     },
     receiptDate: {
-        fontSize: 13,
-        color: '#666',
-        marginBottom: 2,
+        fontSize: fontScale(13),
+        color: theme.colors.textSecondary,
+        marginBottom: moderateScale(2),
     },
     receiptItems: {
-        fontSize: 12,
-        color: '#999',
+        fontSize: theme.fonts.caption,
+        color: theme.colors.textLight,
     },
     receiptRight: {
         alignItems: 'flex-end',
@@ -74,9 +67,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     receiptTotal: {
-        fontSize: 18,
+        fontSize: fontScale(18),
         fontWeight: 'bold',
-        color: '#667eea',
-        marginRight: 8,
+        color: theme.colors.primary,
+        marginRight: theme.spacing.xs,
     },
 });

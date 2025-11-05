@@ -7,7 +7,6 @@ import {
     Platform,
     StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { ScanButton } from '../components/buttons';
@@ -18,68 +17,77 @@ import {
     RecentReceiptsSection 
 } from '../components/home';
 import ProcessingNotification from '../components/ProcessingNotification';
+import { moderateScale } from '../utils/responsive';
+import { theme } from '../utils/theme';
 
 export default function HomeScreen({ navigation }) {
     const { user } = useAuth();
     const { receipts, loading, fetchReceiptsBasic, fetchReceiptsByPeriod, dateList, itemCountList, storeNameList, isProcessingReceipt } = useData();
     const [refreshing, setRefreshing] = useState(false);
     const [monthSpent, setMonthSpent] = useState(0);
+    const [allReceipts, setAllReceipts] = useState([]); // Estado local para não ser afetado por filtros
 
     useEffect(() => {
         loadData();
-        loadMonthlyTotal();
     }, []);
+
+    // Recalcula o total do mês sempre que allReceipts mudar
+    useEffect(() => {
+        if (allReceipts.length > 0) {
+            calculateMonthlyTotal();
+        }
+    }, [allReceipts]);
 
     const loadData = async () => {
         try {
-            await fetchReceiptsBasic();
+            const data = await fetchReceiptsBasic();
+            // Salva uma cópia local dos receipts para não ser afetado por filtros de outras telas
+            setAllReceipts(data || receipts);
         } catch (error) {
             console.error('Erro ao carregar dados:', error);
         }
     };
 
-    const loadMonthlyTotal = async () => {
+    const calculateMonthlyTotal = () => {
         try {
             const now = new Date();
-            const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            const today = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
             
-            // Formatar datas para YYYY-MM-DD
-            const formatDate = (date) => {
-                const year = date.getFullYear();
-                const month = String(date.getMonth() + 1).padStart(2, '0');
-                const day = String(date.getDate()).padStart(2, '0');
-                return `${year}-${month}-${day}`;
-            };
+            // Filtra receipts do mês atual usando o estado local (não afetado por filtros de outras telas)
+            const monthReceipts = allReceipts.filter(receipt => {
+                if (!receipt.date) return false;
+                
+                const receiptDate = new Date(receipt.date);
+                return receiptDate.getMonth() === currentMonth && 
+                       receiptDate.getFullYear() === currentYear;
+            });
             
-            const startDate = formatDate(firstDayOfMonth);
-            const endDate = formatDate(today);
-            
-            const monthReceipts = await fetchReceiptsByPeriod(startDate, endDate);
             const total = monthReceipts.reduce((sum, r) => sum + parseFloat(r.total || 0), 0);
             setMonthSpent(total);
         } catch (error) {
-            console.error('Erro ao calcular total do mês:', error);
+            console.error('[Home] Erro ao calcular total do mês:', error);
+            setMonthSpent(0);
         }
     };
 
     const onRefresh = async () => {
         setRefreshing(true);
         await loadData();
-        await loadMonthlyTotal();
+        // calculateMonthlyTotal() será chamado automaticamente pelo useEffect
         setRefreshing(false);
     };
 
-    // Calcular estatísticas reais a partir das notas fiscais
-    const totalSpent = receipts.reduce((sum, r) => sum + parseFloat(r.total || 0), 0);
+    // Calcular estatísticas reais a partir do estado local (não afetado por filtros)
+    const totalSpent = allReceipts.reduce((sum, r) => sum + parseFloat(r.total || 0), 0);
     
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
         
-    // Agrupar por categoria
+    // Agrupar por categoria usando o estado local
     const categoryTotals = {};
-    receipts.forEach(receipt => {
+    allReceipts.forEach(receipt => {
         receipt.items?.forEach(item => {
             const cat = item.category_name || 'Outros';
             categoryTotals[cat] = (categoryTotals[cat] || 0) + parseFloat(item.total_price || 0);
@@ -91,11 +99,11 @@ export default function HomeScreen({ navigation }) {
         .slice(0, 3);
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.container}>
             <StatusBar 
                 barStyle="light-content" 
-                backgroundColor="#667eea" 
-                translucent={false}
+                backgroundColor="transparent" 
+                translucent={true}
             />
             
             <HomeHeader 
@@ -118,14 +126,14 @@ export default function HomeScreen({ navigation }) {
                 <StatsSection 
                     totalSpent={totalSpent}
                     monthSpent={monthSpent}
-                    receiptsCount={receipts.length}
+                    receiptsCount={allReceipts.length}
                 />
 
                 <TopCategoriesSection categories={topCategories} />
 
                 <RecentReceiptsSection 
                     loading={loading}
-                    receipts={receipts}
+                    receipts={allReceipts}
                     storeNameList={storeNameList}
                     itemCountList={itemCountList}
                     dateList={dateList}
@@ -139,7 +147,7 @@ export default function HomeScreen({ navigation }) {
                     style={styles.addButton}
                 />
             </ScrollView>
-        </SafeAreaView>
+        </View>
     );
 }
 
@@ -150,11 +158,11 @@ const styles = StyleSheet.create({
     },
     content: {
         flex: 1,
-        paddingHorizontal: 20,
-        marginTop: -20,
+        paddingHorizontal: theme.spacing.lg,
+        marginTop: moderateScale(-20),
     },
     addButton: {
-        marginBottom: 30,
-        marginTop: 10,
+        marginBottom: moderateScale(30),
+        marginTop: theme.spacing.sm,
     },
 });

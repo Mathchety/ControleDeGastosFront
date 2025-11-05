@@ -1,24 +1,19 @@
 import React from 'react';
 import { TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { theme } from '../../utils/theme';
 
-/**
- * Botão de voltar (usado em headers)
- * @param {function} onPress - Função ao pressionar
- * @param {string} color - Cor do ícone
- * @param {object} style - Estilos adicionais
- */
-export const BackButton = ({ onPress, color = '#667eea', style }) => (
+export const BackButton = ({ onPress, color = theme.colors.primary, style }) => (
     <TouchableOpacity 
         onPress={onPress} 
         style={[styles.backButton, style]}
     >
-        <Ionicons name="arrow-back" size={24} color={color} />
+        <Ionicons name="arrow-back" size={theme.iconSizes.lg} color={color} />
     </TouchableOpacity>
 );
 
 const styles = StyleSheet.create({
     backButton: {
-        padding: 5,
+        padding: theme.spacing.xs,
     },
 });

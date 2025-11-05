@@ -9,10 +9,12 @@ import {
     Platform,
     StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useData } from '../contexts/DataContext';
 import { ConfirmButton } from '../components/buttons';
 import { PreviewHeader, ReceiptSummaryCard, EditableReceiptItemCard } from '../components/cards';
+import { moderateScale } from '../utils/responsive';
+import { theme } from '../utils/theme';
 
 export default function PreViewScreen({ route, navigation }) {
     const { qrLink, previewData: receivedData, receiptId } = route.params || {};
@@ -194,29 +196,41 @@ export default function PreViewScreen({ route, navigation }) {
 
     if (!previewData) {
         return (
-            <SafeAreaView style={styles.safeArea} edges={['top']}>
+            <View style={styles.safeArea}>
                 <StatusBar 
                     barStyle="light-content" 
-                    backgroundColor="#667eea" 
-                    translucent={false}
+                    backgroundColor="transparent" 
+                    translucent={true}
                 />
+                <LinearGradient
+                    colors={['#667eea', '#764ba2']}
+                    style={styles.headerGradient}
+                >
+                    <PreviewHeader onBack={() => navigation.goBack()} />
+                </LinearGradient>
                 <View style={styles.container}>
                     <Text style={styles.errorText}>Nenhum dado disponível</Text>
                 </View>
-            </SafeAreaView>
+            </View>
         );
     }
 
     return (
-        <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <View style={styles.safeArea}>
             <StatusBar 
                 barStyle="light-content" 
-                backgroundColor="#667eea" 
-                translucent={false}
+                backgroundColor="transparent" 
+                translucent={true}
             />
             
-            <View style={styles.container}>
+            <LinearGradient
+                colors={['#667eea', '#764ba2']}
+                style={styles.headerGradient}
+            >
                 <PreviewHeader onBack={() => navigation.goBack()} />
+            </LinearGradient>
+            
+            <View style={styles.container}>
 
                 <ScrollView 
                     style={styles.scrollView}
@@ -258,14 +272,20 @@ export default function PreViewScreen({ route, navigation }) {
                     </View>
                 )}
             </View>
-        </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: '#667eea',
+        backgroundColor: '#f8f9fa',
+    },
+    headerGradient: {
+        borderBottomLeftRadius: theme.radius.xl,
+        borderBottomRightRadius: theme.radius.xl,
+        paddingTop: Platform.OS === 'ios' ? moderateScale(60) : StatusBar.currentHeight + moderateScale(10),
+        paddingBottom: moderateScale(20),
     },
     container: {
         flex: 1,

@@ -2,10 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { moderateScale, fontScale } from '../../utils/responsive';
+import { theme } from '../../utils/theme';
 
-/**
- * Header da tela de autenticação com gradiente e logo
- */
 export const AuthHeader = () => (
     <LinearGradient
         colors={['#667eea', '#764ba2']}
@@ -13,7 +12,7 @@ export const AuthHeader = () => (
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
     >
-        <Ionicons name="wallet" size={60} color="#fff" />
+        <Ionicons name="wallet" size={moderateScale(60)} color="#fff" />
         <Text style={styles.headerTitle}>Controle de Gastos</Text>
         <Text style={styles.headerSubtitle}>Gerencie suas finanças com facilidade</Text>
     </LinearGradient>
@@ -21,27 +20,23 @@ export const AuthHeader = () => (
 
 const styles = StyleSheet.create({
     header: {
-        paddingVertical: 50,
-        paddingHorizontal: 20,
+        paddingVertical: moderateScale(50),
+        paddingHorizontal: theme.spacing.lg,
         alignItems: 'center',
-        borderBottomLeftRadius: 30,
-        borderBottomRightRadius: 30,
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
+        borderBottomLeftRadius: moderateScale(30),
+        borderBottomRightRadius: moderateScale(30),
+        ...theme.shadows.medium,
     },
     headerTitle: {
-        fontSize: 28,
+        fontSize: theme.fonts.h1,
         fontWeight: '700',
         color: '#fff',
-        marginTop: 15,
+        marginTop: theme.spacing.md,
     },
     headerSubtitle: {
-        fontSize: 16,
+        fontSize: theme.fonts.body,
         color: '#fff',
         opacity: 0.9,
-        marginTop: 5,
+        marginTop: theme.spacing.xs,
     },
 });

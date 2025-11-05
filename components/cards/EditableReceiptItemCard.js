@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Input } from '../inputs';
 import { PrimaryButton, SecondaryButton } from '../buttons';
+import { moderateScale, fontScale } from '../../utils/responsive';
+import { theme } from '../../utils/theme';
 
 /**
  * Card de item de nota fiscal editável com expansão
@@ -112,8 +114,8 @@ export default function EditableReceiptItemCard({ item, itemIndex, onUpdate, onD
                     {!readOnly && (
                         <Ionicons 
                             name={expanded ? "chevron-up" : "chevron-down"} 
-                            size={18} 
-                            color="#667eea" 
+                            size={theme.iconSizes.md} 
+                            color={theme.colors.primary} 
                         />
                     )}
                 </View>
@@ -181,7 +183,7 @@ export default function EditableReceiptItemCard({ item, itemIndex, onUpdate, onD
                             onPress={() => onDelete(itemIndex)}
                             activeOpacity={0.7}
                         >
-                            <Ionicons name="trash-outline" size={14} color="#fff" />
+                            <Ionicons name="trash-outline" size={theme.iconSizes.sm} color="#fff" />
                         </TouchableOpacity>
 
                         <TouchableOpacity 
@@ -197,7 +199,7 @@ export default function EditableReceiptItemCard({ item, itemIndex, onUpdate, onD
                             onPress={handleSave}
                             activeOpacity={0.7}
                         >
-                            <Ionicons name="checkmark" size={14} color="#fff" />
+                            <Ionicons name="checkmark" size={theme.iconSizes.sm} color="#fff" />
                             <Text style={styles.saveButtonText}>Salvar</Text>
                         </TouchableOpacity>
                     </View>
@@ -210,13 +212,9 @@ export default function EditableReceiptItemCard({ item, itemIndex, onUpdate, onD
 const styles = StyleSheet.create({
     container: {
         backgroundColor: '#fff',
-        borderRadius: 12,
-        marginBottom: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 2,
+        borderRadius: theme.radius.md,
+        marginBottom: theme.spacing.md,
+        ...theme.shadows.small,
     },
     deletedContainer: {
         opacity: 0.6,
@@ -226,71 +224,71 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 12,
+        padding: theme.spacing.md,
     },
     headerLeft: {
         flex: 1,
-        marginRight: 8,
+        marginRight: theme.spacing.xs,
     },
     headerRight: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
+        gap: theme.spacing.xs,
     },
     description: {
-        fontSize: 14,
+        fontSize: theme.fonts.body,
         fontWeight: '600',
-        color: '#333',
-        marginBottom: 3,
-        lineHeight: 18,
+        color: theme.colors.text,
+        marginBottom: moderateScale(3),
+        lineHeight: fontScale(18),
     },
     categoryBadge: {
-        fontSize: 11,
-        color: '#667eea',
+        fontSize: theme.fonts.caption,
+        color: theme.colors.primary,
         backgroundColor: '#f0f0ff',
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 10,
+        paddingHorizontal: theme.spacing.xs,
+        paddingVertical: moderateScale(2),
+        borderRadius: theme.radius.sm,
         alignSelf: 'flex-start',
-        marginBottom: 4,
+        marginBottom: theme.spacing.xs,
         overflow: 'hidden',
     },
     deletedText: {
         textDecorationLine: 'line-through',
-        color: '#999',
+        color: theme.colors.textLight,
     },
     subtitle: {
-        fontSize: 12,
-        color: '#666',
+        fontSize: theme.fonts.caption,
+        color: theme.colors.textSecondary,
     },
     totalText: {
-        fontSize: 14,
+        fontSize: theme.fonts.body,
         fontWeight: '700',
-        color: '#667eea',
+        color: theme.colors.primary,
     },
     deletedBadge: {
-        backgroundColor: '#ef4444',
-        paddingHorizontal: 12,
-        paddingVertical: 4,
-        borderRadius: 12,
+        backgroundColor: theme.colors.danger,
+        paddingHorizontal: theme.spacing.md,
+        paddingVertical: theme.spacing.xs,
+        borderRadius: theme.radius.md,
         alignSelf: 'flex-start',
-        marginLeft: 15,
-        marginBottom: 10,
+        marginLeft: theme.spacing.md,
+        marginBottom: theme.spacing.sm,
     },
     deletedBadgeText: {
         color: '#fff',
-        fontSize: 11,
+        fontSize: theme.fonts.caption,
         fontWeight: '700',
     },
     editForm: {
         borderTopWidth: 1,
         borderTopColor: '#e5e7eb',
-        padding: 12,
-        paddingTop: 15,
+        padding: theme.spacing.md,
+        paddingTop: theme.spacing.md,
     },
     row: {
         flexDirection: 'row',
-        gap: 8,
+        gap: theme.spacing.xs,
     },
     inputWrapper: {
         flex: 1,
@@ -300,60 +298,60 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         backgroundColor: '#f3f4f6',
-        padding: 10,
-        borderRadius: 8,
-        marginBottom: 12,
-        marginTop: 5,
+        padding: theme.spacing.sm,
+        borderRadius: theme.radius.sm,
+        marginBottom: theme.spacing.md,
+        marginTop: theme.spacing.xs,
     },
     calculatedLabel: {
-        fontSize: 12,
+        fontSize: theme.fonts.caption,
         fontWeight: '600',
-        color: '#666',
+        color: theme.colors.textSecondary,
     },
     calculatedValue: {
-        fontSize: 16,
+        fontSize: fontScale(16),
         fontWeight: '700',
-        color: '#667eea',
+        color: theme.colors.primary,
     },
     actionButtons: {
         flexDirection: 'row',
-        gap: 6,
+        gap: theme.spacing.xs,
     },
     deleteButton: {
-        width: 40,
-        height: 40,
+        width: moderateScale(40),
+        height: moderateScale(40),
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: 8,
-        backgroundColor: '#ef4444',
+        borderRadius: theme.radius.sm,
+        backgroundColor: theme.colors.danger,
     },
     cancelButton: {
         flex: 1,
-        height: 40,
+        height: moderateScale(40),
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: 8,
+        borderRadius: theme.radius.sm,
         backgroundColor: '#f3f4f6',
         borderWidth: 1,
         borderColor: '#d1d5db',
     },
     cancelButtonText: {
-        fontSize: 13,
+        fontSize: fontScale(13),
         fontWeight: '600',
-        color: '#666',
+        color: theme.colors.textSecondary,
     },
     saveButton: {
         flex: 1,
-        height: 40,
+        height: moderateScale(40),
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: 8,
-        gap: 4,
-        backgroundColor: '#10b981',
+        borderRadius: theme.radius.sm,
+        gap: theme.spacing.xs,
+        backgroundColor: theme.colors.success,
     },
     saveButtonText: {
-        fontSize: 13,
+        fontSize: fontScale(13),
         fontWeight: '600',
         color: '#fff',
     },

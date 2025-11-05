@@ -2,16 +2,7 @@ import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-
-/**
- * Botão principal com gradiente
- * @param {string} title - Texto do botão
- * @param {function} onPress - Função ao pressionar
- * @param {string} icon - Nome do ícone (Ionicons)
- * @param {boolean} loading - Mostra loading
- * @param {array} colors - Cores do gradiente
- * @param {object} style - Estilos adicionais
- */
+import { moderateScale, fontScale, getIconSize } from '../../utils/responsive';
 export const PrimaryButton = ({ 
     title, 
     onPress, 
@@ -32,7 +23,7 @@ export const PrimaryButton = ({
             ) : (
                 <>
                     <Text style={styles.buttonText}>{title}</Text>
-                    {icon && <Ionicons name={icon} size={20} color="#fff" />}
+                    {icon && <Ionicons name={icon} size={getIconSize('small')} color="#fff" />}
                 </>
             )}
         </LinearGradient>
@@ -41,7 +32,7 @@ export const PrimaryButton = ({
 
 const styles = StyleSheet.create({
     button: {
-        borderRadius: 15,
+        borderRadius: moderateScale(15),
         overflow: 'hidden',
         shadowColor: '#007bff',
         shadowOffset: { width: 0, height: 4 },
@@ -53,12 +44,13 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 18,
-        gap: 10,
+        paddingVertical: moderateScale(14),
+        paddingHorizontal: moderateScale(20),
+        gap: moderateScale(8),
     },
     buttonText: {
         color: '#fff',
-        fontSize: 18,
+        fontSize: fontScale(16),
         fontWeight: 'bold',
     },
 });

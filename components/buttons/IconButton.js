@@ -1,16 +1,10 @@
 import React from 'react';
 import { TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { moderateScale } from '../../utils/responsive';
+import { theme } from '../../utils/theme';
 
-/**
- * Botão de ícone redondo
- * @param {string} icon - Nome do ícone (Ionicons)
- * @param {function} onPress - Função ao pressionar
- * @param {string} color - Cor do ícone
- * @param {number} size - Tamanho do botão
- * @param {object} style - Estilos adicionais
- */
-export const IconButton = ({ icon, onPress, color = '#667eea', size = 40, style }) => (
+export const IconButton = ({ icon, onPress, color = theme.colors.primary, size = moderateScale(40), style }) => (
     <TouchableOpacity 
         style={[styles.iconButton, { width: size, height: size, borderRadius: size / 2 }, style]}
         onPress={onPress}

@@ -1,18 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { moderateScale, fontScale } from '../../utils/responsive';
+import { theme } from '../../utils/theme';
 
-/**
- * Card vazio (placeholder)
- * @param {string} icon - Nome do ícone (Ionicons)
- * @param {string} title - Título da mensagem
- * @param {string} message - Mensagem explicativa
- * @param {string} action - Texto do botão de ação
- * @param {function} onAction - Função ao pressionar o botão
- */
 export const EmptyCard = ({ icon, title, message, action, onAction }) => (
     <View style={styles.emptyCard}>
-        <Ionicons name={icon} size={80} color="#ccc" />
+        <Ionicons name={icon} size={moderateScale(80)} color="#ccc" />
         <Text style={styles.emptyTitle}>{title}</Text>
         <Text style={styles.emptyMessage}>{message}</Text>
         {action && onAction && (
@@ -27,33 +21,33 @@ const styles = StyleSheet.create({
     emptyCard: {
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 40,
+        padding: moderateScale(40),
         backgroundColor: '#fff',
-        borderRadius: 20,
-        marginVertical: 20,
+        borderRadius: theme.radius.xl,
+        marginVertical: theme.spacing.lg,
     },
     emptyTitle: {
-        fontSize: 20,
+        fontSize: fontScale(20),
         fontWeight: 'bold',
-        color: '#333',
-        marginTop: 20,
-        marginBottom: 10,
+        color: theme.colors.text,
+        marginTop: theme.spacing.lg,
+        marginBottom: theme.spacing.sm,
     },
     emptyMessage: {
-        fontSize: 14,
-        color: '#666',
+        fontSize: theme.fonts.body,
+        color: theme.colors.textSecondary,
         textAlign: 'center',
-        marginBottom: 20,
+        marginBottom: theme.spacing.lg,
     },
     emptyAction: {
-        paddingHorizontal: 24,
-        paddingVertical: 12,
-        backgroundColor: '#667eea',
-        borderRadius: 12,
+        paddingHorizontal: moderateScale(24),
+        paddingVertical: theme.spacing.md,
+        backgroundColor: theme.colors.primary,
+        borderRadius: theme.radius.md,
     },
     emptyActionText: {
         color: '#fff',
         fontWeight: '600',
-        fontSize: 14,
+        fontSize: theme.fonts.body,
     },
 });
