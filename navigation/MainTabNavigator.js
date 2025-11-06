@@ -40,6 +40,7 @@ export default function MainTabNavigator() {
           height: Platform.OS === 'android' ? 60 : 60 + insets.bottom,
           backgroundColor: '#fff',
         },
+        swipeEnabled: true, // Habilita navegação por swipe
       })}
     >
       <Tab.Screen 

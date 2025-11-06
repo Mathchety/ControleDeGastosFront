@@ -5,12 +5,12 @@ import {
     StyleSheet, 
     ScrollView, 
     RefreshControl,
-    Platform,
     StatusBar,
     TouchableOpacity,
     Animated,
+    Platform,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
@@ -18,7 +18,7 @@ import { ScanButton } from '../components/buttons';
 import { 
     HomeHeader, 
     StatsSection, 
-    TopCategoriesSection, 
+    CategoriesSection,
     RecentReceiptsSection 
 } from '../components/home';
 import ProcessingNotification from '../components/ProcessingNotification';
@@ -27,17 +27,14 @@ import { theme } from '../utils/theme';
 
 export default function HomeScreen({ navigation }) {
     const { user } = useAuth();
-    const { receipts, loading, fetchReceiptsBasic, fetchReceiptsByPeriod, dateList, itemCountList, storeNameList, isProcessingReceipt } = useData();
+    const { receipts, loading, fetchReceiptsBasic, dateList, itemCountList, storeNameList, isProcessingReceipt } = useData();
     const [refreshing, setRefreshing] = useState(false);
     const [monthSpent, setMonthSpent] = useState(0);
     const [allReceipts, setAllReceipts] = useState([]); // Estado local para não ser afetado por filtros
-    const insets = useSafeAreaInsets();
-    
-    // Animação do header
     const scrollY = useRef(new Animated.Value(0)).current;
-    const HEADER_MAX_HEIGHT = 140;
-    const HEADER_MIN_HEIGHT = 70;
-    const HEADER_SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
+    const HEADER_HEIGHT = moderateScale(170);
+    const HEADER_SCROLL_DISTANCE = Platform.OS === 'ios' ? moderateScale(115) : moderateScale(110);
+    
 
     useEffect(() => {
         loadData();
@@ -92,52 +89,37 @@ export default function HomeScreen({ navigation }) {
 
     // Calcular estatísticas reais a partir do estado local (não afetado por filtros)
     const totalSpent = allReceipts.reduce((sum, r) => sum + parseFloat(r.total || 0), 0);
-    
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-        
-    // Agrupar por categoria usando o estado local
-    const categoryTotals = {};
-    allReceipts.forEach(receipt => {
-        receipt.items?.forEach(item => {
-            const cat = item.category_name || 'Outros';
-            categoryTotals[cat] = (categoryTotals[cat] || 0) + parseFloat(item.total_price || 0);
-        });
-    });
-    
-    const topCategories = Object.entries(categoryTotals)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3);
 
-    // Animação da altura do header
-    const headerHeight = scrollY.interpolate({
+    const headerTranslateY = scrollY.interpolate({
         inputRange: [0, HEADER_SCROLL_DISTANCE],
-        outputRange: [HEADER_MAX_HEIGHT, HEADER_MIN_HEIGHT],
+        outputRange: [0, -HEADER_SCROLL_DISTANCE],
         extrapolate: 'clamp',
     });
 
-    // Animação da opacidade do texto
     const headerOpacity = scrollY.interpolate({
-        inputRange: [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
-        outputRange: [1, 0.5, 0],
+        inputRange: [0, HEADER_SCROLL_DISTANCE * 0.6, HEADER_SCROLL_DISTANCE],
+        outputRange: [1, 0.7, 0],
         extrapolate: 'clamp',
     });
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
             <StatusBar 
                 barStyle="light-content" 
-                backgroundColor="#667eea" 
-                translucent={false}
+                backgroundColor="transparent" 
+                translucent={true}
             />
-            
-            {/* Header animado com zIndex alto para ficar na frente */}
-            <Animated.View style={[styles.headerContainer, { height: headerHeight }]}>
-                <HomeHeader 
-                    userName={user?.name}
-                    opacity={headerOpacity}
-                />
+
+            <Animated.View
+                style={[
+                    styles.headerContainer,
+                    {
+                        height: HEADER_HEIGHT,
+                        transform: [{ translateY: headerTranslateY }],
+                    },
+                ]}
+            >
+                <HomeHeader userName={user?.name} opacity={headerOpacity} />
             </Animated.View>
 
             {/* Notificação de processamento */}
@@ -148,9 +130,10 @@ export default function HomeScreen({ navigation }) {
 
             <Animated.ScrollView 
                 style={styles.content}
-                contentContainerStyle={{ 
-                    paddingTop: HEADER_MAX_HEIGHT, // Espaço para o header
-                }}
+                contentContainerStyle={[
+                    styles.scrollContent,
+                    { paddingTop: HEADER_HEIGHT },
+                ]}
                 showsVerticalScrollIndicator={false}
                 scrollEventThrottle={16}
                 onScroll={Animated.event(
@@ -167,7 +150,7 @@ export default function HomeScreen({ navigation }) {
                     receiptsCount={allReceipts.length}
                 />
 
-                <TopCategoriesSection categories={topCategories} />
+                <CategoriesSection />
 
                 <RecentReceiptsSection 
                     loading={loading}
@@ -178,20 +161,6 @@ export default function HomeScreen({ navigation }) {
                     onReceiptPress={(receiptId) => navigation.navigate('Preview', { receiptId })}
                     onViewAll={() => navigation.navigate('History')}
                 />
-
-                {/* Botão para acessar a tela de gráficos */}
-                <TouchableOpacity 
-                    style={styles.graphicsButton}
-                    onPress={() => navigation.navigate('GraphicsScreenTest')}
-                >
-                    <View style={styles.graphicsButtonContent}>
-                        <View style={styles.graphicsButtonLeft}>
-                            <Ionicons name="bar-chart" size={24} color={theme.colors.primary} />
-                            <Text style={styles.graphicsButtonText}>Ver Análise de Gastos</Text>
-                        </View>
-                        <Ionicons name="arrow-forward" size={20} color="#666" />
-                    </View>
-                </TouchableOpacity>
 
                 <ScanButton 
                     title="Escanear Nova Nota"
@@ -215,38 +184,13 @@ const styles = StyleSheet.create({
         right: 0,
         zIndex: 10,
         elevation: 10,
-        overflow: 'hidden',
     },
     content: {
         flex: 1,
+    },
+    scrollContent: {
         paddingHorizontal: theme.spacing.lg,
-    },
-    graphicsButton: {
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        padding: moderateScale(16),
-        marginTop: theme.spacing.md,
-        marginBottom: theme.spacing.md,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    graphicsButtonContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    graphicsButtonLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    graphicsButtonText: {
-        fontSize: moderateScale(16),
-        fontWeight: '600',
-        color: '#333',
+        paddingBottom: moderateScale(40),
     },
     addButton: {
         marginBottom: moderateScale(30),

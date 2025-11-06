@@ -288,6 +288,58 @@ export const DataProvider = ({ children }) => {
         }
     };
 
+    // Busca todas as categorias - GET /categories
+    const fetchCategories = async () => {
+        try {
+            setLoading(true);
+            const response = await httpClient.get('/categories');
+            
+            let categoriesData = [];
+            if (response?.categories && Array.isArray(response.categories)) {
+                categoriesData = response.categories;
+            } else if (response?.data?.categories && Array.isArray(response.data.categories)) {
+                categoriesData = response.data.categories;
+            } else if (Array.isArray(response)) {
+                categoriesData = response;
+            } else if (Array.isArray(response?.data)) {
+                categoriesData = response.data;
+            }
+            
+            return categoriesData;
+        } catch (error) {
+            console.error('[Data] Erro ao buscar categorias:', error);
+            return [];
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Busca itens de uma categoria específica - GET /category/{id}
+    const fetchCategoryById = async (id) => {
+        try {
+            setLoading(true);
+            const response = await httpClient.get(`/category/${id}`);
+            
+            let categoryData = null;
+            if (response?.category) {
+                categoryData = response.category;
+            } else if (response?.data?.category) {
+                categoryData = response.data.category;
+            } else if (response?.id) {
+                categoryData = response;
+            } else if (response?.data?.id) {
+                categoryData = response.data;
+            }
+            
+            return categoryData;
+        } catch (error) {
+            console.error('[Data] Erro ao buscar categoria:', error);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const clearPreview = () => setPreviewData(null);
 
     return (
@@ -304,6 +356,8 @@ export const DataProvider = ({ children }) => {
                 fetchReceiptsByPeriod,
                 fetchReceiptById,
                 fetchCategoriesGraph,
+                fetchCategories,
+                fetchCategoryById,
                 deleteReceipt,
                 clearPreview,
                 dateList,

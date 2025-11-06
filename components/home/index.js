@@ -7,3 +7,4 @@ export { RecentReceiptItem } from './RecentReceiptItem';
 export { StatsSection } from './StatsSection';
 export { TopCategoriesSection } from './TopCategoriesSection';
 export { RecentReceiptsSection } from './RecentReceiptsSection';
+export { CategoriesSection } from './CategoriesSection';
