@@ -19,7 +19,7 @@ const COLORS = [
 ];
 
 export const CategoriesSection = () => {
-    const { fetchCategoriesGraph, fetchCategories, fetchCategoryById } = useData();
+    const { fetchCategoriesGraph, fetchCategoryById } = useData();
     const [graphData, setGraphData] = useState([]);
     const [allCategories, setAllCategories] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
@@ -34,10 +34,12 @@ export const CategoriesSection = () => {
     const [endDate, setEndDate] = useState(new Date());
 
     useEffect(() => {
-        loadCategoriesData();
+        // Carrega dados iniciais ao montar o componente
+        loadGraphData();
     }, []);
 
     useEffect(() => {
+        // Recarrega quando o filtro muda
         loadGraphData();
     }, [filterPeriod]);
 
@@ -74,18 +76,10 @@ export const CategoriesSection = () => {
 
             const graphResponse = await fetchCategoriesGraph(start, end);
             setGraphData(graphResponse || []);
+            // Atualiza também as categorias do modal com os mesmos dados
+            setAllCategories(graphResponse || []);
         } catch (error) {
             console.error('[CategoriesSection] Erro ao carregar gráfico:', error);
-        }
-    };
-
-    const loadCategoriesData = async () => {
-        try {
-            // Busca todas as categorias para o modal
-            const categoriesResponse = await fetchCategories();
-            setAllCategories(categoriesResponse || []);
-        } catch (error) {
-            console.error('[CategoriesSection] Erro ao carregar categorias:', error);
         }
     };
 
@@ -94,7 +88,15 @@ export const CategoriesSection = () => {
             setLoading(true);
             const categoryData = await fetchCategoryById(category.id);
             setSelectedCategory(categoryData);
-            setCategoryItems(categoryData?.items || []);
+            
+            // Ordena os itens do mais caro para o mais barato
+            const sortedItems = (categoryData?.items || []).sort((a, b) => {
+                const totalA = parseFloat(a.total || 0);
+                const totalB = parseFloat(b.total || 0);
+                return totalB - totalA;
+            });
+            
+            setCategoryItems(sortedItems);
             setModalVisible(false);
             setCategoryDetailsModal(true);
         } catch (error) {
@@ -310,7 +312,7 @@ export const CategoriesSection = () => {
                         </View>
                         
                         <ScrollView style={styles.modalScroll}>
-                            {allCategories.map((category, index) => (
+                            {[...allCategories].sort((a, b) => b.total - a.total).map((category, index) => (
                                 <TouchableOpacity
                                     key={category.id || index}
                                     style={styles.modalCategoryCard}
@@ -339,12 +341,18 @@ export const CategoriesSection = () => {
                 visible={categoryDetailsModal}
                 animationType="slide"
                 transparent={true}
-                onRequestClose={() => setCategoryDetailsModal(false)}
+                onRequestClose={() => {
+                    setCategoryDetailsModal(false);
+                    setModalVisible(true);
+                }}
             >
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
-                            <TouchableOpacity onPress={() => setCategoryDetailsModal(false)}>
+                            <TouchableOpacity onPress={() => {
+                                setCategoryDetailsModal(false);
+                                setModalVisible(true);
+                            }}>
                                 <Ionicons name="arrow-back" size={28} color="#333" />
                             </TouchableOpacity>
                             <Text style={styles.modalTitle}>{selectedCategory?.name || 'Categoria'}</Text>
@@ -355,17 +363,23 @@ export const CategoriesSection = () => {
                             <ActivityIndicator size="large" color="#667eea" style={styles.loader} />
                         ) : (
                             <ScrollView style={styles.modalScroll}>
-                                {categoryItems.map((item, index) => (
-                                    <View key={index} style={styles.itemCard}>
-                                        <View style={styles.itemInfo}>
-                                            <Text style={styles.itemName}>{item.product?.name || item.name}</Text>
-                                            <Text style={styles.itemDetails}>
-                                                Qtd: {item.quantity} | Un: R$ {parseFloat(item.unit_price || 0).toFixed(2)}
-                                            </Text>
+                                {categoryItems.map((item, index) => {
+                                    const itemTotal = parseFloat(item.total || 0);
+                                    const quantity = parseFloat(item.quantity || 1);
+                                    const unitPrice = quantity > 0 ? itemTotal / quantity : 0;
+                                    
+                                    return (
+                                        <View key={index} style={styles.itemCard}>
+                                            <View style={styles.itemInfo}>
+                                                <Text style={styles.itemName}>{item.name}</Text>
+                                                <Text style={styles.itemDetails}>
+                                                    Qtd: {item.quantity} | Un: R$ {unitPrice.toFixed(2)}
+                                                </Text>
+                                            </View>
+                                            <Text style={styles.itemTotal}>R$ {itemTotal.toFixed(2)}</Text>
                                         </View>
-                                        <Text style={styles.itemTotal}>R$ {parseFloat(item.total_price || 0).toFixed(2)}</Text>
-                                    </View>
-                                ))}
+                                    );
+                                })}
                                 {categoryItems.length === 0 && (
                                     <Text style={styles.emptyText}>Nenhum item encontrado nesta categoria</Text>
                                 )}

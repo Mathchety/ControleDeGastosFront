@@ -143,6 +143,15 @@ export const AuthProvider = ({ children }) => {
    */
   const logout = async () => {
     try {
+      // Chama a API para invalidar o token no backend
+      try {
+        await httpClient.post('/logout');
+        console.log('[Auth] Token invalidado no backend');
+      } catch (apiError) {
+        console.warn('[Auth] Erro ao invalidar token na API:', apiError);
+        // Continua com o logout local mesmo se a API falhar
+      }
+      
       // Limpa o token
       httpClient.setToken(null);
       

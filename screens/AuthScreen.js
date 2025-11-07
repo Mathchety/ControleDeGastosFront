@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     View, 
     Text, 
     StyleSheet, 
     KeyboardAvoidingView, 
+    ScrollView,
     Platform,
     Alert,
     Dimensions,
     TouchableOpacity,
-    StatusBar
+    StatusBar,
+    Keyboard
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -178,6 +180,23 @@ const AnimatedForm = ({ isRegisterView, onSuccess }) => {
 
 const AuthScreen = ({ navigation }) => {
     const [isRegister, setIsRegister] = useState(false);
+    const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+    useEffect(() => {
+        const keyboardDidShowListener = Keyboard.addListener(
+            'keyboardDidShow',
+            () => setKeyboardVisible(true)
+        );
+        const keyboardDidHideListener = Keyboard.addListener(
+            'keyboardDidHide',
+            () => setKeyboardVisible(false)
+        );
+
+        return () => {
+            keyboardDidShowListener.remove();
+            keyboardDidHideListener.remove();
+        };
+    }, []);
 
     const handleSuccess = () => {
         // Não precisa navegar manualmente - o AppNavigator faz isso automaticamente
@@ -194,21 +213,29 @@ const AuthScreen = ({ navigation }) => {
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.keyboardView}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : -100}
             >
                 {/* Header com gradiente */}
-                <LinearGradient
-                    colors={['#667eea', '#764ba2']}
-                    style={styles.header}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                >
-                    <Ionicons name="wallet" size={60} color="#fff" />
-                    <Text style={styles.headerTitle}>Controle de Gastos</Text>
-                    <Text style={styles.headerSubtitle}>Gerencie suas finanças com facilidade</Text>
-                </LinearGradient>
+                {!keyboardVisible && (
+                    <LinearGradient
+                        colors={['#667eea', '#764ba2']}
+                        style={styles.header}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                    >
+                        <Ionicons name="wallet" size={60} color="#fff" />
+                        <Text style={styles.headerTitle}>Controle de Gastos</Text>
+                        <Text style={styles.headerSubtitle}>Gerencie suas finanças com facilidade</Text>
+                    </LinearGradient>
+                )}
 
                 {/* Formulário */}
-                <View style={styles.content}>
+                <ScrollView 
+                    style={[styles.scrollView, keyboardVisible && styles.scrollViewKeyboard]}
+                    contentContainerStyle={[styles.content, keyboardVisible && styles.contentKeyboard]}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                >
                     <AnimatedForm isRegisterView={isRegister} onSuccess={handleSuccess} />
 
                     {/* Toggle entre Login e Registro */}
@@ -222,7 +249,7 @@ const AuthScreen = ({ navigation }) => {
                             </Text>
                         </TouchableOpacity>
                     </View>
-                </View>
+                </ScrollView>
             </KeyboardAvoidingView>
         </View>
     );
@@ -234,6 +261,9 @@ const styles = StyleSheet.create({
         backgroundColor: '#f8f9fa',
     },
     keyboardView: {
+        flex: 1,
+    },
+    scrollView: {
         flex: 1,
     },
     header: {
@@ -258,9 +288,18 @@ const styles = StyleSheet.create({
         marginTop: theme.spacing.xs,
     },
     content: {
-        flex: 1,
+        flexGrow: 1,
         justifyContent: 'center',
         paddingHorizontal: 20,
+        paddingBottom: 60,
+        paddingTop: 20,
+    },
+    contentKeyboard: {
+        paddingTop: moderateScale(80),
+        justifyContent: 'flex-start',
+    },
+    scrollViewKeyboard: {
+        backgroundColor: '#f8f9fa',
     },
     formContainer: {
         backgroundColor: '#fff',

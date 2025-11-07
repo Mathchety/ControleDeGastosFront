@@ -8,8 +8,10 @@ import {
     ScrollView, 
     Platform,
     StatusBar,
+    TouchableOpacity,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../contexts/DataContext';
 import { ConfirmButton } from '../components/buttons';
 import { PreviewHeader, ReceiptSummaryCard, EditableReceiptItemCard } from '../components/cards';
@@ -18,7 +20,7 @@ import { theme } from '../utils/theme';
 
 export default function PreViewScreen({ route, navigation }) {
     const { qrLink, previewData: receivedData, receiptId } = route.params || {};
-    const { previewQRCode, confirmQRCode, fetchReceiptById, loading } = useData();
+    const { previewQRCode, confirmQRCode, fetchReceiptById, deleteReceipt, loading } = useData();
     const [previewData, setPreviewData] = useState(receivedData || null);
     const [isReadOnly, setIsReadOnly] = useState(false);
 
@@ -165,6 +167,41 @@ export default function PreViewScreen({ route, navigation }) {
         );
     };
 
+    const handleDeleteReceipt = () => {
+        Alert.alert(
+            'Excluir Nota Fiscal',
+            'Tem certeza que deseja excluir esta nota fiscal? Esta ação não pode ser desfeita.',
+            [
+                { 
+                    text: 'Cancelar', 
+                    style: 'cancel' 
+                },
+                {
+                    text: 'Excluir',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await deleteReceipt(receiptId);
+                            Alert.alert(
+                                'Sucesso',
+                                'Nota fiscal excluída com sucesso!',
+                                [
+                                    {
+                                        text: 'OK',
+                                        onPress: () => navigation.navigate('Main', { screen: 'History' })
+                                    }
+                                ]
+                            );
+                        } catch (error) {
+                            Alert.alert('Erro', 'Não foi possível excluir a nota fiscal.');
+                            console.error('[Preview] Erro ao deletar nota:', error);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const handleConfirm = async () => {
         try {
             // Navega para Home IMEDIATAMENTE ao clicar em salvar
@@ -244,8 +281,20 @@ export default function PreViewScreen({ route, navigation }) {
                         total={previewData.total}
                     />
 
-                    {/* Lista de itens */}
-                    <Text style={styles.sectionTitle}>Itens ({previewData.itemsCount || 0})</Text>
+                    {/* Cabeçalho dos itens com botão de deletar */}
+                    <View style={styles.itemsHeader}>
+                        <Text style={styles.sectionTitle}>Itens ({previewData.itemsCount || 0})</Text>
+                        
+                        {/* Botão de deletar - só aparece em modo readonly (nota já salva) */}
+                        {isReadOnly && receiptId && (
+                            <TouchableOpacity 
+                                style={styles.deleteButton}
+                                onPress={handleDeleteReceipt}
+                            >
+                                <Ionicons name="trash" size={24} color="#ff4444" />
+                            </TouchableOpacity>
+                        )}
+                    </View>
                     
                     {previewData.items && previewData.items.length > 0 ? (
                         previewData.items.map((item, index) => (
@@ -319,11 +368,26 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#ef4444',
     },
+    itemsHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 15,
+    },
     sectionTitle: {
         fontSize: 18,
         fontWeight: '700',
         color: '#333',
-        marginBottom: 15,
+    },
+    deleteButton: {
+        padding: 8,
+        backgroundColor: '#fff',
+        borderRadius: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
     },
     noItemsText: {
         textAlign: 'center',
