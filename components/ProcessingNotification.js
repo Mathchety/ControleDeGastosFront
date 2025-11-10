@@ -8,8 +8,11 @@ export default function ProcessingNotification({ visible, message = "Processando
   const slideAnim = useRef(new Animated.Value(-100)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  // Calcula o top baseado na StatusBar e safe area
-  const topPosition = Platform.OS === 'android' ? insets.top + 10 : 10;
+  // Calcula o top baseado na Dynamic Island/Notch/StatusBar
+  // insets.top detecta automaticamente o tamanho da ilha, notch ou status bar
+  const topPosition = Platform.OS === 'ios' 
+    ? insets.top + 10  // iPhone com Dynamic Island (>54px) ou notch (>40px)
+    : (insets.top > 24 ? insets.top + 10 : insets.top + 15); // Android com furo/notch
 
   useEffect(() => {
     if (visible) {

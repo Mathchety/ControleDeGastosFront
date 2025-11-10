@@ -4,8 +4,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { moderateScale, fontScale } from '../../utils/responsive';
 import { theme } from '../../utils/theme';
 
-export const ReceiptSummaryCard = ({ storeName, subtotal, discount, total }) => (
+export const ReceiptSummaryCard = ({ storeName, subtotal, discount, total, actionButton }) => (
     <View style={styles.summaryCard}>
+        {/* Botão de ação no canto superior direito (ex: deletar) */}
+        {actionButton && (
+            <View style={styles.actionButtonContainer}>
+                {actionButton}
+            </View>
+        )}
+        
         <View style={styles.storeHeader}>
             <Ionicons name="storefront" size={theme.iconSizes.xxl} color={theme.colors.primary} />
             <Text style={styles.storeName} numberOfLines={2} adjustsFontSizeToFit>
@@ -45,6 +52,13 @@ const styles = StyleSheet.create({
         padding: moderateScale(24),
         marginBottom: theme.spacing.lg,
         ...theme.shadows.medium,
+        position: 'relative',
+    },
+    actionButtonContainer: {
+        position: 'absolute',
+        top: moderateScale(16),
+        right: moderateScale(16),
+        zIndex: 10,
     },
     storeHeader: {
         alignItems: 'center',

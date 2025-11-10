@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { 
     View, 
     Text, 
@@ -9,6 +9,7 @@ import {
     Platform,
     StatusBar,
     TouchableOpacity,
+    Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +24,11 @@ export default function PreViewScreen({ route, navigation }) {
     const { previewQRCode, confirmQRCode, fetchReceiptById, deleteReceipt, loading } = useData();
     const [previewData, setPreviewData] = useState(receivedData || null);
     const [isReadOnly, setIsReadOnly] = useState(false);
+    
+    // Animação do header ao rolar
+    const scrollY = useRef(new Animated.Value(0)).current;
+    const HEADER_HEIGHT = Platform.OS === 'ios' ? moderateScale(80) : moderateScale(110);
+    const HEADER_SCROLL_DISTANCE = Platform.OS === 'ios' ? moderateScale(50) : moderateScale(45);
 
     useEffect(() => {
         // MODO 1: Se recebeu ID de uma nota já salva, busca pelo endpoint
@@ -252,6 +258,19 @@ export default function PreViewScreen({ route, navigation }) {
         );
     }
 
+    // Animações do header ao rolar
+    const headerTranslateY = scrollY.interpolate({
+        inputRange: [0, HEADER_SCROLL_DISTANCE],
+        outputRange: [0, -HEADER_SCROLL_DISTANCE],
+        extrapolate: 'clamp',
+    });
+
+    const headerOpacity = scrollY.interpolate({
+        inputRange: [0, HEADER_SCROLL_DISTANCE * 0.6, HEADER_SCROLL_DISTANCE],
+        outputRange: [1, 0.5, 0],
+        extrapolate: 'clamp',
+    });
+
     return (
         <View style={styles.safeArea}>
             <StatusBar 
@@ -260,40 +279,59 @@ export default function PreViewScreen({ route, navigation }) {
                 translucent={true}
             />
             
-            <LinearGradient
-                colors={['#667eea', '#764ba2']}
-                style={styles.headerGradient}
+            <Animated.View
+                style={[
+                    styles.headerAnimatedContainer,
+                    {
+                        height: HEADER_HEIGHT,
+                        transform: [{ translateY: headerTranslateY }],
+                    },
+                ]}
             >
-                <PreviewHeader onBack={() => navigation.goBack()} />
-            </LinearGradient>
+                <LinearGradient
+                    colors={['#667eea', '#764ba2']}
+                    style={styles.headerGradient}
+                />
+                <Animated.View style={[styles.headerContent, { opacity: headerOpacity }]}>
+                    <PreviewHeader onBack={() => navigation.goBack()} />
+                </Animated.View>
+            </Animated.View>
             
             <View style={styles.container}>
 
-                <ScrollView 
+                <Animated.ScrollView 
                     style={styles.scrollView}
-                    contentContainerStyle={styles.scrollContent}
+                    contentContainerStyle={[
+                        styles.scrollContent,
+                        { paddingTop: HEADER_HEIGHT },
+                    ]}
                     showsVerticalScrollIndicator={false}
+                    scrollEventThrottle={16}
+                    onScroll={Animated.event(
+                        [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                        { useNativeDriver: false }
+                    )}
                 >
                     <ReceiptSummaryCard 
                         storeName={previewData.storeName}
                         subtotal={previewData.subtotal}
                         discount={previewData.discount}
                         total={previewData.total}
+                        actionButton={
+                            isReadOnly && receiptId ? (
+                                <TouchableOpacity 
+                                    style={styles.deleteButton}
+                                    onPress={handleDeleteReceipt}
+                                >
+                                    <Ionicons name="trash" size={24} color="#ff4444" />
+                                </TouchableOpacity>
+                            ) : null
+                        }
                     />
 
-                    {/* Cabeçalho dos itens com botão de deletar */}
+                    {/* Cabeçalho dos itens */}
                     <View style={styles.itemsHeader}>
                         <Text style={styles.sectionTitle}>Itens ({previewData.itemsCount || 0})</Text>
-                        
-                        {/* Botão de deletar - só aparece em modo readonly (nota já salva) */}
-                        {isReadOnly && receiptId && (
-                            <TouchableOpacity 
-                                style={styles.deleteButton}
-                                onPress={handleDeleteReceipt}
-                            >
-                                <Ionicons name="trash" size={24} color="#ff4444" />
-                            </TouchableOpacity>
-                        )}
                     </View>
                     
                     {previewData.items && previewData.items.length > 0 ? (
@@ -310,7 +348,7 @@ export default function PreViewScreen({ route, navigation }) {
                     ) : (
                         <Text style={styles.noItemsText}>Nenhum item encontrado</Text>
                     )}
-                </ScrollView>
+                </Animated.ScrollView>
 
                 {/* Botão confirmar - FIXO NA PARTE INFERIOR - Só mostra se NÃO for readonly */}
                 {!isReadOnly && (
@@ -330,11 +368,29 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#f8f9fa',
     },
+    headerAnimatedContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 10,
+        overflow: 'hidden',
+    },
     headerGradient: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         borderBottomLeftRadius: theme.radius.xl,
         borderBottomRightRadius: theme.radius.xl,
-        paddingTop: Platform.OS === 'ios' ? moderateScale(60) : StatusBar.currentHeight + moderateScale(10),
-        paddingBottom: moderateScale(20),
+    },
+    headerContent: {
+        flex: 1,
+        justifyContent: 'flex-start',
+        paddingTop: Platform.OS === 'ios' ? moderateScale(15) : StatusBar.currentHeight + moderateScale(5),
+        paddingBottom: moderateScale(5),
+        zIndex: 1,
     },
     container: {
         flex: 1,
@@ -345,7 +401,7 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: 20,
-        paddingBottom: 20,
+        paddingBottom: 100, // Espaço extra para o botão fixo
     },
     fullLoading: {
         position: 'absolute',

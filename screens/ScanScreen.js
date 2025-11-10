@@ -9,12 +9,14 @@ export default function ScanScreen({ navigation }) {
   const [scanned, setScanned] = useState(false);
   const [scannedData, setScannedData] = useState(null);
   const [localLoading, setLocalLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const { loading: contextLoading, previewQRCode } = useData();
   const loading = contextLoading || localLoading;
 
   // Animação da tela de scan (fecha a câmera)
   const screenAnim = useRef(new Animated.Value(1)).current; // 1 = aberto, 0 = fechado
+  const successAnim = useRef(new Animated.Value(0)).current; // Animação do ícone de sucesso
 
   useEffect(() => {
     if (!permission?.granted) {
@@ -28,7 +30,9 @@ export default function ScanScreen({ navigation }) {
       setScanned(false);
       setScannedData(null);
       setLocalLoading(false);
+      setShowSuccess(false);
       screenAnim.setValue(1);
+      successAnim.setValue(0);
     });
     return unsubscribe;
   }, [navigation]);
@@ -42,30 +46,46 @@ export default function ScanScreen({ navigation }) {
     setLocalLoading(true);
 
     try {
-      // Anima a "fechadura" da tela: diminui e some
-      Animated.timing(screenAnim, {
-        toValue: 0,
-        duration: 300,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
-
       // Chama o preview
       console.log('[Scan] QR Code lido:', data);
       const previewData = await previewQRCode(data);
       console.log('[Scan] Preview recebido');
 
-      // Navega para tela de preview com os dados
-      navigation.navigate('Preview', { 
-        previewData,
-        qrLink: data 
+      // Mostra animação de sucesso
+      setShowSuccess(true);
+      Animated.sequence([
+        Animated.timing(successAnim, {
+          toValue: 1,
+          duration: 300,
+          easing: Easing.out(Easing.back(1.5)),
+          useNativeDriver: true,
+        }),
+        Animated.delay(400),
+      ]).start(() => {
+        // Anima a "fechadura" da tela antes de navegar
+        Animated.timing(screenAnim, {
+          toValue: 0,
+          duration: 400,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }).start(() => {
+          // Navega para tela de preview com os dados após animação
+          navigation.navigate('Preview', { 
+            previewData,
+            qrLink: data 
+          });
+          setLocalLoading(false);
+          setShowSuccess(false);
+          successAnim.setValue(0);
+        });
       });
 
-      setLocalLoading(false);
     } catch (error) {
       setLocalLoading(false);
       setScanned(false);
+      setShowSuccess(false);
       screenAnim.setValue(1);
+      successAnim.setValue(0);
       Alert.alert('Erro', error.message || 'Não foi possível processar a nota fiscal');
       console.error('[Scan] Erro:', error);
     }
@@ -124,9 +144,46 @@ export default function ScanScreen({ navigation }) {
               <View style={[styles.corner, styles.cornerTR]} />
               <View style={[styles.corner, styles.cornerBL]} />
               <View style={[styles.corner, styles.cornerBR]} />
+              
+              {/* Loading quando QR Code é detectado */}
+              {loading && (
+                <View style={styles.loadingOverlay}>
+                  <View style={styles.loadingContent}>
+                    {!showSuccess ? (
+                      <>
+                        <ActivityIndicator size="large" color="#667eea" />
+                        <Text style={styles.loadingText}>Processando...</Text>
+                        <Text style={styles.loadingSubText}>Identificando nota fiscal</Text>
+                      </>
+                    ) : (
+                      <Animated.View style={{
+                        transform: [
+                          { scale: successAnim },
+                          { 
+                            rotate: successAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: ['0deg', '360deg']
+                            })
+                          }
+                        ],
+                        opacity: successAnim,
+                      }}>
+                        <View style={styles.successCircle}>
+                          <Ionicons name="checkmark" size={60} color="#fff" />
+                        </View>
+                      </Animated.View>
+                    )}
+                  </View>
+                </View>
+              )}
             </View>
 
-           
+            {/* Instrução quando não está processando */}
+            {!loading && (
+              <Text style={styles.instructionText}>
+                Posicione o QR Code da nota fiscal dentro do quadro
+              </Text>
+            )}
           </View>
         </View>
       </Animated.View>
@@ -183,6 +240,45 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 16,
+  },
+  loadingSubText: {
+    color: '#ccc',
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  successCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#10b981',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 8,
+  },
   corner: {
     position: 'absolute',
     width: 40,
@@ -213,16 +309,6 @@ const styles = StyleSheet.create({
     right: 0,
     borderLeftWidth: 0,
     borderTopWidth: 0,
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    color: '#fff',
-    fontSize: 16,
-    marginTop: 10,
-    fontWeight: '600',
   },
   instructionText: {
     marginTop: 30,
