@@ -60,6 +60,10 @@ export default function ProfileScreen({ navigation }) {
         Alert.alert('Alterar Senha', 'Função em desenvolvimento');
     };
 
+    const handleViewCategories = () => {
+        navigation.navigate('Categories');
+    };
+
     const handleLogout = () => {
         Alert.alert(
             'Sair',
@@ -143,13 +147,6 @@ export default function ProfileScreen({ navigation }) {
                         delay={150}
                     />
                     
-                    <InfoItem
-                        icon="call-outline"
-                        label="Telefone"
-                        value={user.phone}
-                        onPress={handleEditProfile}
-                        delay={200}
-                    />
                 </View>
 
                 {/* Segurança */}
@@ -170,6 +167,19 @@ export default function ProfileScreen({ navigation }) {
                         value="Desativada"
                         onPress={() => Alert.alert('2FA', 'Função em desenvolvimento')}
                         delay={300}
+                    />
+                </View>
+
+                {/* Categorias */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Categorias</Text>
+                    
+                    <InfoItem
+                        icon="pricetags-outline"
+                        label="Ver Categorias"
+                        value=""
+                        onPress={handleViewCategories}
+                        delay={350}
                     />
                 </View>
 

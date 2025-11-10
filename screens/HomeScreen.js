@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
     View, 
     Text,
@@ -11,6 +11,7 @@ import {
     Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
@@ -39,6 +40,21 @@ export default function HomeScreen({ navigation }) {
     useEffect(() => {
         loadData();
     }, []);
+
+    // Recarrega dados toda vez que a tela ganhar foco (ex: voltar de deletar uma nota)
+    useFocusEffect(
+        useCallback(() => {
+            loadData();
+        }, [])
+    );
+
+    // Recarrega dados quando a notificação de processamento desaparecer
+    useEffect(() => {
+        if (!isProcessingReceipt) {
+            console.log('[Home] 🔄 Notificação sumiu! Recarregando dados...');
+            loadData();
+        }
+    }, [isProcessingReceipt]);
 
     // Recalcula o total do mês sempre que allReceipts mudar
     useEffect(() => {

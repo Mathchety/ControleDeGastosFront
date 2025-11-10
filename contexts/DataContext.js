@@ -38,44 +38,31 @@ export const DataProvider = ({ children }) => {
     const confirmQRCode = async (dataToSave = null, onTimeout = null) => {
         try {
             setLoading(true);
+            // Mostra notificação IMEDIATAMENTE ao salvar
+            setIsProcessingReceipt(true);
+            
             const finalData = dataToSave || previewData;
             
             if (!finalData) {
+                setIsProcessingReceipt(false);
                 throw new Error('Nenhum dado de preview disponível para confirmar');
             }
 
-            let timeoutReached = false;
-            const timeoutPromise = new Promise((resolve) => {
-                setTimeout(() => {
-                    timeoutReached = true;
-                    if (onTimeout) {
-                        setIsProcessingReceipt(true);
-                        onTimeout();
-                    }
-                    resolve({ timedOut: true });
-                }, 5000);
-            });
-
-            const requestPromise = httpClient.post('/scan-qrcode/confirm', finalData)
-                .then(response => {
-                    if (!timeoutReached) {
-                        return { timedOut: false, response };
-                    }
-                    setIsProcessingReceipt(false);
-                    fetchReceiptsBasic();
-                    return { timedOut: true, response };
-                });
-
-            const result = await Promise.race([timeoutPromise, requestPromise]);
-
-            if (!result.timedOut) {
-                setPreviewData(null);
-                await fetchReceiptsBasic();
-            }
+            // Faz a requisição
+            const response = await httpClient.post('/scan-qrcode/confirm', finalData);
             
-            return result;
+            // Quando a API retornar, esconde notificação e atualiza dados
+            console.log('[Data] ✅ API retornou! Escondendo notificação e atualizando dados...');
+            setIsProcessingReceipt(false);
+            setPreviewData(null);
+            
+            // Força refresh dos receipts
+            await fetchReceiptsBasic();
+            
+            return { timedOut: false, response };
         } catch (error) {
             console.error('[Data] Erro ao confirmar nota:', error);
+            setIsProcessingReceipt(false);
             throw error;
         } finally {
             setLoading(false);
@@ -340,6 +327,39 @@ export const DataProvider = ({ children }) => {
         }
     };
 
+    // Cria uma nova categoria - POST /category
+    // Endpoint salvo, aguardando implementação
+    // Body: { name: string (required), description?: string, icon?: string, color?: string }
+    const createCategory = async (categoryData) => {
+        try {
+            setLoading(true);
+            const response = await httpClient.post('/category', categoryData);
+            
+            // Resposta esperada: { data: { id, name, description, icon, color }, message }
+            return response?.data || response;
+        } catch (error) {
+            console.error('[Data] Erro ao criar categoria:', error);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Deleta uma categoria - DELETE /category/{id}
+    // Move todos os itens para "Não categorizado"
+    const deleteCategory = async (id) => {
+        try {
+            setLoading(true);
+            const response = await httpClient.delete(`/category/${id}`);
+            return response;
+        } catch (error) {
+            console.error('[Data] Erro ao deletar categoria:', error);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const clearPreview = () => setPreviewData(null);
 
     return (
@@ -358,6 +378,8 @@ export const DataProvider = ({ children }) => {
                 fetchCategoriesGraph,
                 fetchCategories,
                 fetchCategoryById,
+                createCategory,
+                deleteCategory,
                 deleteReceipt,
                 clearPreview,
                 dateList,

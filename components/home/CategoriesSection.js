@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PieChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { moderateScale } from '../../utils/responsive';
 import { theme } from '../../utils/theme';
@@ -19,7 +20,7 @@ const COLORS = [
 ];
 
 export const CategoriesSection = () => {
-    const { fetchCategoriesGraph, fetchCategoryById } = useData();
+    const { fetchCategoriesGraph, fetchCategoryById, isProcessingReceipt } = useData();
     const [graphData, setGraphData] = useState([]);
     const [allCategories, setAllCategories] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
@@ -42,6 +43,21 @@ export const CategoriesSection = () => {
         // Recarrega quando o filtro muda
         loadGraphData();
     }, [filterPeriod]);
+
+    // Recarrega o gráfico quando a notificação de processamento desaparecer
+    useEffect(() => {
+        if (!isProcessingReceipt) {
+            console.log('[CategoriesSection] 📊 Notificação sumiu! Recarregando gráfico...');
+            loadGraphData();
+        }
+    }, [isProcessingReceipt]);
+
+    // Recarrega dados toda vez que a tela Home ganhar foco (ex: voltar de deletar nota)
+    useFocusEffect(
+        useCallback(() => {
+            loadGraphData();
+        }, [filterPeriod, startDate, endDate])
+    );
 
     const loadGraphData = async () => {
         try {
@@ -74,7 +90,10 @@ export const CategoriesSection = () => {
                     start = new Date(today.getFullYear(), today.getMonth(), 1);
             }
 
+            console.log('[CategoriesSection] 🔄 Recarregando dados do gráfico...');
             const graphResponse = await fetchCategoriesGraph(start, end);
+            console.log('[CategoriesSection] 📊 Dados recebidos:', graphResponse?.length, 'categorias');
+            console.log('[CategoriesSection] 📋 Detalhes:', JSON.stringify(graphResponse, null, 2));
             setGraphData(graphResponse || []);
             // Atualiza também as categorias do modal com os mesmos dados
             setAllCategories(graphResponse || []);
