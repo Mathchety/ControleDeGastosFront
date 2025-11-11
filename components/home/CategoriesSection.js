@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, ActivityIn
 import { Ionicons } from '@expo/vector-icons';
 import { PieChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { moderateScale } from '../../utils/responsive';
 import { theme } from '../../utils/theme';
@@ -20,6 +20,7 @@ const COLORS = [
 ];
 
 export const CategoriesSection = () => {
+    const navigation = useNavigation();
     const { fetchCategoriesGraph, fetchCategoryById, isProcessingReceipt } = useData();
     const [graphData, setGraphData] = useState([]);
     const [allCategories, setAllCategories] = useState([]);
@@ -253,9 +254,14 @@ export const CategoriesSection = () => {
                     onPress={() => setModalVisible(true)}
                 >
                     <Ionicons name="list" size={20} color="#667eea" />
-                    <Text style={styles.viewAllButtonText}>Ver Todas as Categorias</Text>
+                    <Text style={styles.viewAllButtonText}>Ver Detalhes das Categorias</Text>
                     <Ionicons name="arrow-forward" size={18} color="#667eea" />
                 </TouchableOpacity>
+                
+                {/* Dica para ir para aba Categories */}
+                <Text style={styles.tabHint}>
+                    Para gerenciar categorias, acesse a aba "Categorias"
+                </Text>
             </View>
 
             {/* DatePickers - Nova Biblioteca */}
@@ -490,6 +496,13 @@ const styles = StyleSheet.create({
         fontSize: moderateScale(15),
         fontWeight: '600',
         color: '#667eea',
+    },
+    tabHint: {
+        fontSize: moderateScale(12),
+        color: '#999',
+        textAlign: 'center',
+        marginTop: moderateScale(12),
+        fontStyle: 'italic',
     },
     seeAllButton: {
         fontSize: moderateScale(14),

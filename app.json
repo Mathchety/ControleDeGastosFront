@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "ControleDeGastos",
-    "slug": "controle-de-gastos-front",
+    "name": "SmartReceipt",
+    "slug": "smart-receipt",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

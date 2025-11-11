@@ -1,357 +1,412 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Input } from '../inputs';
-import { PrimaryButton, SecondaryButton } from '../buttons';
-import { moderateScale, fontScale } from '../../utils/responsive';
-import { theme } from '../../utils/theme';
+import { moderateScale } from '../../utils/responsive';
 
 /**
- * Card de item de nota fiscal editável com expansão
+ * Card de item de nota fiscal com design igual ao CategoryDetailsScreen
  * @param {Object} item - Item da nota fiscal
  * @param {Number} itemIndex - Índice do item na lista
  * @param {Function} onUpdate - Callback quando item é atualizado
  * @param {Function} onDelete - Callback quando item é deletado
+ * @param {Boolean} readOnly - Se true, desabilita edição
  */
 export default function EditableReceiptItemCard({ item, itemIndex, onUpdate, onDelete, readOnly }) {
-    const [expanded, setExpanded] = useState(false);
+    const [modalVisible, setModalVisible] = useState(false);
+    const [saving, setSaving] = useState(false);
     
-    // Debug: Log do item recebido
-    console.log(`[EditableCard] Item ${itemIndex}:`, {
-        hasProduct: !!item.product,
-        productName: item.product?.name,
-        hasCategory: !!item.category,
-        categoryName: item.category?.name,
-        description: item.description,
-        rawItem: JSON.stringify(item).substring(0, 200)
+    console.log('[EditableCard] 🔄 Renderizando item:', {
+        itemIndex,
+        hasOnUpdate: !!onUpdate,
+        hasOnDelete: !!onDelete,
+        readOnly,
+        productName: item.product?.name || item.description
     });
     
-    // Extrai o nome do produto e categoria da nova estrutura
+    // Extrai dados do item
     const productName = item.product?.name || item.description || '';
     const categoryName = item.category?.name || item.categoryName || '';
     const unity = item.product?.unity || item.unit || 'UN';
+    const itemTotal = parseFloat(item.total || 0);
+    const quantity = parseFloat(item.quantity || 1);
+    const unitPrice = quantity > 0 ? itemTotal / quantity : 0;
     
-    console.log(`[EditableCard] Dados processados:`, {
-        productName,
-        categoryName,
-        unity
-    });
+    const [formQuantity, setFormQuantity] = useState(quantity.toString());
+    const [formTotal, setFormTotal] = useState(itemTotal.toFixed(2));
     
-    const [editedItem, setEditedItem] = useState({
-        description: productName,
-        quantity: item.quantity?.toString() || '1',
-        unitPrice: item.unitPrice?.toString() || '0',
-        unit: unity,
-        categoryName: categoryName,
-    });
+    // Calcula preço unitário automaticamente
+    const calculatedUnitPrice = parseFloat(formQuantity) > 0 
+        ? parseFloat(formTotal) / parseFloat(formQuantity)
+        : 0;
 
-    const isKg = editedItem.unit?.toUpperCase() === 'KG';
-    const calculatedTotal = parseFloat(editedItem.quantity || 0) * parseFloat(editedItem.unitPrice || 0);
+    const handleEditItem = () => {
+        setFormQuantity(quantity.toString());
+        setFormTotal(itemTotal.toFixed(2));
+        setModalVisible(true);
+    };
 
-    const handleSave = () => {
+    const handleSave = async () => {
+        console.log('[EditableCard] 💾 Salvando item:', {
+            itemIndex,
+            quantity: formQuantity,
+            total: formTotal,
+            calculatedUnitPrice
+        });
+        
+        if (!onUpdate) {
+            console.log('[EditableCard] ❌ onUpdate não está definido!');
+            return;
+        }
+        
+        setSaving(true);
+        
         const updatedItem = {
             ...item,
-            description: editedItem.description,
-            quantity: parseFloat(editedItem.quantity),
-            unitPrice: parseFloat(editedItem.unitPrice),
-            unit: editedItem.unit,
-            total: calculatedTotal,
+            quantity: parseFloat(formQuantity),
+            total: parseFloat(formTotal),
+            unitPrice: calculatedUnitPrice,
         };
         
-        console.log('[EditableCard] Salvando item:', {
-            index: itemIndex,
-            description: editedItem.description,
-            quantity: editedItem.quantity,
-            unitPrice: editedItem.unitPrice,
-            calculatedTotal
-        });
-        
+        console.log('[EditableCard] 📤 Chamando onUpdate com:', updatedItem);
         onUpdate(updatedItem, itemIndex);
-        setExpanded(false);
+        setSaving(false);
+        setModalVisible(false);
     };
 
-    const handleCancel = () => {
-        setEditedItem({
-            description: productName,
-            quantity: item.quantity?.toString() || '1',
-            unitPrice: item.unitPrice?.toString() || '0',
-            unit: unity,
-            categoryName: categoryName,
-        });
-        setExpanded(false);
-    };
+    if (item.deleted) {
+        return null; // Não mostra itens deletados
+    }
 
     return (
-        <View style={[styles.container, item.deleted && styles.deletedContainer]}>
-            {/* Header do item (sempre visível) */}
-            <TouchableOpacity 
-                style={styles.header}
-                onPress={() => !readOnly && setExpanded(!expanded)}
-                activeOpacity={readOnly ? 1 : 0.7}
-                disabled={readOnly}
-            >
-                <View style={styles.headerLeft}>
-                    <Text 
-                        style={[styles.description, item.deleted && styles.deletedText]}
-                        numberOfLines={2}
-                    >
-                        {productName}
-                    </Text>
-                    {categoryName && (
-                        <Text style={styles.categoryBadge}>
-                            {categoryName}
-                        </Text>
-                    )}
-                    <Text style={styles.subtitle}>
-                        {item.quantity} {unity} × R$ {parseFloat(item.unitPrice || 0).toFixed(2)}
-                        {isKg && '/kg'}
-                    </Text>
-                </View>
-                <View style={styles.headerRight}>
-                    <Text style={[styles.totalText, item.deleted && styles.deletedText]}>
-                        R$ {parseFloat(item.total || 0).toFixed(2)}
-                    </Text>
+        <>
+            <View style={styles.itemCard}>
+                {/* Header com badge e botão de editar */}
+                <View style={styles.itemHeader}>
+                    <View style={styles.itemBadge}>
+                        <Text style={styles.itemBadgeText}>#{itemIndex + 1}</Text>
+                    </View>
+                    <Text style={styles.itemName}>{productName}</Text>
                     {!readOnly && (
-                        <Ionicons 
-                            name={expanded ? "chevron-up" : "chevron-down"} 
-                            size={theme.iconSizes.md} 
-                            color={theme.colors.primary} 
-                        />
+                        <TouchableOpacity
+                            style={styles.editItemButton}
+                            onPress={handleEditItem}
+                        >
+                            <Ionicons name="create-outline" size={20} color="#667eea" />
+                        </TouchableOpacity>
                     )}
                 </View>
-            </TouchableOpacity>
 
-            {item.deleted && (
-                <View style={styles.deletedBadge}>
-                    <Text style={styles.deletedBadgeText}>DELETADO</Text>
-                </View>
-            )}
-
-            {/* Formulário de edição (expansível) */}
-            {expanded && !item.deleted && (
-                <View style={styles.editForm}>
-                    {/* Descrição */}
-                    <Input
-                        icon="pricetag-outline"
-                        placeholder="Nome do produto"
-                        value={editedItem.description}
-                        onChangeText={(text) => setEditedItem({ ...editedItem, description: text })}
-                    />
-
-                    {/* Quantidade e Unidade */}
-                    <View style={styles.row}>
-                        <View style={styles.inputWrapper}>
-                            <Input
-                                icon="cube-outline"
-                                placeholder="Qtd"
-                                value={editedItem.quantity}
-                                onChangeText={(text) => setEditedItem({ ...editedItem, quantity: text })}
-                                keyboardType="decimal-pad"
-                            />
-                        </View>
-                        <View style={styles.inputWrapper}>
-                            <Input
-                                placeholder="UN"
-                                value={editedItem.unit}
-                                onChangeText={(text) => setEditedItem({ ...editedItem, unit: text.toUpperCase() })}
-                                maxLength={3}
-                            />
-                        </View>
-                    </View>
-
-                    {/* Preço unitário */}
-                    <Input
-                        icon="cash-outline"
-                        placeholder={isKg ? "Preço por kg" : "Preço unitário"}
-                        value={editedItem.unitPrice}
-                        onChangeText={(text) => setEditedItem({ ...editedItem, unitPrice: text })}
-                        keyboardType="decimal-pad"
-                    />
-
-                    {/* Total calculado */}
-                    <View style={styles.calculatedTotal}>
-                        <Text style={styles.calculatedLabel}>Total calculado:</Text>
-                        <Text style={styles.calculatedValue}>
-                            R$ {calculatedTotal.toFixed(2)}
+                {/* Detalhes do item */}
+                <View style={styles.itemDetails}>
+                    <View style={styles.itemDetailRow}>
+                        <Ionicons name="cube-outline" size={16} color="#666" />
+                        <Text style={styles.itemDetailText}>
+                            Quantidade: {quantity} {unity}
                         </Text>
                     </View>
-
-                    {/* Botões de ação */}
-                    <View style={styles.actionButtons}>
-                        <TouchableOpacity 
-                            style={styles.deleteButton}
-                            onPress={() => onDelete(itemIndex)}
-                            activeOpacity={0.7}
-                        >
-                            <Ionicons name="trash-outline" size={theme.iconSizes.sm} color="#fff" />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity 
-                            style={styles.cancelButton}
-                            onPress={handleCancel}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.cancelButtonText}>Cancelar</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity 
-                            style={styles.saveButton}
-                            onPress={handleSave}
-                            activeOpacity={0.7}
-                        >
-                            <Ionicons name="checkmark" size={theme.iconSizes.sm} color="#fff" />
-                            <Text style={styles.saveButtonText}>Salvar</Text>
-                        </TouchableOpacity>
+                    <View style={styles.itemDetailRow}>
+                        <Ionicons name="pricetag-outline" size={16} color="#666" />
+                        <Text style={styles.itemDetailText}>
+                            Preço Unitário: R$ {unitPrice.toFixed(2)}
+                        </Text>
                     </View>
+                    {categoryName && (
+                        <View style={styles.itemDetailRow}>
+                            <Ionicons name="folder-outline" size={16} color="#666" />
+                            <Text style={styles.itemDetailText}>{categoryName}</Text>
+                        </View>
+                    )}
                 </View>
+
+                {/* Footer com total */}
+                <View style={styles.itemFooter}>
+                    <Text style={styles.itemTotalLabel}>Total</Text>
+                    <Text style={styles.itemTotalValue}>
+                        R$ {itemTotal.toFixed(2)}
+                    </Text>
+                </View>
+            </View>
+
+            {/* Modal de Edição */}
+            {!readOnly && (
+                <Modal
+                    visible={modalVisible}
+                    transparent={true}
+                    animationType="slide"
+                    onRequestClose={() => setModalVisible(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>Editar Item</Text>
+                                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                                    <Ionicons name="close" size={28} color="#666" />
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Nome do item (somente leitura) */}
+                            <View style={styles.formGroup}>
+                                <Text style={styles.label}>Produto</Text>
+                                <View style={styles.readOnlyField}>
+                                    <Text style={styles.readOnlyText}>{productName}</Text>
+                                </View>
+                            </View>
+
+                            {/* Campo de quantidade - adapta label baseado no tipo */}
+                            <View style={styles.formGroup}>
+                                <Text style={styles.label}>
+                                    {unity?.toUpperCase().includes('KG') 
+                                        ? 'Peso (kg)' 
+                                        : unity?.toUpperCase().includes('ML') || unity?.toUpperCase().includes('L')
+                                        ? 'Volume (ml)' 
+                                        : 'Quantidade'}
+                                </Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={formQuantity}
+                                    onChangeText={setFormQuantity}
+                                    keyboardType="decimal-pad"
+                                    placeholder="0"
+                                />
+                            </View>
+
+                            {/* Total */}
+                            <View style={styles.formGroup}>
+                                <Text style={styles.label}>Total</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={formTotal}
+                                    onChangeText={setFormTotal}
+                                    keyboardType="decimal-pad"
+                                    placeholder="0.00"
+                                />
+                            </View>
+
+                            {/* Preço unitário calculado - adapta label baseado no tipo */}
+                            <View style={styles.formGroup}>
+                                <Text style={styles.label}>
+                                    {unity?.toUpperCase().includes('KG') 
+                                        ? 'Preço por kg (calculado)' 
+                                        : unity?.toUpperCase().includes('ML') || unity?.toUpperCase().includes('L')
+                                        ? 'Preço por ml (calculado)' 
+                                        : 'Preço unitário (calculado)'}
+                                </Text>
+                                <View style={styles.calculatedField}>
+                                    <Text style={styles.calculatedValue}>
+                                        R$ {calculatedUnitPrice.toFixed(2)}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {/* Botões */}
+                            <View style={styles.modalButtons}>
+                                <TouchableOpacity
+                                    style={[styles.modalButton, styles.deleteModalButton]}
+                                    onPress={() => {
+                                        setModalVisible(false);
+                                        onDelete(itemIndex);
+                                    }}
+                                >
+                                    <Ionicons name="trash-outline" size={20} color="#ff4444" />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.modalButton, styles.cancelButton]}
+                                    onPress={() => setModalVisible(false)}
+                                >
+                                    <Text style={styles.cancelButtonText}>Cancelar</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.modalButton, styles.saveButton, saving && styles.saveButtonDisabled]}
+                                    onPress={handleSave}
+                                    disabled={saving}
+                                >
+                                    {saving ? (
+                                        <ActivityIndicator color="#fff" />
+                                    ) : (
+                                        <Text style={styles.saveButtonText}>Salvar</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
             )}
-        </View>
+        </>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
+    itemCard: {
         backgroundColor: '#fff',
-        borderRadius: theme.radius.md,
-        marginBottom: theme.spacing.md,
-        ...theme.shadows.small,
+        borderRadius: moderateScale(15),
+        padding: moderateScale(16),
+        marginBottom: moderateScale(12),
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
     },
-    deletedContainer: {
-        opacity: 0.6,
-        backgroundColor: '#f9fafb',
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: theme.spacing.md,
-    },
-    headerLeft: {
-        flex: 1,
-        marginRight: theme.spacing.xs,
-    },
-    headerRight: {
+    itemHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: theme.spacing.xs,
+        marginBottom: moderateScale(12),
     },
-    description: {
-        fontSize: theme.fonts.body,
+    itemBadge: {
+        paddingHorizontal: moderateScale(10),
+        paddingVertical: moderateScale(4),
+        borderRadius: moderateScale(12),
+        backgroundColor: '#667eea',
+        marginRight: moderateScale(10),
+    },
+    itemBadgeText: {
+        fontSize: moderateScale(12),
         fontWeight: '600',
-        color: theme.colors.text,
-        marginBottom: moderateScale(3),
-        lineHeight: fontScale(18),
-    },
-    categoryBadge: {
-        fontSize: theme.fonts.caption,
-        color: theme.colors.primary,
-        backgroundColor: '#f0f0ff',
-        paddingHorizontal: theme.spacing.xs,
-        paddingVertical: moderateScale(2),
-        borderRadius: theme.radius.sm,
-        alignSelf: 'flex-start',
-        marginBottom: theme.spacing.xs,
-        overflow: 'hidden',
-    },
-    deletedText: {
-        textDecorationLine: 'line-through',
-        color: theme.colors.textLight,
-    },
-    subtitle: {
-        fontSize: theme.fonts.caption,
-        color: theme.colors.textSecondary,
-    },
-    totalText: {
-        fontSize: theme.fonts.body,
-        fontWeight: '700',
-        color: theme.colors.primary,
-    },
-    deletedBadge: {
-        backgroundColor: theme.colors.danger,
-        paddingHorizontal: theme.spacing.md,
-        paddingVertical: theme.spacing.xs,
-        borderRadius: theme.radius.md,
-        alignSelf: 'flex-start',
-        marginLeft: theme.spacing.md,
-        marginBottom: theme.spacing.sm,
-    },
-    deletedBadgeText: {
         color: '#fff',
-        fontSize: theme.fonts.caption,
-        fontWeight: '700',
     },
-    editForm: {
-        borderTopWidth: 1,
-        borderTopColor: '#e5e7eb',
-        padding: theme.spacing.md,
-        paddingTop: theme.spacing.md,
-    },
-    row: {
-        flexDirection: 'row',
-        gap: theme.spacing.xs,
-    },
-    inputWrapper: {
+    itemName: {
         flex: 1,
+        fontSize: moderateScale(16),
+        fontWeight: '600',
+        color: '#333',
     },
-    calculatedTotal: {
+    editItemButton: {
+        width: moderateScale(36),
+        height: moderateScale(36),
+        borderRadius: moderateScale(18),
+        backgroundColor: '#f0f4ff',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginLeft: moderateScale(8),
+    },
+    itemDetails: {
+        marginBottom: moderateScale(12),
+    },
+    itemDetailRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: moderateScale(6),
+    },
+    itemDetailText: {
+        fontSize: moderateScale(14),
+        color: '#666',
+        marginLeft: moderateScale(8),
+    },
+    itemFooter: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: '#f3f4f6',
-        padding: theme.spacing.sm,
-        borderRadius: theme.radius.sm,
-        marginBottom: theme.spacing.md,
-        marginTop: theme.spacing.xs,
+        paddingTop: moderateScale(12),
+        borderTopWidth: 1,
+        borderTopColor: '#f0f0f0',
     },
-    calculatedLabel: {
-        fontSize: theme.fonts.caption,
+    itemTotalLabel: {
+        fontSize: moderateScale(14),
         fontWeight: '600',
-        color: theme.colors.textSecondary,
+        color: '#666',
+    },
+    itemTotalValue: {
+        fontSize: moderateScale(20),
+        fontWeight: '700',
+        color: '#667eea',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        borderTopLeftRadius: moderateScale(25),
+        borderTopRightRadius: moderateScale(25),
+        padding: moderateScale(20),
+        maxHeight: '80%',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: moderateScale(20),
+    },
+    modalTitle: {
+        fontSize: moderateScale(24),
+        fontWeight: '700',
+        color: '#333',
+    },
+    formGroup: {
+        marginBottom: moderateScale(20),
+    },
+    label: {
+        fontSize: moderateScale(14),
+        fontWeight: '600',
+        color: '#333',
+        marginBottom: moderateScale(8),
+    },
+    input: {
+        backgroundColor: '#f8f9fa',
+        borderRadius: moderateScale(12),
+        padding: moderateScale(15),
+        fontSize: moderateScale(16),
+        color: '#333',
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+    },
+    readOnlyField: {
+        backgroundColor: '#f8f9fa',
+        borderRadius: moderateScale(12),
+        padding: moderateScale(15),
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+    },
+    readOnlyText: {
+        fontSize: moderateScale(16),
+        color: '#666',
+    },
+    calculatedField: {
+        backgroundColor: '#f0f4ff',
+        borderRadius: moderateScale(12),
+        padding: moderateScale(15),
+        borderWidth: 1,
+        borderColor: '#d0d9ff',
     },
     calculatedValue: {
-        fontSize: fontScale(16),
+        fontSize: moderateScale(18),
         fontWeight: '700',
-        color: theme.colors.primary,
+        color: '#667eea',
     },
-    actionButtons: {
+    modalButtons: {
         flexDirection: 'row',
-        gap: theme.spacing.xs,
+        gap: moderateScale(10),
+        marginTop: moderateScale(10),
     },
-    deleteButton: {
-        width: moderateScale(40),
-        height: moderateScale(40),
+    modalButton: {
+        flex: 1,
+        height: moderateScale(50),
+        borderRadius: moderateScale(12),
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: theme.radius.sm,
-        backgroundColor: theme.colors.danger,
+    },
+    deleteModalButton: {
+        flex: 0,
+        width: moderateScale(50),
+        backgroundColor: '#fff0f0',
     },
     cancelButton: {
-        flex: 1,
-        height: moderateScale(40),
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: theme.radius.sm,
         backgroundColor: '#f3f4f6',
-        borderWidth: 1,
-        borderColor: '#d1d5db',
     },
     cancelButtonText: {
-        fontSize: fontScale(13),
+        fontSize: moderateScale(16),
         fontWeight: '600',
-        color: theme.colors.textSecondary,
+        color: '#666',
     },
     saveButton: {
-        flex: 1,
-        height: moderateScale(40),
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: theme.radius.sm,
-        gap: theme.spacing.xs,
-        backgroundColor: theme.colors.success,
+        backgroundColor: '#667eea',
+    },
+    saveButtonDisabled: {
+        opacity: 0.6,
     },
     saveButtonText: {
-        fontSize: fontScale(13),
+        fontSize: moderateScale(16),
         fontWeight: '600',
         color: '#fff',
     },

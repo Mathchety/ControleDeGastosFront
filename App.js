@@ -1,4 +1,4 @@
-﻿import React, { useRef, useEffect } from 'react';
+﻿import React, { useRef, useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Platform } from 'react-native';
@@ -6,13 +6,23 @@ import * as NavigationBar from 'expo-navigation-bar';
 import { AuthProvider } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
 import AppNavigator from './navigation/AppNavigator';
+import SplashScreen from './screens/SplashScreen';
 import useAndroidNavigationBar from './hooks/useAndroidNavigationBar';
 
 function AppContent() {
   const navigationRef = useRef();
+  const [showSplash, setShowSplash] = useState(true);
   
   // Configura a barra de navegação do Android em modo imersivo
   useAndroidNavigationBar();
+
+  const handleSplashFinish = () => {
+    setShowSplash(false);
+  };
+
+  if (showSplash) {
+    return <SplashScreen onFinish={handleSplashFinish} />;
+  }
 
   useEffect(() => {
     if (Platform.OS === 'android') {

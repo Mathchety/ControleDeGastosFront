@@ -21,7 +21,7 @@ import { theme } from '../utils/theme';
 
 export default function PreViewScreen({ route, navigation }) {
     const { qrLink, previewData: receivedData, receiptId } = route.params || {};
-    const { previewQRCode, confirmQRCode, fetchReceiptById, deleteReceipt, loading } = useData();
+    const { previewQRCode, confirmQRCode, fetchReceiptById, loading } = useData();
     const [previewData, setPreviewData] = useState(receivedData || null);
     const [isReadOnly, setIsReadOnly] = useState(false);
     
@@ -34,7 +34,7 @@ export default function PreViewScreen({ route, navigation }) {
         // MODO 1: Se recebeu ID de uma nota já salva, busca pelo endpoint
         if (receiptId) {
             console.log('[Preview] Carregando receipt por ID:', receiptId);
-            setIsReadOnly(true); // Modo visualização, não pode editar/salvar
+            setIsReadOnly(false); // AGORA PERMITE EDIÇÃO mesmo do histórico
             loadReceiptById();
             return;
         }
@@ -102,7 +102,21 @@ export default function PreViewScreen({ route, navigation }) {
     };
 
     const handleUpdateItem = (updatedItem, itemIndex) => {
+        console.log('[Preview] 📝 handleUpdateItem chamado:', {
+            itemIndex,
+            updatedItem: {
+                quantity: updatedItem.quantity,
+                total: updatedItem.total,
+                unitPrice: updatedItem.unitPrice
+            }
+        });
+        
         setPreviewData(prev => {
+            if (!prev || !prev.items) {
+                console.log('[Preview] ❌ Dados inválidos em previewData');
+                return prev;
+            }
+            
             const updatedItems = prev.items.map((item, index) => 
                 index === itemIndex ? updatedItem : item
             );
@@ -115,7 +129,7 @@ export default function PreViewScreen({ route, navigation }) {
             // Recalcula o total
             const newTotal = newSubtotal - parseFloat(prev.discount || 0);
             
-            console.log('[Preview] Item atualizado:', {
+            console.log('[Preview] ✅ Item atualizado com sucesso:', {
                 itemIndex,
                 newTotal: updatedItem.total,
                 newSubtotal,
@@ -133,6 +147,8 @@ export default function PreViewScreen({ route, navigation }) {
     };
 
     const handleDeleteItem = (itemIndex) => {
+        console.log('[Preview] 🗑️ handleDeleteItem chamado:', { itemIndex });
+        
         Alert.alert(
             'Excluir Item',
             'Tem certeza que deseja excluir este item?',
@@ -142,7 +158,14 @@ export default function PreViewScreen({ route, navigation }) {
                     text: 'Excluir',
                     style: 'destructive',
                     onPress: () => {
+                        console.log('[Preview] ✅ Confirmado exclusão do item:', itemIndex);
+                        
                         setPreviewData(prev => {
+                            if (!prev || !prev.items) {
+                                console.log('[Preview] ❌ Dados inválidos em previewData');
+                                return prev;
+                            }
+                            
                             const updatedItems = prev.items.map((item, index) => 
                                 index === itemIndex ? { ...item, deleted: true } : item
                             );
@@ -153,7 +176,7 @@ export default function PreViewScreen({ route, navigation }) {
                             );
                             const newTotal = newSubtotal - parseFloat(prev.discount || 0);
                             
-                            console.log('[Preview] Item deletado:', {
+                            console.log('[Preview] ✅ Item deletado com sucesso:', {
                                 itemIndex,
                                 newSubtotal,
                                 finalTotal: newTotal
@@ -173,56 +196,38 @@ export default function PreViewScreen({ route, navigation }) {
         );
     };
 
-    const handleDeleteReceipt = () => {
-        Alert.alert(
-            'Excluir Nota Fiscal',
-            'Tem certeza que deseja excluir esta nota fiscal? Esta ação não pode ser desfeita.',
-            [
-                { 
-                    text: 'Cancelar', 
-                    style: 'cancel' 
-                },
-                {
-                    text: 'Excluir',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await deleteReceipt(receiptId);
-                            Alert.alert(
-                                'Sucesso',
-                                'Nota fiscal excluída com sucesso!',
-                                [
-                                    {
-                                        text: 'OK',
-                                        onPress: () => navigation.navigate('Main', { screen: 'History' })
-                                    }
-                                ]
-                            );
-                        } catch (error) {
-                            Alert.alert('Erro', 'Não foi possível excluir a nota fiscal.');
-                            console.error('[Preview] Erro ao deletar nota:', error);
-                        }
-                    }
-                }
-            ]
-        );
-    };
-
     const handleConfirm = async () => {
         try {
-            // Navega para Home IMEDIATAMENTE ao clicar em salvar
-            navigation.navigate('Main', { screen: 'Home' });
-            
-            // Callback de timeout: ativa notificação se demorar mais de 5s
-            const handleTimeout = () => {
-                console.log('[Preview] Timeout: mostrando notificação de processamento');
-            };
+            if (receiptId) {
+                // MODO HISTÓRICO: Salva as alterações da nota existente
+                console.log('[Preview] 💾 Salvando alterações da nota:', receiptId);
+                Alert.alert(
+                    'Sucesso',
+                    'Alterações salvas com sucesso!',
+                    [
+                        {
+                            text: 'OK',
+                            onPress: () => navigation.goBack()
+                        }
+                    ]
+                );
+            } else {
+                // MODO SCAN: Confirma e salva nova nota
+                console.log('[Preview] 💾 Salvando nova nota fiscal...');
+                // Navega para Home IMEDIATAMENTE ao clicar em salvar
+                navigation.navigate('Main', { screen: 'Home' });
+                
+                // Callback de timeout: ativa notificação se demorar mais de 5s
+                const handleTimeout = () => {
+                    console.log('[Preview] Timeout: mostrando notificação de processamento');
+                };
 
-            // Inicia o salvamento em background
-            const result = await confirmQRCode(previewData, handleTimeout);
-            
-            // Se completou rápido (< 5s), não faz nada (já está na Home)
-            // Se demorou (> 5s), a notificação já está aparecendo
+                // Inicia o salvamento em background
+                const result = await confirmQRCode(previewData, handleTimeout);
+                
+                // Se completou rápido (< 5s), não faz nada (já está na Home)
+                // Se demorou (> 5s), a notificação já está aparecendo
+            }
         } catch (error) {
             Alert.alert('Erro', 'Não foi possível salvar a nota fiscal.');
         }
@@ -317,16 +322,6 @@ export default function PreViewScreen({ route, navigation }) {
                         subtotal={previewData.subtotal}
                         discount={previewData.discount}
                         total={previewData.total}
-                        actionButton={
-                            isReadOnly && receiptId ? (
-                                <TouchableOpacity 
-                                    style={styles.deleteButton}
-                                    onPress={handleDeleteReceipt}
-                                >
-                                    <Ionicons name="trash" size={24} color="#ff4444" />
-                                </TouchableOpacity>
-                            ) : null
-                        }
                     />
 
                     {/* Cabeçalho dos itens */}
@@ -340,9 +335,9 @@ export default function PreViewScreen({ route, navigation }) {
                                 key={index}
                                 item={item}
                                 itemIndex={index}
-                                onUpdate={!isReadOnly ? handleUpdateItem : undefined}
-                                onDelete={!isReadOnly ? handleDeleteItem : undefined}
-                                readOnly={isReadOnly}
+                                onUpdate={handleUpdateItem}
+                                onDelete={handleDeleteItem}
+                                readOnly={false}
                             />
                         ))
                     ) : (
@@ -434,16 +429,6 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: '700',
         color: '#333',
-    },
-    deleteButton: {
-        padding: 8,
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
     },
     noItemsText: {
         textAlign: 'center',

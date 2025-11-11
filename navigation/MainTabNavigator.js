@@ -7,6 +7,7 @@ import HomeScreen from '../screens/HomeScreen';
 import ScanScreen from '../screens/ScanScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import CategoriesScreen from '../screens/CategoriesScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -24,6 +25,8 @@ export default function MainTabNavigator() {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Scan') {
             iconName = 'qr-code-outline';
+          } else if (route.name === 'Categories') {
+            iconName = focused ? 'pricetags' : 'pricetags-outline';
           } else if (route.name === 'History') {
             iconName = focused ? 'time' : 'time-outline';
           } else if (route.name === 'Profile') {
@@ -52,6 +55,11 @@ export default function MainTabNavigator() {
         name="Scan" 
         component={ScanScreen}
         options={{ tabBarLabel: 'Escanear' }}
+      />
+      <Tab.Screen 
+        name="Categories" 
+        component={CategoriesScreen}
+        options={{ tabBarLabel: 'Categorias' }}
       />
       <Tab.Screen 
         name="History" 

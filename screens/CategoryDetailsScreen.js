@@ -9,6 +9,8 @@ import {
     Platform,
     StatusBar,
     Alert,
+    Modal,
+    TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,15 +20,24 @@ import { theme } from '../utils/theme';
 
 export default function CategoryDetailsScreen({ route, navigation }) {
     const { category } = route.params || {};
-    const { fetchCategoryById, deleteCategory } = useData();
+    const { fetchCategoryById, updateItem, fetchCategories } = useData();
     const [categoryData, setCategoryData] = useState(null);
     const [categoryItems, setCategoryItems] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [deleting, setDeleting] = useState(false);
+    const [editingItem, setEditingItem] = useState(null);
+    const [modalVisible, setModalVisible] = useState(false);
+    const [saving, setSaving] = useState(false);
+    
+    // Estados do formulário de edição
+    const [itemQuantity, setItemQuantity] = useState('');
+    const [itemTotal, setItemTotal] = useState('');
+    const [selectedCategoryId, setSelectedCategoryId] = useState(null);
+    const [categories, setCategories] = useState([]);
 
     useEffect(() => {
         if (category?.id) {
             loadCategoryDetails();
+            loadCategories();
         }
     }, [category]);
 
@@ -36,8 +47,16 @@ export default function CategoryDetailsScreen({ route, navigation }) {
             const data = await fetchCategoryById(category.id);
             setCategoryData(data);
             
-            // Ordena os itens do mais caro para o mais barato
+            // Ordena os itens: alfabeticamente, depois por valor (decrescente)
             const sortedItems = (data?.items || []).sort((a, b) => {
+                // Primeiro ordena alfabeticamente pelo nome do produto
+                const nameA = (a.name || '').toLowerCase();
+                const nameB = (b.name || '').toLowerCase();
+                const nameComparison = nameA.localeCompare(nameB, 'pt-BR');
+                
+                if (nameComparison !== 0) return nameComparison;
+                
+                // Se os nomes forem iguais, ordena por valor (decrescente)
                 const totalA = parseFloat(a.total || 0);
                 const totalB = parseFloat(b.total || 0);
                 return totalB - totalA;
@@ -51,56 +70,69 @@ export default function CategoryDetailsScreen({ route, navigation }) {
         }
     };
 
-    const handleDeleteCategory = () => {
-        Alert.alert(
-            'Excluir Categoria',
-            `Tem certeza que deseja excluir a categoria "${category?.name}"?\n\nTodos os itens desta categoria serão movidos para "Não categorizado" e poderão ser recategorizados depois.`,
-            [
-                {
-                    text: 'Cancelar',
-                    style: 'cancel'
-                },
-                {
-                    text: 'Excluir',
-                    style: 'destructive',
-                    onPress: confirmDeleteCategory
-                }
-            ]
-        );
+    const loadCategories = async () => {
+        try {
+            const data = await fetchCategories();
+            // Ordena categorias alfabeticamente
+            const sortedCategories = data.sort((a, b) => 
+                a.name.localeCompare(b.name, 'pt-BR')
+            );
+            setCategories(sortedCategories);
+        } catch (error) {
+            console.error('[CategoryDetails] Erro ao carregar categorias:', error);
+        }
     };
 
-    const confirmDeleteCategory = async () => {
+    const handleEditItem = (item) => {
+        setEditingItem(item);
+        setItemQuantity(String(item.quantity || ''));
+        setItemTotal(String(item.total || ''));
+        setSelectedCategoryId(item.categoryId);
+        setModalVisible(true);
+    };
+
+    const handleSaveItem = async () => {
         try {
-            setDeleting(true);
-            await deleteCategory(category.id);
-            
-            Alert.alert(
-                'Sucesso',
-                'Categoria excluída com sucesso! Os itens foram movidos para "Não categorizado".',
-                [
-                    {
-                        text: 'OK',
-                        onPress: () => navigation.navigate('Categories')
-                    }
-                ]
-            );
-        } catch (error) {
-            console.error('[CategoryDetails] Erro ao deletar categoria:', error);
-            
-            // Verifica se é erro de categoria "Não categorizado"
-            if (error.message?.includes('Não categorizado') || error.response?.status === 400) {
-                Alert.alert(
-                    'Erro',
-                    'Não é possível excluir a categoria "Não categorizado".'
-                );
-            } else {
-                Alert.alert(
-                    'Erro',
-                    'Não foi possível excluir a categoria. Tente novamente.'
-                );
+            // Validações
+            if (!itemQuantity || parseFloat(itemQuantity) <= 0) {
+                Alert.alert('Erro', 'Quantidade deve ser maior que zero');
+                return;
             }
+            if (!itemTotal || parseFloat(itemTotal) <= 0) {
+                Alert.alert('Erro', 'Total deve ser maior que zero');
+                return;
+            }
+
+            setSaving(true);
+
+            const quantity = parseFloat(itemQuantity);
+            const total = parseFloat(itemTotal);
+            const unitPrice = total / quantity;
+
+            const updateData = {
+                quantity: quantity,
+                total: total,
+                unitPrice: unitPrice,
+                categoryId: selectedCategoryId
+            };
+
+            await updateItem(editingItem.id, updateData);
+
+            Alert.alert('Sucesso', 'Item atualizado com sucesso!');
+            setModalVisible(false);
+            
+            // Se mudou de categoria, volta para a lista
+            if (selectedCategoryId !== category.id) {
+                navigation.goBack();
+            } else {
+                // Se não mudou, só recarrega
+                loadCategoryDetails();
+            }
+        } catch (error) {
+            console.error('[CategoryDetails] Erro ao salvar item:', error);
+            Alert.alert('Erro', 'Não foi possível salvar o item. Tente novamente.');
         } finally {
-            setDeleting(false);
+            setSaving(false);
         }
     };
 
@@ -120,7 +152,7 @@ export default function CategoryDetailsScreen({ route, navigation }) {
                 <View style={styles.headerContent}>
                     <TouchableOpacity
                         style={styles.backButton}
-                        onPress={() => navigation.navigate('Categories')}
+                        onPress={() => navigation.goBack()}
                     >
                         <Ionicons name="arrow-back" size={28} color="#fff" />
                     </TouchableOpacity>
@@ -184,6 +216,12 @@ export default function CategoryDetailsScreen({ route, navigation }) {
                                             <Text style={styles.itemBadgeText}>#{index + 1}</Text>
                                         </View>
                                         <Text style={styles.itemName}>{item.name}</Text>
+                                        <TouchableOpacity
+                                            style={styles.editItemButton}
+                                            onPress={() => handleEditItem(item)}
+                                        >
+                                            <Ionicons name="create-outline" size={20} color="#667eea" />
+                                        </TouchableOpacity>
                                     </View>
                                     <View style={styles.itemDetails}>
                                         <View style={styles.itemDetailRow}>
@@ -226,18 +264,114 @@ export default function CategoryDetailsScreen({ route, navigation }) {
                 )}
             </ScrollView>
 
-            {/* Botão Flutuante de Deletar */}
-            <TouchableOpacity
-                style={[styles.floatingButton, deleting && styles.floatingButtonDisabled]}
-                onPress={handleDeleteCategory}
-                disabled={deleting}
+            {/* Modal de Edição de Item */}
+            <Modal
+                visible={modalVisible}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setModalVisible(false)}
             >
-                {deleting ? (
-                    <ActivityIndicator color="#fff" />
-                ) : (
-                    <Ionicons name="trash" size={28} color="#fff" />
-                )}
-            </TouchableOpacity>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Editar Item</Text>
+                            <TouchableOpacity onPress={() => setModalVisible(false)}>
+                                <Ionicons name="close" size={28} color="#666" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            {/* Nome do Produto (readonly) */}
+                            <View style={styles.formGroup}>
+                                <Text style={styles.label}>Produto</Text>
+                                <View style={styles.readOnlyField}>
+                                    <Text style={styles.readOnlyText}>{editingItem?.name}</Text>
+                                </View>
+                            </View>
+
+                            {/* Quantidade */}
+                            <View style={styles.formGroup}>
+                                <Text style={styles.label}>Quantidade *</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={itemQuantity}
+                                    onChangeText={setItemQuantity}
+                                    placeholder="Ex: 2"
+                                    keyboardType="decimal-pad"
+                                />
+                            </View>
+
+                            {/* Total */}
+                            <View style={styles.formGroup}>
+                                <Text style={styles.label}>Total (R$) *</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={itemTotal}
+                                    onChangeText={setItemTotal}
+                                    placeholder="Ex: 10.50"
+                                    keyboardType="decimal-pad"
+                                />
+                            </View>
+
+                            {/* Preço Unitário Calculado */}
+                            {itemQuantity && itemTotal && parseFloat(itemQuantity) > 0 && (
+                                <View style={styles.calculatedField}>
+                                    <Text style={styles.calculatedLabel}>Preço Unitário:</Text>
+                                    <Text style={styles.calculatedValue}>
+                                        R$ {(parseFloat(itemTotal) / parseFloat(itemQuantity)).toFixed(2)}
+                                    </Text>
+                                </View>
+                            )}
+
+                            {/* Categoria */}
+                            <View style={styles.formGroup}>
+                                <Text style={styles.label}>Categoria</Text>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                                    {categories.map((cat) => (
+                                        <TouchableOpacity
+                                            key={cat.id}
+                                            style={[
+                                                styles.categoryChip,
+                                                selectedCategoryId === cat.id && styles.categoryChipSelected
+                                            ]}
+                                            onPress={() => setSelectedCategoryId(cat.id)}
+                                        >
+                                            <View style={[styles.categoryChipColor, { backgroundColor: cat.color }]} />
+                                            <Text style={[
+                                                styles.categoryChipText,
+                                                selectedCategoryId === cat.id && styles.categoryChipTextSelected
+                                            ]}>
+                                                {cat.name}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        </ScrollView>
+
+                        {/* Botões */}
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.cancelButton]}
+                                onPress={() => setModalVisible(false)}
+                            >
+                                <Text style={styles.cancelButtonText}>Cancelar</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.saveButton, saving && styles.saveButtonDisabled]}
+                                onPress={handleSaveItem}
+                                disabled={saving}
+                            >
+                                {saving ? (
+                                    <ActivityIndicator color="#fff" />
+                                ) : (
+                                    <Text style={styles.saveButtonText}>Salvar</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -385,6 +519,15 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#333',
     },
+    editItemButton: {
+        width: moderateScale(36),
+        height: moderateScale(36),
+        borderRadius: moderateScale(18),
+        backgroundColor: '#f0f4ff',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginLeft: moderateScale(8),
+    },
     itemDetails: {
         marginBottom: moderateScale(12),
     },
@@ -415,23 +558,135 @@ const styles = StyleSheet.create({
         fontSize: moderateScale(20),
         fontWeight: '700',
     },
-    floatingButton: {
-        position: 'absolute',
-        bottom: moderateScale(30),
-        right: moderateScale(20),
-        width: moderateScale(60),
-        height: moderateScale(60),
-        borderRadius: moderateScale(30),
-        backgroundColor: '#ff4444',
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        borderTopLeftRadius: moderateScale(25),
+        borderTopRightRadius: moderateScale(25),
+        padding: moderateScale(20),
+        maxHeight: '90%',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: moderateScale(20),
+    },
+    modalTitle: {
+        fontSize: moderateScale(24),
+        fontWeight: '700',
+        color: '#333',
+    },
+    formGroup: {
+        marginBottom: moderateScale(20),
+    },
+    label: {
+        fontSize: moderateScale(14),
+        fontWeight: '600',
+        color: '#333',
+        marginBottom: moderateScale(8),
+    },
+    input: {
+        backgroundColor: '#f8f9fa',
+        borderRadius: moderateScale(12),
+        padding: moderateScale(15),
+        fontSize: moderateScale(16),
+        color: '#333',
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+    },
+    readOnlyField: {
+        backgroundColor: '#f0f0f0',
+        borderRadius: moderateScale(12),
+        padding: moderateScale(15),
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+    },
+    readOnlyText: {
+        fontSize: moderateScale(16),
+        color: '#666',
+    },
+    calculatedField: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: '#f0f4ff',
+        borderRadius: moderateScale(12),
+        padding: moderateScale(15),
+        marginBottom: moderateScale(20),
+    },
+    calculatedLabel: {
+        fontSize: moderateScale(14),
+        fontWeight: '600',
+        color: '#667eea',
+    },
+    calculatedValue: {
+        fontSize: moderateScale(18),
+        fontWeight: '700',
+        color: '#667eea',
+    },
+    categoryChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f8f9fa',
+        borderRadius: moderateScale(20),
+        paddingVertical: moderateScale(8),
+        paddingHorizontal: moderateScale(15),
+        marginRight: moderateScale(10),
+        borderWidth: 2,
+        borderColor: 'transparent',
+    },
+    categoryChipSelected: {
+        backgroundColor: '#f0f4ff',
+        borderColor: '#667eea',
+    },
+    categoryChipColor: {
+        width: moderateScale(16),
+        height: moderateScale(16),
+        borderRadius: moderateScale(8),
+        marginRight: moderateScale(8),
+    },
+    categoryChipText: {
+        fontSize: moderateScale(14),
+        fontWeight: '600',
+        color: '#666',
+    },
+    categoryChipTextSelected: {
+        color: '#667eea',
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        gap: moderateScale(12),
+        marginTop: moderateScale(20),
+    },
+    modalButton: {
+        flex: 1,
+        paddingVertical: moderateScale(15),
+        borderRadius: moderateScale(12),
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 8,
     },
-    floatingButtonDisabled: {
+    cancelButton: {
+        backgroundColor: '#f8f9fa',
+    },
+    cancelButtonText: {
+        fontSize: moderateScale(16),
+        fontWeight: '600',
+        color: '#666',
+    },
+    saveButton: {
+        backgroundColor: '#667eea',
+    },
+    saveButtonDisabled: {
         opacity: 0.6,
+    },
+    saveButtonText: {
+        fontSize: moderateScale(16),
+        fontWeight: '600',
+        color: '#fff',
     },
 });

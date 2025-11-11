@@ -10,7 +10,7 @@ export const HomeHeader = ({ userName, opacity = 1 }) => (
         style={styles.header}
     >
         <Animated.View style={[styles.headerContent, { opacity }] }>
-            <Text style={styles.headerTitle}>Olá, {userName || 'Usuário'} 👋</Text>
+            <Text style={styles.headerTitle}>Olá, {userName || 'Usuário'}!</Text>
             <Text style={styles.headerSubtitle}>Aqui está o resumo das suas finanças recentes</Text>
         </Animated.View>
     </LinearGradient>

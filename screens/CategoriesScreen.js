@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../contexts/DataContext';
 import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
+import { getValidIcon } from '../utils/iconHelper';
 
 // Paleta de cores disponíveis
 const COLOR_PALETTE = [
@@ -30,11 +31,12 @@ const COLOR_PALETTE = [
 ];
 
 export default function CategoriesScreen({ navigation }) {
-    const { fetchCategories, createCategory } = useData();
+    const { fetchCategories, createCategory, deleteCategory } = useData();
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [modalVisible, setModalVisible] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [editingCategory, setEditingCategory] = useState(null);
     
     // Estados do formulário
     const [categoryName, setCategoryName] = useState('');
@@ -43,13 +45,35 @@ export default function CategoriesScreen({ navigation }) {
 
     useEffect(() => {
         loadCategories();
-    }, []);
+        
+        // Atualiza a lista quando a tela recebe foco
+        const unsubscribe = navigation.addListener('focus', () => {
+            loadCategories();
+        });
+
+        return unsubscribe;
+    }, [navigation]);
 
     const loadCategories = async () => {
         try {
             setLoading(true);
-            const data = await fetchCategories();
-            setCategories(data);
+            
+            // fetchCategories já combina /categories (completo) + /categories/graph (itemCount)
+            const categoriesData = await fetchCategories();
+            console.log('[Categories] 📊 Categorias recebidas:', categoriesData.length);
+            console.log('[Categories] 📋 Primeira categoria:', categoriesData[0]);
+            
+            // Ordena as categorias: alfabética, depois por quantidade de itens
+            const sortedCategories = categoriesData.sort((a, b) => {
+                // Primeiro, ordena alfabeticamente pelo nome
+                const nameComparison = a.name.localeCompare(b.name, 'pt-BR');
+                if (nameComparison !== 0) return nameComparison;
+                
+                // Se os nomes forem iguais, ordena por quantidade de itens (decrescente)
+                return (b.itemCount || 0) - (a.itemCount || 0);
+            });
+            
+            setCategories(sortedCategories);
         } catch (error) {
             console.error('[Categories] Erro ao carregar categorias:', error);
         } finally {
@@ -59,10 +83,42 @@ export default function CategoriesScreen({ navigation }) {
 
     const handleAddCategory = () => {
         // Reseta o formulário
+        setEditingCategory(null);
         setCategoryName('');
         setCategoryDescription('');
         setSelectedColor(COLOR_PALETTE[0]);
         setModalVisible(true);
+    };
+
+    const handleEditCategory = (category) => {
+        setEditingCategory(category);
+        setCategoryName(category.name);
+        setCategoryDescription(category.description || '');
+        setSelectedColor(category.color || COLOR_PALETTE[0]);
+        setModalVisible(true);
+    };
+
+    const handleDeleteCategory = async (categoryId, categoryName) => {
+        Alert.alert(
+            'Excluir Categoria',
+            `Tem certeza que deseja excluir a categoria "${categoryName}"?\n\nTodos os itens desta categoria serão movidos para "Não categorizado".`,
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Excluir',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await deleteCategory(categoryId);
+                            Alert.alert('Sucesso', 'Categoria excluída com sucesso!');
+                            loadCategories();
+                        } catch (error) {
+                            Alert.alert('Erro', 'Não foi possível excluir a categoria.');
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     const handleSaveCategory = async () => {
@@ -118,18 +174,15 @@ export default function CategoriesScreen({ navigation }) {
                 style={styles.header}
             >
                 <View style={styles.headerContent}>
-                    <TouchableOpacity
-                        style={styles.backButton}
-                        onPress={() => navigation.navigate('Main', { screen: 'Profile' })}
-                    >
-                        <Ionicons name="arrow-back" size={28} color="#fff" />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Categorias</Text>
+                    <View style={styles.headerLeft}>
+                        <Ionicons name="pricetags" size={32} color="#fff" />
+                        <Text style={styles.headerTitle}>Minhas Categorias</Text>
+                    </View>
                     <TouchableOpacity
                         style={styles.addButton}
                         onPress={handleAddCategory}
                     >
-                        <Ionicons name="add" size={28} color="#fff" />
+                        <Ionicons name="add-circle" size={32} color="#fff" />
                     </TouchableOpacity>
                 </View>
             </LinearGradient>
@@ -157,19 +210,55 @@ export default function CategoriesScreen({ navigation }) {
                             key={category.id || index}
                             style={styles.categoryCard}
                             onPress={() => navigation.navigate('CategoryDetails', { category })}
+                            activeOpacity={0.7}
                         >
-                            <View style={styles.categoryLeft}>
-                                <View style={[styles.categoryIcon, { backgroundColor: category.color || '#667eea' }]}>
-                                    <Ionicons name={category.icon || 'pricetag'} size={24} color="#fff" />
+                            <View style={styles.categoryHeader}>
+                                <View style={styles.categoryLeft}>
+                                    <View style={[styles.categoryIcon, { backgroundColor: category.color || '#667eea' }]}>
+                                        <Ionicons name={getValidIcon(category.icon)} size={24} color="#fff" />
+                                    </View>
+                                    <View style={styles.categoryInfo}>
+                                        <Text style={styles.categoryName}>{category.name}</Text>
+                                        {category.description && (
+                                            <Text style={styles.categoryDescription} numberOfLines={1}>
+                                                {category.description}
+                                            </Text>
+                                        )}
+                                    </View>
                                 </View>
-                                <View style={styles.categoryInfo}>
-                                    <Text style={styles.categoryName}>{category.name}</Text>
-                                    {category.description && (
-                                        <Text style={styles.categoryDescription}>{category.description}</Text>
-                                    )}
+                                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                            </View>
+                            
+                            {/* Rodapé com quantidade e ações */}
+                            <View style={styles.categoryFooter}>
+                                <View style={styles.categoryStats}>
+                                    <Ionicons name="list-outline" size={16} color="#666" />
+                                    <Text style={styles.categoryCount}>
+                                        {category.itemCount || 0} {(category.itemCount || 0) === 1 ? 'item' : 'itens'}
+                                    </Text>
+                                </View>
+                                
+                                <View style={styles.categoryActions}>
+                                    <TouchableOpacity
+                                        style={[styles.actionButton, styles.editButton]}
+                                        onPress={(e) => {
+                                            e.stopPropagation();
+                                            handleEditCategory(category);
+                                        }}
+                                    >
+                                        <Ionicons name="create-outline" size={18} color="#667eea" />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.actionButton, styles.deleteButton]}
+                                        onPress={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteCategory(category.id, category.name);
+                                        }}
+                                    >
+                                        <Ionicons name="trash-outline" size={18} color="#ff4444" />
+                                    </TouchableOpacity>
                                 </View>
                             </View>
-                            <Ionicons name="chevron-forward" size={20} color="#ccc" />
                         </TouchableOpacity>
                     ))
                 )}
@@ -195,7 +284,9 @@ export default function CategoriesScreen({ navigation }) {
                     <View style={styles.modalContent}>
                         {/* Header do Modal */}
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Nova Categoria</Text>
+                            <Text style={styles.modalTitle}>
+                                {editingCategory ? 'Editar Categoria' : 'Nova Categoria'}
+                            </Text>
                             <TouchableOpacity onPress={() => setModalVisible(false)}>
                                 <Ionicons name="close" size={28} color="#333" />
                             </TouchableOpacity>
@@ -321,24 +412,19 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: moderateScale(20),
     },
-    backButton: {
-        width: 40,
-        height: 40,
+    headerLeft: {
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
+        gap: moderateScale(12),
+        flex: 1,
     },
     headerTitle: {
-        fontSize: moderateScale(24),
+        fontSize: moderateScale(22),
         fontWeight: '700',
         color: '#fff',
-        flex: 1,
-        textAlign: 'center',
     },
     addButton: {
-        width: 40,
-        height: 40,
-        alignItems: 'center',
-        justifyContent: 'center',
+        padding: moderateScale(4),
     },
     content: {
         flex: 1,
@@ -375,9 +461,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     categoryCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
         backgroundColor: '#fff',
         borderRadius: moderateScale(15),
         padding: moderateScale(16),
@@ -387,6 +470,48 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 3,
+    },
+    categoryHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: moderateScale(12),
+    },
+    categoryFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingTop: moderateScale(12),
+        borderTopWidth: 1,
+        borderTopColor: '#f0f0f0',
+    },
+    categoryStats: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: moderateScale(6),
+    },
+    categoryCount: {
+        fontSize: moderateScale(13),
+        color: '#666',
+        fontWeight: '500',
+    },
+    categoryActions: {
+        flexDirection: 'row',
+        gap: moderateScale(8),
+    },
+    actionButton: {
+        width: moderateScale(36),
+        height: moderateScale(36),
+        borderRadius: moderateScale(10),
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#f8f9fa',
+    },
+    editButton: {
+        backgroundColor: '#f0f4ff',
+    },
+    deleteButton: {
+        backgroundColor: '#fff0f0',
     },
     categoryLeft: {
         flexDirection: 'row',

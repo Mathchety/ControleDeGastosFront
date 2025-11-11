@@ -1,10 +1,10 @@
 ﻿import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Platform, StatusBar, Modal } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Platform, StatusBar, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useData } from '../contexts/DataContext';
 import { EmptyCard } from '../components/cards';
+import { GradientHeader } from '../components/common';
 import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
 
@@ -15,6 +15,7 @@ export default function HistoryScreen({ navigation }) {
     fetchReceiptsBasic, 
     fetchReceiptsByDate,
     fetchReceiptsByPeriod,
+    deleteReceipt,
     dateList, 
     itemCountList, 
     storeNameList 
@@ -120,39 +121,110 @@ export default function HistoryScreen({ navigation }) {
     </TouchableOpacity>
   );
 
-  const renderReceiptCard = ({ item, index }) => (
-    <TouchableOpacity 
-      style={styles.card}
-      onPress={() => navigation.navigate('Preview', { receiptId: item.id })}
-      activeOpacity={0.7}
-    >
-      <View style={styles.cardHeader}>
-        <View style={styles.iconContainer}>
-          <Ionicons name="receipt" size={24} color="#667eea" />
-        </View>
-        <View style={styles.cardInfo}>
-          <Text style={styles.storeName}>{storeNameList[index] || item.storeName || 'Loja'}</Text>
-          <Text style={styles.date}>
-            {dateList[index] 
-              ? new Date(dateList[index]).toLocaleDateString('pt-BR', { 
-                  day: '2-digit', 
-                  month: '2-digit', 
-                  year: 'numeric' 
-                })
-              : item.date
+  const handleEditReceipt = (receiptId) => {
+    navigation.navigate('Preview', { receiptId });
+  };
+
+  const handleDeleteReceipt = async (receiptId, storeName) => {
+    Alert.alert(
+      'Excluir Nota Fiscal',
+      `Tem certeza que deseja excluir a nota fiscal de "${storeName}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteReceipt(receiptId);
+              Alert.alert('Sucesso', 'Nota fiscal excluída com sucesso!');
+              onRefresh();
+            } catch (error) {
+              Alert.alert('Erro', 'Não foi possível excluir a nota fiscal.');
             }
-          </Text>
+          }
+        }
+      ]
+    );
+  };
+
+  const renderReceiptCard = ({ item, index }) => {
+    const storeName = storeNameList[index] || item.storeName || 'Loja';
+    const date = dateList[index] 
+      ? new Date(dateList[index]).toLocaleDateString('pt-BR', { 
+          day: '2-digit', 
+          month: '2-digit', 
+          year: 'numeric' 
+        })
+      : item.date;
+    const itemCount = itemCountList[index] || item.itemCount || 0;
+    const total = parseFloat(item.total || 0);
+
+    return (
+      <TouchableOpacity
+        key={item.id}
+        style={styles.receiptCard}
+        onPress={() => navigation.navigate('Preview', { receiptId: item.id })}
+        activeOpacity={0.7}
+      >
+        <View style={styles.receiptHeader}>
+          <View style={styles.receiptLeft}>
+            <View style={styles.receiptIcon}>
+              <Ionicons name="receipt" size={24} color="#fff" />
+            </View>
+            <View style={styles.receiptInfo}>
+              <Text style={styles.receiptName}>{storeName}</Text>
+              {date && (
+                <Text style={styles.receiptDate} numberOfLines={1}>
+                  {date}
+                </Text>
+              )}
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#ccc" />
         </View>
-        <View style={styles.cardRight}>
-          <Text style={styles.amount}>R$ {parseFloat(item.total || 0).toFixed(2)}</Text>
-          <Text style={styles.itemCount}>
-            {itemCountList[index] || item.itemCount || 0} itens
-          </Text>
-          <Ionicons name="chevron-forward" size={20} color="#999" style={styles.chevron} />
+        
+        {/* Rodapé com valor e ações */}
+        <View style={styles.receiptFooter}>
+          <View style={styles.receiptStats}>
+            <View style={styles.statItem}>
+              <Ionicons name="list-outline" size={16} color="#666" />
+              <Text style={styles.receiptCount}>
+                {itemCount} {itemCount === 1 ? 'item' : 'itens'}
+              </Text>
+            </View>
+            <View style={styles.statItem}>
+              <Ionicons name="cash-outline" size={16} color="#ef4444" />
+              <Text style={styles.receiptTotal}>
+                R$ {total.toFixed(2)}
+              </Text>
+            </View>
+          </View>
+          
+          <View style={styles.receiptActions}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.editButton]}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleEditReceipt(item.id);
+              }}
+            >
+              <Ionicons name="create-outline" size={18} color="#667eea" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.deleteButton]}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleDeleteReceipt(item.id, storeName);
+              }}
+            >
+              <Ionicons name="trash-outline" size={18} color="#ff4444" />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -162,15 +234,11 @@ export default function HistoryScreen({ navigation }) {
         translucent={true}
       />
       
-      <LinearGradient 
-        colors={['#667eea', '#764ba2']} 
-        style={styles.header}
-      >
-        <Text style={styles.headerTitle}>Histórico de Notas</Text>
-        <Text style={styles.headerSubtitle}>
-          {receipts.length} {receipts.length === 1 ? 'nota escaneada' : 'notas escaneadas'}
-        </Text>
-      </LinearGradient>
+      <GradientHeader
+        icon="time"
+        title="Histórico de Notas"
+        subtitle={`${receipts.length} ${receipts.length === 1 ? 'nota escaneada' : 'notas escaneadas'}`}
+      />
 
       {/* Filtros */}
       <View style={styles.filtersContainer}>
@@ -218,7 +286,12 @@ export default function HistoryScreen({ navigation }) {
         />
       )}
 
-      {receipts.length === 0 && !loading ? (
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#667eea" />
+          <Text style={styles.loadingText}>Carregando histórico...</Text>
+        </View>
+      ) : receipts.length === 0 ? (
         <View style={styles.emptyContainer}>
           <EmptyCard 
             icon="receipt-outline"
@@ -254,85 +327,115 @@ const styles = StyleSheet.create({
     flex: 1, 
     backgroundColor: '#f8f9fa' 
   },
-  header: { 
-    paddingTop: moderateScale(60),
-    paddingBottom: moderateScale(30), 
-    paddingHorizontal: theme.spacing.lg, 
-    borderBottomLeftRadius: moderateScale(30), 
-    borderBottomRightRadius: moderateScale(30) 
-  },
-  headerTitle: { 
-    fontSize: theme.fonts.h1, 
-    fontWeight: 'bold', 
-    color: '#fff' 
-  },
-  headerSubtitle: { 
-    fontSize: theme.fonts.body, 
-    color: 'rgba(255,255,255,0.9)', 
-    marginTop: theme.spacing.xs 
-  },
   list: { 
-    padding: 20 
+    padding: moderateScale(20)
   },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#f0f0ff',
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    paddingVertical: moderateScale(60),
   },
-  cardInfo: {
-    flex: 1,
-  },
-  storeName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  date: {
-    fontSize: 13,
-    color: '#999',
-  },
-  cardRight: {
-    alignItems: 'flex-end',
-  },
-  amount: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#ef4444',
-    marginBottom: 4,
-  },
-  itemCount: {
-    fontSize: 12,
-    color: '#667eea',
-    marginBottom: 4,
-  },
-  chevron: {
-    marginTop: 4,
+  loadingText: {
+    marginTop: moderateScale(15),
+    fontSize: moderateScale(16),
+    color: '#666',
+    fontWeight: '500',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    padding: moderateScale(40),
+  },
+  receiptCard: {
+    backgroundColor: '#fff',
+    borderRadius: moderateScale(15),
+    padding: moderateScale(16),
+    marginBottom: moderateScale(12),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  receiptHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: moderateScale(12),
+  },
+  receiptLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  receiptIcon: {
+    width: moderateScale(50),
+    height: moderateScale(50),
+    borderRadius: moderateScale(25),
+    backgroundColor: '#667eea',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: moderateScale(12),
+  },
+  receiptInfo: {
+    flex: 1,
+  },
+  receiptName: {
+    fontSize: moderateScale(16),
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: moderateScale(4),
+  },
+  receiptDate: {
+    fontSize: moderateScale(13),
+    color: '#999',
+  },
+  receiptFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: moderateScale(12),
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  receiptStats: {
+    flexDirection: 'row',
+    gap: moderateScale(16),
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(6),
+  },
+  receiptCount: {
+    fontSize: moderateScale(13),
+    color: '#666',
+    fontWeight: '500',
+  },
+  receiptTotal: {
+    fontSize: moderateScale(14),
+    color: '#ef4444',
+    fontWeight: '700',
+  },
+  receiptActions: {
+    flexDirection: 'row',
+    gap: moderateScale(8),
+  },
+  actionButton: {
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(10),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8f9fa',
+  },
+  editButton: {
+    backgroundColor: '#f0f4ff',
+  },
+  deleteButton: {
+    backgroundColor: '#fff0f0',
   },
   filtersContainer: {
     backgroundColor: 'white',

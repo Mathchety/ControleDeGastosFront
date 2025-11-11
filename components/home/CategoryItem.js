@@ -4,13 +4,12 @@ import { moderateScale, fontScale } from '../../utils/responsive';
 import { theme } from '../../utils/theme';
 
 export const CategoryItem = ({ category, total, index }) => {
-    const medals = ['🥇', '🥈', '🥉'];
-    const medal = medals[index] || '🏅';
-
     return (
         <View style={styles.categoryItem}>
             <View style={styles.categoryLeft}>
-                <Text style={styles.categoryMedal}>{medal}</Text>
+                <View style={styles.categoryRank}>
+                    <Text style={styles.categoryRankText}>{index + 1}</Text>
+                </View>
                 <Text style={styles.categoryName} numberOfLines={1}>{category}</Text>
             </View>
             <Text style={styles.categoryValue}>R$ {total.toFixed(2)}</Text>
@@ -33,9 +32,19 @@ const styles = StyleSheet.create({
         flex: 1,
         marginRight: theme.spacing.sm,
     },
-    categoryMedal: {
-        fontSize: fontScale(24),
+    categoryRank: {
+        width: moderateScale(32),
+        height: moderateScale(32),
+        borderRadius: moderateScale(16),
+        backgroundColor: '#667eea',
+        alignItems: 'center',
+        justifyContent: 'center',
         marginRight: theme.spacing.md,
+    },
+    categoryRankText: {
+        fontSize: fontScale(14),
+        fontWeight: '700',
+        color: '#fff',
     },
     categoryName: {
         fontSize: theme.fonts.body,

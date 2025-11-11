@@ -11,6 +11,7 @@ export const DataProvider = ({ children }) => {
     const [itemCountList, setItemCountList] = useState([]);
     const [storeNameList, setStoreNameList] = useState([]);
     const [isProcessingReceipt, setIsProcessingReceipt] = useState(false);
+    const [categoriesCache, setCategoriesCache] = useState([]); // Cache para itemCount das categorias
 
     // Preview da Nota Fiscal - POST /scan-qrcode/preview
     const previewQRCode = async (qrCodeUrl) => {
@@ -266,6 +267,9 @@ export const DataProvider = ({ children }) => {
             // Filtra categorias com total > 0
             const filteredCategories = categoriesData.filter(cat => cat.total > 0);
             
+            // Armazena no cache para uso na tela de Categorias
+            setCategoriesCache(categoriesData); // Armazena todas, não só as filtradas
+            
             return filteredCategories;
         } catch (error) {
             console.error('[Data] Erro ao buscar dados do gráfico de categorias:', error);
@@ -275,10 +279,9 @@ export const DataProvider = ({ children }) => {
         }
     };
 
-    // Busca todas as categorias - GET /categories
-    const fetchCategories = async () => {
+    // Busca todas as categorias completas - GET /categories
+    const fetchCategoriesComplete = async () => {
         try {
-            setLoading(true);
             const response = await httpClient.get('/categories');
             
             let categoriesData = [];
@@ -291,6 +294,47 @@ export const DataProvider = ({ children }) => {
             } else if (Array.isArray(response?.data)) {
                 categoriesData = response.data;
             }
+            
+            return categoriesData;
+        } catch (error) {
+            console.error('[Data] Erro ao buscar categorias completas:', error);
+            return [];
+        }
+    };
+
+    // Busca categorias com dados resumidos e itemCount - GET /categories/graph
+    const fetchCategories = async () => {
+        try {
+            setLoading(true);
+            
+            // Busca dados do graph (com itemCount e total)
+            const graphResponse = await httpClient.get('/categories/graph');
+            let graphData = [];
+            if (Array.isArray(graphResponse)) {
+                graphData = graphResponse;
+            } else if (Array.isArray(graphResponse?.data)) {
+                graphData = graphResponse.data;
+            }
+            
+            console.log('[Data] 📊 Dados do /categories/graph:', graphData.length, 'categorias');
+            setCategoriesCache(graphData); // Armazena no cache
+            
+            // Busca dados completos (com description, color, icon)
+            const completeData = await fetchCategoriesComplete();
+            console.log('[Data] � Dados completos do /categories:', completeData.length, 'categorias');
+            
+            // Combina os dois: dados completos + itemCount do graph
+            const categoriesData = completeData.map(cat => {
+                const graphInfo = graphData.find(g => g.id === cat.id);
+                return {
+                    ...cat,
+                    itemCount: graphInfo?.itemCount || 0,
+                    total: graphInfo?.total || 0,
+                };
+            });
+            
+            console.log('[Data] ✅ Categorias combinadas:', categoriesData.length);
+            console.log('[Data] 📋 Primeira categoria:', categoriesData[0]);
             
             return categoriesData;
         } catch (error) {
@@ -360,6 +404,20 @@ export const DataProvider = ({ children }) => {
         }
     };
 
+    // Atualiza um item - PATCH /item/{id}
+    const updateItem = async (itemId, itemData) => {
+        try {
+            setLoading(true);
+            const response = await httpClient.patch(`/item/${itemId}`, itemData);
+            return response.data;
+        } catch (error) {
+            console.error('[Data] Erro ao atualizar item:', error);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const clearPreview = () => setPreviewData(null);
 
     return (
@@ -380,6 +438,7 @@ export const DataProvider = ({ children }) => {
                 fetchCategoryById,
                 createCategory,
                 deleteCategory,
+                updateItem,
                 deleteReceipt,
                 clearPreview,
                 dateList,
@@ -387,6 +446,7 @@ export const DataProvider = ({ children }) => {
                 storeNameList,
                 isProcessingReceipt,
                 setIsProcessingReceipt,
+                categoriesCache,
             }}
         >
             {children}
