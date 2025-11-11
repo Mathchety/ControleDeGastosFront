@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
     View, 
     Text, 
@@ -10,7 +10,8 @@ import {
     Dimensions,
     TouchableOpacity,
     StatusBar,
-    Keyboard
+    Keyboard,
+    Animated
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -181,15 +182,32 @@ const AnimatedForm = ({ isRegisterView, onSuccess }) => {
 const AuthScreen = ({ navigation }) => {
     const [isRegister, setIsRegister] = useState(false);
     const [keyboardVisible, setKeyboardVisible] = useState(false);
+    const headerHeight = useRef(new Animated.Value(1)).current; // 1 = tamanho normal, 0 = pequeno
 
     useEffect(() => {
         const keyboardDidShowListener = Keyboard.addListener(
             'keyboardDidShow',
-            () => setKeyboardVisible(true)
+            () => {
+                setKeyboardVisible(true);
+                // Anima o header para tamanho pequeno
+                Animated.timing(headerHeight, {
+                    toValue: 0,
+                    duration: 300,
+                    useNativeDriver: false,
+                }).start();
+            }
         );
         const keyboardDidHideListener = Keyboard.addListener(
             'keyboardDidHide',
-            () => setKeyboardVisible(false)
+            () => {
+                setKeyboardVisible(false);
+                // Anima o header para tamanho normal
+                Animated.timing(headerHeight, {
+                    toValue: 1,
+                    duration: 300,
+                    useNativeDriver: false,
+                }).start();
+            }
         );
 
         return () => {
@@ -203,6 +221,32 @@ const AuthScreen = ({ navigation }) => {
         // quando isAuthenticated muda para true
     };
 
+    // Interpolações para animar o header
+    const headerPaddingTop = headerHeight.interpolate({
+        inputRange: [0, 1],
+        outputRange: [moderateScale(10), moderateScale(60)], // Reduzido de 20 para 10
+    });
+
+    const headerPaddingBottom = headerHeight.interpolate({
+        inputRange: [0, 1],
+        outputRange: [moderateScale(8), moderateScale(50)], // Reduzido de 15 para 8
+    });
+
+    const iconSize = headerHeight.interpolate({
+        inputRange: [0, 1],
+        outputRange: [20, 60], // Reduzido de 30 para 20
+    });
+
+    const titleFontSize = headerHeight.interpolate({
+        inputRange: [0, 1],
+        outputRange: [14, theme.fonts.h1], // Reduzido de 18 para 14
+    });
+
+    const subtitleOpacity = headerHeight.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 1],
+    });
+
     return (
         <View style={styles.container}>
             <StatusBar 
@@ -213,28 +257,56 @@ const AuthScreen = ({ navigation }) => {
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.keyboardView}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : -100}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+                enabled={true}
             >
-                {/* Header com gradiente */}
-                {!keyboardVisible && (
-                    <LinearGradient
-                        colors={['#667eea', '#764ba2']}
-                        style={styles.header}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
+                {/* Header com gradiente - SEMPRE visível, apenas muda tamanho */}
+                <LinearGradient
+                    colors={['#667eea', '#764ba2']}
+                    style={styles.header}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                >
+                    <Animated.View
+                        style={[
+                            styles.headerContent,
+                            {
+                                paddingTop: headerPaddingTop,
+                                paddingBottom: headerPaddingBottom,
+                            }
+                        ]}
                     >
-                        <Ionicons name="wallet" size={60} color="#fff" />
-                        <Text style={styles.headerTitle}>Controle de Gastos</Text>
-                        <Text style={styles.headerSubtitle}>Gerencie suas finanças com facilidade</Text>
-                    </LinearGradient>
-                )}
+                        <Animated.View style={{ transform: [{ scale: headerHeight }] }}>
+                            <Ionicons name="wallet" size={60} color="#fff" />
+                        </Animated.View>
+                        <Animated.Text 
+                            style={[
+                                styles.headerTitle,
+                                { fontSize: titleFontSize }
+                            ]}
+                        >
+                            Controle de Gastos
+                        </Animated.Text>
+                        <Animated.Text 
+                            style={[
+                                styles.headerSubtitle,
+                                { opacity: subtitleOpacity }
+                            ]}
+                        >
+                            Gerencie suas finanças com facilidade
+                        </Animated.Text>
+                    </Animated.View>
+                </LinearGradient>
 
                 {/* Formulário */}
                 <ScrollView 
-                    style={[styles.scrollView, keyboardVisible && styles.scrollViewKeyboard]}
-                    contentContainerStyle={[styles.content, keyboardVisible && styles.contentKeyboard]}
+                    style={styles.scrollView}
+                    contentContainerStyle={styles.content}
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
+                    bounces={true}
+                    scrollEnabled={true}
+                    keyboardDismissMode="on-drag"
                 >
                     <AnimatedForm isRegisterView={isRegister} onSuccess={handleSuccess} />
 
@@ -267,13 +339,13 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     header: {
-        paddingTop: moderateScale(60),
-        paddingBottom: moderateScale(50),
         paddingHorizontal: theme.spacing.lg,
-        alignItems: 'center',
         borderBottomLeftRadius: moderateScale(30),
         borderBottomRightRadius: moderateScale(30),
         ...theme.shadows.medium,
+    },
+    headerContent: {
+        alignItems: 'center',
     },
     headerTitle: {
         fontSize: theme.fonts.h1,
@@ -291,15 +363,8 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         justifyContent: 'center',
         paddingHorizontal: 20,
-        paddingBottom: 60,
         paddingTop: 20,
-    },
-    contentKeyboard: {
-        paddingTop: moderateScale(80),
-        justifyContent: 'flex-start',
-    },
-    scrollViewKeyboard: {
-        backgroundColor: '#f8f9fa',
+        paddingBottom: Platform.OS === 'android' ? 180 : 150,
     },
     formContainer: {
         backgroundColor: '#fff',

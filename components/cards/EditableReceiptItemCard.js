@@ -15,14 +15,6 @@ export default function EditableReceiptItemCard({ item, itemIndex, onUpdate, onD
     const [modalVisible, setModalVisible] = useState(false);
     const [saving, setSaving] = useState(false);
     
-    console.log('[EditableCard] 🔄 Renderizando item:', {
-        itemIndex,
-        hasOnUpdate: !!onUpdate,
-        hasOnDelete: !!onDelete,
-        readOnly,
-        productName: item.product?.name || item.description
-    });
-    
     // Extrai dados do item
     const productName = item.product?.name || item.description || '';
     const categoryName = item.category?.name || item.categoryName || '';
@@ -46,15 +38,7 @@ export default function EditableReceiptItemCard({ item, itemIndex, onUpdate, onD
     };
 
     const handleSave = async () => {
-        console.log('[EditableCard] 💾 Salvando item:', {
-            itemIndex,
-            quantity: formQuantity,
-            total: formTotal,
-            calculatedUnitPrice
-        });
-        
         if (!onUpdate) {
-            console.log('[EditableCard] ❌ onUpdate não está definido!');
             return;
         }
         
@@ -67,7 +51,6 @@ export default function EditableReceiptItemCard({ item, itemIndex, onUpdate, onD
             unitPrice: calculatedUnitPrice,
         };
         
-        console.log('[EditableCard] 📤 Chamando onUpdate com:', updatedItem);
         onUpdate(updatedItem, itemIndex);
         setSaving(false);
         setModalVisible(false);

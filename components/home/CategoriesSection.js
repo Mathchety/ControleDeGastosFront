@@ -21,14 +21,12 @@ const COLORS = [
 
 export const CategoriesSection = () => {
     const navigation = useNavigation();
-    const { fetchCategoriesGraph, fetchCategoryById, isProcessingReceipt } = useData();
+    const { fetchCategoriesGraph, isProcessingReceipt } = useData();
     const [graphData, setGraphData] = useState([]);
     const [allCategories, setAllCategories] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
-    const [categoryDetailsModal, setCategoryDetailsModal] = useState(false);
-    const [selectedCategory, setSelectedCategory] = useState(null);
-    const [categoryItems, setCategoryItems] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [filterLoading, setFilterLoading] = useState(false); // ⚡ Loading para trocar filtros
     const [filterPeriod, setFilterPeriod] = useState('month'); // 'week', 'month', 'all', 'custom'
     const [isStartDatePickerVisible, setStartDatePickerVisibility] = useState(false);
     const [isEndDatePickerVisible, setEndDatePickerVisibility] = useState(false);
@@ -48,7 +46,6 @@ export const CategoriesSection = () => {
     // Recarrega o gráfico quando a notificação de processamento desaparecer
     useEffect(() => {
         if (!isProcessingReceipt) {
-            console.log('[CategoriesSection] 📊 Notificação sumiu! Recarregando gráfico...');
             loadGraphData();
         }
     }, [isProcessingReceipt]);
@@ -62,6 +59,7 @@ export const CategoriesSection = () => {
 
     const loadGraphData = async () => {
         try {
+            setFilterLoading(true); // ⚡ Ativa loading ao trocar filtro
             let start, end;
             const today = new Date();
 
@@ -91,39 +89,20 @@ export const CategoriesSection = () => {
                     start = new Date(today.getFullYear(), today.getMonth(), 1);
             }
 
-            console.log('[CategoriesSection] 🔄 Recarregando dados do gráfico...');
             const graphResponse = await fetchCategoriesGraph(start, end);
-            console.log('[CategoriesSection] 📊 Dados recebidos:', graphResponse?.length, 'categorias');
-            console.log('[CategoriesSection] 📋 Detalhes:', JSON.stringify(graphResponse, null, 2));
             setGraphData(graphResponse || []);
             // Atualiza também as categorias do modal com os mesmos dados
             setAllCategories(graphResponse || []);
         } catch (error) {
-            console.error('[CategoriesSection] Erro ao carregar gráfico:', error);
+            // Erro já tratado no DataContext
+        } finally {
+            setFilterLoading(false); // ⚡ Desativa loading
         }
     };
 
-    const handleCategoryPress = async (category) => {
-        try {
-            setLoading(true);
-            const categoryData = await fetchCategoryById(category.id);
-            setSelectedCategory(categoryData);
-            
-            // Ordena os itens do mais caro para o mais barato
-            const sortedItems = (categoryData?.items || []).sort((a, b) => {
-                const totalA = parseFloat(a.total || 0);
-                const totalB = parseFloat(b.total || 0);
-                return totalB - totalA;
-            });
-            
-            setCategoryItems(sortedItems);
-            setModalVisible(false);
-            setCategoryDetailsModal(true);
-        } catch (error) {
-            console.error('[CategoriesSection] Erro ao buscar itens da categoria:', error);
-        } finally {
-            setLoading(false);
-        }
+    const handleCategoryPress = (category) => {
+        // ⚡ Navegação direta e rápida - sem modal pesado!
+        navigation.navigate('CategoryDetails', { category });
     };
 
     const handleCustomPeriod = async () => {
@@ -223,30 +202,43 @@ export const CategoriesSection = () => {
                     </TouchableOpacity>
                 </View>
 
-                {/* Gráfico de Pizza */}
-                {chartData.length > 0 ? (
-                    <View style={styles.chartContainer}>
-                        <PieChart
-                            data={chartData}
-                            width={screenWidth - moderateScale(80)}
-                            height={220}
-                            chartConfig={{
-                                color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                            }}
-                            accessor="population"
-                            backgroundColor="transparent"
-                            paddingLeft="0"
-                            center={[(screenWidth - moderateScale(80)) / 4, 0]}
-                            absolute
-                            hasLegend={false}
-                        />
-                    </View>
-                ) : (
-                    <View style={styles.emptyChart}>
-                        <Ionicons name="pie-chart-outline" size={48} color="#ccc" />
-                        <Text style={styles.emptyChartText}>Nenhum dado para o período selecionado</Text>
-                    </View>
-                )}
+                {/* ⚡ Container com altura fixa para evitar redimensionamento */}
+                <View style={styles.chartFixedContainer}>
+                    {/* ⚡ Loading ao trocar filtros */}
+                    {filterLoading ? (
+                        <View style={styles.filterLoadingContainer}>
+                            <ActivityIndicator size="large" color="#667eea" />
+                            <Text style={styles.filterLoadingText}>Atualizando dados...</Text>
+                        </View>
+                    ) : (
+                        <>
+                            {/* Gráfico de Pizza */}
+                            {chartData.length > 0 ? (
+                                <View style={styles.chartContainer}>
+                                    <PieChart
+                                        data={chartData}
+                                        width={screenWidth - moderateScale(80)}
+                                        height={220}
+                                        chartConfig={{
+                                            color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                                        }}
+                                        accessor="population"
+                                        backgroundColor="transparent"
+                                        paddingLeft="0"
+                                        center={[(screenWidth - moderateScale(80)) / 4, 0]}
+                                        absolute
+                                        hasLegend={false}
+                                    />
+                                </View>
+                            ) : (
+                                <View style={styles.emptyChart}>
+                                    <Ionicons name="pie-chart-outline" size={48} color="#ccc" />
+                                    <Text style={styles.emptyChartText}>Nenhum dado para o período selecionado</Text>
+                                </View>
+                            )}
+                        </>
+                    )}
+                </View>
 
                 {/* Botão Ver Mais Categorias - Maior */}
                 <TouchableOpacity 
@@ -323,12 +315,18 @@ export const CategoriesSection = () => {
             {/* Modal - Todas as Categorias */}
             <Modal
                 visible={modalVisible}
-                animationType="slide"
+                animationType="fade" // ✨ Mudado de "slide" para "fade"
                 transparent={true}
                 onRequestClose={() => setModalVisible(false)}
+                statusBarTranslucent={true} // ✨ Melhor comportamento no Android
             >
                 <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
+                    <TouchableOpacity 
+                        style={styles.modalBackdrop}
+                        activeOpacity={1}
+                        onPress={() => setModalVisible(false)}
+                    />
+                    <View style={[styles.modalContent, styles.modalSlideIn]}>
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>Todas as Categorias</Text>
                             <TouchableOpacity onPress={() => setModalVisible(false)}>
@@ -357,59 +355,6 @@ export const CategoriesSection = () => {
                                 </TouchableOpacity>
                             ))}
                         </ScrollView>
-                    </View>
-                </View>
-            </Modal>
-
-            {/* Modal - Detalhes da Categoria */}
-            <Modal
-                visible={categoryDetailsModal}
-                animationType="slide"
-                transparent={true}
-                onRequestClose={() => {
-                    setCategoryDetailsModal(false);
-                    setModalVisible(true);
-                }}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <TouchableOpacity onPress={() => {
-                                setCategoryDetailsModal(false);
-                                setModalVisible(true);
-                            }}>
-                                <Ionicons name="arrow-back" size={28} color="#333" />
-                            </TouchableOpacity>
-                            <Text style={styles.modalTitle}>{selectedCategory?.name || 'Categoria'}</Text>
-                            <View style={{ width: 28 }} />
-                        </View>
-
-                        {loading ? (
-                            <ActivityIndicator size="large" color="#667eea" style={styles.loader} />
-                        ) : (
-                            <ScrollView style={styles.modalScroll}>
-                                {categoryItems.map((item, index) => {
-                                    const itemTotal = parseFloat(item.total || 0);
-                                    const quantity = parseFloat(item.quantity || 1);
-                                    const unitPrice = quantity > 0 ? itemTotal / quantity : 0;
-                                    
-                                    return (
-                                        <View key={index} style={styles.itemCard}>
-                                            <View style={styles.itemInfo}>
-                                                <Text style={styles.itemName}>{item.name}</Text>
-                                                <Text style={styles.itemDetails}>
-                                                    Qtd: {item.quantity} | Un: R$ {unitPrice.toFixed(2)}
-                                                </Text>
-                                            </View>
-                                            <Text style={styles.itemTotal}>R$ {itemTotal.toFixed(2)}</Text>
-                                        </View>
-                                    );
-                                })}
-                                {categoryItems.length === 0 && (
-                                    <Text style={styles.emptyText}>Nenhum item encontrado nesta categoria</Text>
-                                )}
-                            </ScrollView>
-                        )}
                     </View>
                 </View>
             </Modal>
@@ -473,6 +418,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: theme.spacing.md,
     },
+    chartFixedContainer: {
+        minHeight: 280, // ⚡ Altura fixa para evitar redimensionamento
+        justifyContent: 'center',
+    },
     emptyChart: {
         alignItems: 'center',
         paddingVertical: moderateScale(40),
@@ -481,6 +430,17 @@ const styles = StyleSheet.create({
         marginTop: theme.spacing.sm,
         fontSize: moderateScale(14),
         color: '#999',
+    },
+    filterLoadingContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: moderateScale(60),
+    },
+    filterLoadingText: {
+        marginTop: theme.spacing.md,
+        fontSize: moderateScale(14),
+        color: '#667eea',
+        fontWeight: '600',
     },
     viewAllButton: {
         flexDirection: 'row',
@@ -561,8 +521,15 @@ const styles = StyleSheet.create({
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)', // ✨ Fundo semi-transparente ao invés de preto
         justifyContent: 'flex-end',
+    },
+    modalBackdrop: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
     },
     modalContent: {
         backgroundColor: '#fff',
@@ -571,6 +538,14 @@ const styles = StyleSheet.create({
         paddingTop: theme.spacing.lg,
         paddingHorizontal: theme.spacing.lg,
         maxHeight: '90%',
+    },
+    modalSlideIn: {
+        // ✨ Animação suave de entrada
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 20,
     },
     modalHeader: {
         flexDirection: 'row',

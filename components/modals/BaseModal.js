@@ -18,13 +18,7 @@ export const BaseModal = ({ visible, onClose, children, title }) => {
                 activeOpacity={1} 
                 onPress={onClose}
             >
-                <View
-                    from={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ type: 'timing', duration: 300 }}
-                    style={styles.modalContainer}
-                >
+                <View style={styles.modalContainer}>
                     <TouchableOpacity activeOpacity={1}>
                         <View style={styles.modalContent}>
                             {title && (

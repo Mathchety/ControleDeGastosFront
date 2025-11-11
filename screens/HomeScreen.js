@@ -22,6 +22,7 @@ import {
     CategoriesSection,
     RecentReceiptsSection 
 } from '../components/home';
+import { SkeletonStatCard, SkeletonReceiptCard } from '../components/common';
 import ProcessingNotification from '../components/ProcessingNotification';
 import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
@@ -51,7 +52,6 @@ export default function HomeScreen({ navigation }) {
     // Recarrega dados quando a notificação de processamento desaparecer
     useEffect(() => {
         if (!isProcessingReceipt) {
-            console.log('[Home] 🔄 Notificação sumiu! Recarregando dados...');
             loadData();
         }
     }, [isProcessingReceipt]);
@@ -69,7 +69,7 @@ export default function HomeScreen({ navigation }) {
             // Salva uma cópia local dos receipts para não ser afetado por filtros de outras telas
             setAllReceipts(data || receipts);
         } catch (error) {
-            console.error('Erro ao carregar dados:', error);
+            // Erro já tratado no DataContext
         }
     };
 
@@ -91,7 +91,6 @@ export default function HomeScreen({ navigation }) {
             const total = monthReceipts.reduce((sum, r) => sum + parseFloat(r.total || 0), 0);
             setMonthSpent(total);
         } catch (error) {
-            console.error('[Home] Erro ao calcular total do mês:', error);
             setMonthSpent(0);
         }
     };
@@ -160,29 +159,50 @@ export default function HomeScreen({ navigation }) {
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
                 }
             >
-                <StatsSection 
-                    totalSpent={totalSpent}
-                    monthSpent={monthSpent}
-                    receiptsCount={allReceipts.length}
-                />
+                {loading && allReceipts.length === 0 ? (
+                    <>
+                        {/* Skeleton Loading */}
+                        <View style={styles.statsSkeletonRow}>
+                            <SkeletonStatCard />
+                            <SkeletonStatCard />
+                        </View>
+                        <View style={styles.statsSkeletonRow}>
+                            <SkeletonStatCard />
+                        </View>
+                        <View style={styles.sectionSkeleton}>
+                            <SkeletonReceiptCard />
+                            <SkeletonReceiptCard />
+                            <SkeletonReceiptCard />
+                        </View>
+                    </>
+                ) : (
+                    <>
+                        <StatsSection 
+                            totalSpent={totalSpent}
+                            monthSpent={monthSpent}
+                            receiptsCount={allReceipts.length}
+                        />
 
-                <CategoriesSection />
+                        {/* ✅ Notas Recentes ACIMA de Categorias */}
+                        <RecentReceiptsSection 
+                            loading={loading}
+                            receipts={allReceipts}
+                            storeNameList={storeNameList}
+                            itemCountList={itemCountList}
+                            dateList={dateList}
+                            onReceiptPress={(receiptId) => navigation.navigate('Preview', { receiptId })}
+                            onViewAll={() => navigation.navigate('History')}
+                        />
 
-                <RecentReceiptsSection 
-                    loading={loading}
-                    receipts={allReceipts}
-                    storeNameList={storeNameList}
-                    itemCountList={itemCountList}
-                    dateList={dateList}
-                    onReceiptPress={(receiptId) => navigation.navigate('Preview', { receiptId })}
-                    onViewAll={() => navigation.navigate('History')}
-                />
+                        <CategoriesSection />
 
-                <ScanButton 
-                    title="Escanear Nova Nota"
-                    onPress={() => navigation.navigate('Scan')}
-                    style={styles.addButton}
-                />
+                        <ScanButton 
+                            title="Escanear Nova Nota"
+                            onPress={() => navigation.navigate('Scan')}
+                            style={styles.addButton}
+                        />
+                    </>
+                )}
             </Animated.ScrollView>
         </SafeAreaView>
     );
@@ -211,5 +231,13 @@ const styles = StyleSheet.create({
     addButton: {
         marginBottom: moderateScale(30),
         marginTop: theme.spacing.sm,
+    },
+    statsSkeletonRow: {
+        flexDirection: 'row',
+        marginBottom: moderateScale(12),
+        gap: moderateScale(12),
+    },
+    sectionSkeleton: {
+        marginTop: moderateScale(20),
     },
 });

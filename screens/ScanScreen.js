@@ -56,28 +56,25 @@ export default function ScanScreen({ navigation }) {
       Animated.sequence([
         Animated.timing(successAnim, {
           toValue: 1,
-          duration: 300,
+          duration: 200, // ✨ Reduzido de 300ms para 200ms
           easing: Easing.out(Easing.back(1.5)),
           useNativeDriver: true,
         }),
-        Animated.delay(400),
+        Animated.delay(300), // ✨ Reduzido de 400ms para 300ms
       ]).start(() => {
-        // Anima a "fechadura" da tela antes de navegar
-        Animated.timing(screenAnim, {
-          toValue: 0,
-          duration: 400,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }).start(() => {
-          // Navega para tela de preview com os dados após animação
-          navigation.navigate('Preview', { 
-            previewData,
-            qrLink: data 
-          });
+        // ✨ Navega DIRETAMENTE sem animação de fechadura
+        navigation.navigate('Preview', { 
+          previewData,
+          qrLink: data 
+        });
+        
+        // Reset após navegar
+        setTimeout(() => {
           setLocalLoading(false);
           setShowSuccess(false);
           successAnim.setValue(0);
-        });
+          screenAnim.setValue(1);
+        }, 100);
       });
 
     } catch (error) {

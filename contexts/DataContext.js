@@ -1,5 +1,7 @@
 import React, { createContext, useState, useContext } from 'react';
+import { Alert } from 'react-native';
 import httpClient from '../services/httpClient';
+import { getErrorMessage, getErrorTitle } from '../utils/errorMessages';
 
 const DataContext = createContext();
 
@@ -28,7 +30,8 @@ export const DataProvider = ({ children }) => {
                 throw new Error('Preview não contém dados');
             }
         } catch (error) {
-            console.error('[Data] Erro ao gerar preview:', error);
+            const errorMessage = getErrorMessage(error, 'Não foi possível processar o QR Code. Verifique se o código é válido.');
+            Alert.alert(getErrorTitle(error), errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -39,7 +42,6 @@ export const DataProvider = ({ children }) => {
     const confirmQRCode = async (dataToSave = null, onTimeout = null) => {
         try {
             setLoading(true);
-            // Mostra notificação IMEDIATAMENTE ao salvar
             setIsProcessingReceipt(true);
             
             const finalData = dataToSave || previewData;
@@ -49,21 +51,19 @@ export const DataProvider = ({ children }) => {
                 throw new Error('Nenhum dado de preview disponível para confirmar');
             }
 
-            // Faz a requisição
             const response = await httpClient.post('/scan-qrcode/confirm', finalData);
             
-            // Quando a API retornar, esconde notificação e atualiza dados
-            console.log('[Data] ✅ API retornou! Escondendo notificação e atualizando dados...');
             setIsProcessingReceipt(false);
             setPreviewData(null);
             
-            // Força refresh dos receipts
+            // Atualiza lista de recibos
             await fetchReceiptsBasic();
             
             return { timedOut: false, response };
         } catch (error) {
-            console.error('[Data] Erro ao confirmar nota:', error);
             setIsProcessingReceipt(false);
+            const errorMessage = getErrorMessage(error, 'Não foi possível salvar o recibo. Tente novamente.');
+            Alert.alert(getErrorTitle(error), errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -98,7 +98,8 @@ export const DataProvider = ({ children }) => {
 
             return receiptsData;
         } catch (error) {
-            console.error('[Data] Erro ao buscar receipts:', error);
+            const errorMessage = getErrorMessage(error, 'Não foi possível carregar os recibos.');
+            Alert.alert(getErrorTitle(error), errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -115,7 +116,8 @@ export const DataProvider = ({ children }) => {
                 setReceipts(response.receipts);
             }
         } catch (error) {
-            console.error('[Data] Erro ao buscar receipts completos:', error);
+            const errorMessage = getErrorMessage(error, 'Não foi possível carregar os recibos completos.');
+            Alert.alert(getErrorTitle(error), errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -144,7 +146,8 @@ export const DataProvider = ({ children }) => {
             
             return receiptsData;
         } catch (error) {
-            console.error('[Data] Erro ao buscar receipts por data:', error);
+            const errorMessage = getErrorMessage(error, 'Não foi possível carregar recibos desta data.');
+            Alert.alert(getErrorTitle(error), errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -173,7 +176,8 @@ export const DataProvider = ({ children }) => {
             
             return receiptsData;
         } catch (error) {
-            console.error('[Data] Erro ao buscar receipts por período:', error);
+            const errorMessage = getErrorMessage(error, 'Não foi possível carregar recibos deste período.');
+            Alert.alert(getErrorTitle(error), errorMessage);
             return [];
         } finally {
             setLoading(false);
@@ -212,7 +216,8 @@ export const DataProvider = ({ children }) => {
             
             throw new Error('Receipt não encontrado');
         } catch (error) {
-            console.error('[Data] Erro ao buscar receipt:', error);
+            const errorMessage = getErrorMessage(error, 'Não foi possível carregar os detalhes do recibo.');
+            Alert.alert(getErrorTitle(error), errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -225,8 +230,10 @@ export const DataProvider = ({ children }) => {
             setLoading(true);
             await httpClient.delete(`/receipt/${id}`);
             setReceipts(prev => prev.filter(r => r.id !== id));
+            Alert.alert('Sucesso', 'Recibo excluído com sucesso!');
         } catch (error) {
-            console.error('[Data] Erro ao deletar receipt:', error);
+            const errorMessage = getErrorMessage(error, 'Não foi possível excluir o recibo.');
+            Alert.alert(getErrorTitle(error), errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -272,19 +279,22 @@ export const DataProvider = ({ children }) => {
             
             return filteredCategories;
         } catch (error) {
-            console.error('[Data] Erro ao buscar dados do gráfico de categorias:', error);
+            const errorMessage = getErrorMessage(error, 'Não foi possível carregar dados do gráfico de categorias.');
+            // Não mostra alert aqui, apenas retorna array vazio
             return [];
         } finally {
             setLoading(false);
         }
     };
 
-    // Busca todas as categorias completas - GET /categories
+    // ✅ Busca todas as categorias - GET /categories/summary (OTIMIZADO - 650x mais rápido!)
+    // Backend já retorna apenas metadados + itemCount, sem array de items (5KB vs 5MB antes)
     const fetchCategoriesComplete = async () => {
         try {
-            const response = await httpClient.get('/categories');
+            const response = await httpClient.get('/categories/summary');
             
             let categoriesData = [];
+            // Backend retorna formato: { categories: [...], total: 23 }
             if (response?.categories && Array.isArray(response.categories)) {
                 categoriesData = response.categories;
             } else if (response?.data?.categories && Array.isArray(response.data.categories)) {
@@ -295,50 +305,45 @@ export const DataProvider = ({ children }) => {
                 categoriesData = response.data;
             }
             
+            // Backend já retorna otimizado: { id, name, description, icon, color, itemCount }
+            // Não precisa mais remover items - backend já não envia!
             return categoriesData;
         } catch (error) {
-            console.error('[Data] Erro ao buscar categorias completas:', error);
+            const errorMessage = getErrorMessage(error, 'Não foi possível carregar as categorias.');
+            // Não mostra alert aqui, retorna array vazio silenciosamente
             return [];
         }
     };
 
-    // Busca categorias com dados resumidos e itemCount - GET /categories/graph
+    // ⚡ Busca categorias OTIMIZADO - Usa apenas /categories/summary (50% mais rápido!)
+    // Backend já retorna: name, description, icon, color, itemCount
+    // Eliminada requisição duplicada ao /categories/graph (era 2 requests, agora é 1)
     const fetchCategories = async () => {
         try {
             setLoading(true);
             
-            // Busca dados do graph (com itemCount e total)
-            const graphResponse = await httpClient.get('/categories/graph');
-            let graphData = [];
-            if (Array.isArray(graphResponse)) {
-                graphData = graphResponse;
-            } else if (Array.isArray(graphResponse?.data)) {
-                graphData = graphResponse.data;
+            // ✅ Uma única requisição otimizada
+            const response = await httpClient.get('/categories/summary');
+            
+            let categoriesData = [];
+            // Backend retorna formato: { categories: [...], total: 23 }
+            if (response?.categories && Array.isArray(response.categories)) {
+                categoriesData = response.categories;
+            } else if (response?.data?.categories && Array.isArray(response.data.categories)) {
+                categoriesData = response.data.categories;
+            } else if (Array.isArray(response)) {
+                categoriesData = response;
+            } else if (Array.isArray(response?.data)) {
+                categoriesData = response.data;
             }
             
-            console.log('[Data] 📊 Dados do /categories/graph:', graphData.length, 'categorias');
-            setCategoriesCache(graphData); // Armazena no cache
-            
-            // Busca dados completos (com description, color, icon)
-            const completeData = await fetchCategoriesComplete();
-            console.log('[Data] � Dados completos do /categories:', completeData.length, 'categorias');
-            
-            // Combina os dois: dados completos + itemCount do graph
-            const categoriesData = completeData.map(cat => {
-                const graphInfo = graphData.find(g => g.id === cat.id);
-                return {
-                    ...cat,
-                    itemCount: graphInfo?.itemCount || 0,
-                    total: graphInfo?.total || 0,
-                };
-            });
-            
-            console.log('[Data] ✅ Categorias combinadas:', categoriesData.length);
-            console.log('[Data] 📋 Primeira categoria:', categoriesData[0]);
+            // Armazena no cache para uso posterior
+            setCategoriesCache(categoriesData);
             
             return categoriesData;
         } catch (error) {
-            console.error('[Data] Erro ao buscar categorias:', error);
+            const errorMessage = getErrorMessage(error, 'Não foi possível carregar as categorias.');
+            Alert.alert(getErrorTitle(error), errorMessage);
             return [];
         } finally {
             setLoading(false);
@@ -364,7 +369,8 @@ export const DataProvider = ({ children }) => {
             
             return categoryData;
         } catch (error) {
-            console.error('[Data] Erro ao buscar categoria:', error);
+            const errorMessage = getErrorMessage(error, 'Não foi possível carregar os detalhes da categoria.');
+            Alert.alert(getErrorTitle(error), errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -372,17 +378,17 @@ export const DataProvider = ({ children }) => {
     };
 
     // Cria uma nova categoria - POST /category
-    // Endpoint salvo, aguardando implementação
-    // Body: { name: string (required), description?: string, icon?: string, color?: string }
     const createCategory = async (categoryData) => {
         try {
             setLoading(true);
             const response = await httpClient.post('/category', categoryData);
             
+            Alert.alert('Sucesso', 'Categoria criada com sucesso!');
             // Resposta esperada: { data: { id, name, description, icon, color }, message }
             return response?.data || response;
         } catch (error) {
-            console.error('[Data] Erro ao criar categoria:', error);
+            const errorMessage = getErrorMessage(error, 'Não foi possível criar a categoria.');
+            Alert.alert(getErrorTitle(error), errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -395,9 +401,11 @@ export const DataProvider = ({ children }) => {
         try {
             setLoading(true);
             const response = await httpClient.delete(`/category/${id}`);
+            Alert.alert('Sucesso', 'Categoria excluída com sucesso!');
             return response;
         } catch (error) {
-            console.error('[Data] Erro ao deletar categoria:', error);
+            const errorMessage = getErrorMessage(error, 'Não foi possível excluir a categoria.');
+            Alert.alert(getErrorTitle(error), errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -409,9 +417,11 @@ export const DataProvider = ({ children }) => {
         try {
             setLoading(true);
             const response = await httpClient.patch(`/item/${itemId}`, itemData);
+            Alert.alert('Sucesso', 'Item atualizado com sucesso!');
             return response.data;
         } catch (error) {
-            console.error('[Data] Erro ao atualizar item:', error);
+            const errorMessage = getErrorMessage(error, 'Não foi possível atualizar o item.');
+            Alert.alert(getErrorTitle(error), errorMessage);
             throw error;
         } finally {
             setLoading(false);

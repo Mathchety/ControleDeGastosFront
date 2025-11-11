@@ -1,10 +1,10 @@
-﻿import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Platform, StatusBar, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useData } from '../contexts/DataContext';
 import { EmptyCard } from '../components/cards';
-import { GradientHeader } from '../components/common';
+import { GradientHeader, LoadingOverlay, SkeletonReceiptCard } from '../components/common';
 import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
 
@@ -28,10 +28,23 @@ export default function HistoryScreen({ navigation }) {
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
   const [selectedFilter, setSelectedFilter] = useState('all'); // 'all', 'today', 'week', 'month'
+  const [isNavigating, setIsNavigating] = useState(false);
 
   useEffect(() => {
     loadReceipts();
   }, []);
+
+  const handleReceiptPress = useCallback((receiptId) => {
+    if (isNavigating) {
+      return;
+    }
+    
+    setIsNavigating(true);
+    navigation.navigate('Preview', { receiptId });
+    
+    // Reseta após a navegação
+    setTimeout(() => setIsNavigating(false), 1000);
+  }, [isNavigating, navigation]);
 
   const loadReceipts = async (filter = 'all') => {
     try {
@@ -60,7 +73,7 @@ export default function HistoryScreen({ navigation }) {
           break;
       }
     } catch (error) {
-      console.error('Erro ao carregar histórico:', error);
+      // Erro tratado pelo DataContext com Alert
     }
   };
 
@@ -81,7 +94,7 @@ export default function HistoryScreen({ navigation }) {
       await fetchReceiptsByPeriod(formatDate(startDate), formatDate(endDate));
       setSelectedFilter('custom');
     } catch (error) {
-      console.error('Erro ao aplicar período customizado:', error);
+      // Erro tratado pelo DataContext com Alert
     }
   };
 
@@ -164,20 +177,20 @@ export default function HistoryScreen({ navigation }) {
       <TouchableOpacity
         key={item.id}
         style={styles.receiptCard}
-        onPress={() => navigation.navigate('Preview', { receiptId: item.id })}
+        onPress={() => handleReceiptPress(item.id)}
         activeOpacity={0.7}
       >
-        <View style={styles.receiptHeader}>
-          <View style={styles.receiptLeft}>
-            <View style={styles.receiptIcon}>
-              <Ionicons name="receipt" size={24} color="#fff" />
-            </View>
-            <View style={styles.receiptInfo}>
-              <Text style={styles.receiptName}>{storeName}</Text>
-              {date && (
-                <Text style={styles.receiptDate} numberOfLines={1}>
-                  {date}
-                </Text>
+          <View style={styles.receiptHeader}>
+            <View style={styles.receiptLeft}>
+              <View style={styles.receiptIcon}>
+                <Ionicons name="receipt" size={24} color="#fff" />
+              </View>
+              <View style={styles.receiptInfo}>
+                <Text style={styles.receiptName}>{storeName}</Text>
+                {date && (
+                  <Text style={styles.receiptDate} numberOfLines={1}>
+                    {date}
+                  </Text>
               )}
             </View>
           </View>
@@ -286,10 +299,13 @@ export default function HistoryScreen({ navigation }) {
         />
       )}
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#667eea" />
-          <Text style={styles.loadingText}>Carregando histórico...</Text>
+      {loading && receipts.length === 0 ? (
+        <View style={styles.list}>
+          <SkeletonReceiptCard />
+          <SkeletonReceiptCard />
+          <SkeletonReceiptCard />
+          <SkeletonReceiptCard />
+          <SkeletonReceiptCard />
         </View>
       ) : receipts.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -306,6 +322,15 @@ export default function HistoryScreen({ navigation }) {
           data={receipts}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderReceiptCard}
+          initialNumToRender={10}
+          maxToRenderPerBatch={5}
+          windowSize={5}
+          removeClippedSubviews={true}
+          getItemLayout={(data, index) => ({
+            length: moderateScale(90),
+            offset: moderateScale(90) * index,
+            index,
+          })}
           refreshControl={
             <RefreshControl 
               refreshing={refreshing} 

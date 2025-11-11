@@ -2,18 +2,13 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 
 /**
- * Card animado genérico
+ * Card genérico (animações removidas para melhor performance)
  * @param {node} children - Conteúdo do card
- * @param {number} delay - Delay da animação
+ * @param {number} delay - Delay da animação (deprecado, mantido por compatibilidade)
  * @param {object} style - Estilos adicionais
  */
 export const AnimatedCard = ({ children, delay = 0, style }) => (
-    <View
-        from={{ opacity: 0, translateY: 30, scale: 0.95 }}
-        animate={{ opacity: 1, translateY: 0, scale: 1 }}
-        transition={{ type: 'timing', duration: 500, delay }}
-        style={[styles.card, style]}
-    >
+    <View style={[styles.card, style]}>
         {children}
     </View>
 );

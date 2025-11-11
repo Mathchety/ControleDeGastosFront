@@ -1,5 +1,6 @@
 import React from 'react';
-import { createStackNavigator } from '@react-navigation/stack';
+import { Platform } from 'react-native';
+import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { useAuth } from '../contexts/AuthContext';
 import AuthScreen from '../screens/AuthScreen';
 import MainTabNavigator from './MainTabNavigator';
@@ -16,12 +17,52 @@ export default function AppNavigator() {
   }
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator 
+      screenOptions={{ 
+        headerShown: false,
+        cardStyle: { backgroundColor: '#f8f9fa' }, // Fundo claro durante transição
+        cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+        // ✨ Habilita gesture de voltar em todas as plataformas
+        gestureEnabled: true,
+        gestureDirection: 'horizontal',
+        // Configurações específicas de gesture
+        gestureResponseDistance: Platform.select({
+          ios: 50, // iOS: gesture apenas nas bordas
+          android: 150, // Android: área maior para gesture
+        }),
+        transitionSpec: {
+          open: {
+            animation: 'timing',
+            config: {
+              duration: 300, // Transição mais rápida
+            },
+          },
+          close: {
+            animation: 'timing',
+            config: {
+              duration: 300,
+            },
+          },
+        },
+      }}
+    >
       {isAuthenticated ? (
         <>
           <Stack.Screen name="Main" component={MainTabNavigator} />
-          <Stack.Screen name="Preview" component={PreViewScreen} />
-          <Stack.Screen name="CategoryDetails" component={CategoryDetailsScreen} />
+          <Stack.Screen 
+            name="Preview" 
+            component={PreViewScreen}
+            options={{
+              cardStyle: { backgroundColor: '#f8f9fa' },
+            }}
+          />
+          <Stack.Screen 
+            name="CategoryDetails" 
+            component={CategoryDetailsScreen}
+            options={{
+              cardStyle: { backgroundColor: '#f8f9fa' },
+            }}
+          />
         </>
       ) : (
         <Stack.Screen name="Auth" component={AuthScreen} />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
     View,
     Text,
@@ -15,8 +15,10 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../contexts/DataContext';
+import { SkeletonCategoryCard } from '../components/common';
 import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
+import { useRequestThrottle } from '../hooks/useScreenFade';
 
 export default function CategoryDetailsScreen({ route, navigation }) {
     const { category } = route.params || {};
@@ -33,16 +35,19 @@ export default function CategoryDetailsScreen({ route, navigation }) {
     const [itemTotal, setItemTotal] = useState('');
     const [selectedCategoryId, setSelectedCategoryId] = useState(null);
     const [categories, setCategories] = useState([]);
+    
+    // ✨ Throttle para prevenir sobrecarga de requisições
+    const { getDelay } = useRequestThrottle('CategoryDetailsScreen');
 
-    useEffect(() => {
-        if (category?.id) {
-            loadCategoryDetails();
-            loadCategories();
-        }
-    }, [category]);
-
-    const loadCategoryDetails = async () => {
+    // ✨ Memoiza o loadCategoryDetails para evitar recriação
+    const loadCategoryDetails = useCallback(async () => {
         try {
+            // ✨ Adiciona delay progressivo se usuário abriu a tela múltiplas vezes
+            const delay = getDelay();
+            if (delay > 0) {
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+            
             setLoading(true);
             const data = await fetchCategoryById(category.id);
             setCategoryData(data);
@@ -64,13 +69,14 @@ export default function CategoryDetailsScreen({ route, navigation }) {
             
             setCategoryItems(sortedItems);
         } catch (error) {
-            console.error('[CategoryDetails] Erro ao carregar itens:', error);
+            // Erro tratado pelo DataContext com Alert
         } finally {
             setLoading(false);
         }
-    };
+    }, [category.id, fetchCategoryById, getDelay]);
 
-    const loadCategories = async () => {
+    // ✨ Memoiza o loadCategories para evitar recriação
+    const loadCategories = useCallback(async () => {
         try {
             const data = await fetchCategories();
             // Ordena categorias alfabeticamente
@@ -79,9 +85,16 @@ export default function CategoryDetailsScreen({ route, navigation }) {
             );
             setCategories(sortedCategories);
         } catch (error) {
-            console.error('[CategoryDetails] Erro ao carregar categorias:', error);
+            // Erro tratado pelo DataContext com Alert
         }
-    };
+    }, [fetchCategories]);
+
+    useEffect(() => {
+        if (category?.id) {
+            loadCategoryDetails();
+            loadCategories();
+        }
+    }, [category?.id]); // ✨ Só recarrega se o ID da categoria mudar (não o objeto inteiro)
 
     const handleEditItem = (item) => {
         setEditingItem(item);
@@ -129,7 +142,6 @@ export default function CategoryDetailsScreen({ route, navigation }) {
                 loadCategoryDetails();
             }
         } catch (error) {
-            console.error('[CategoryDetails] Erro ao salvar item:', error);
             Alert.alert('Erro', 'Não foi possível salvar o item. Tente novamente.');
         } finally {
             setSaving(false);
@@ -173,10 +185,12 @@ export default function CategoryDetailsScreen({ route, navigation }) {
                 showsVerticalScrollIndicator={false}
             >
                 {loading ? (
-                    <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color={category?.color || '#667eea'} />
-                        <Text style={styles.loadingText}>Carregando itens...</Text>
-                    </View>
+                    <>
+                        <SkeletonCategoryCard />
+                        <SkeletonCategoryCard />
+                        <SkeletonCategoryCard />
+                        <SkeletonCategoryCard />
+                    </>
                 ) : categoryItems.length === 0 ? (
                     <View style={styles.emptyContainer}>
                         <Ionicons name="cart-outline" size={80} color="#ccc" />

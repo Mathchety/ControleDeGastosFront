@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RecentReceiptItem } from './RecentReceiptItem';
+import { LoadingOverlay } from '../common';
 import { moderateScale, fontScale } from '../../utils/responsive';
 import { theme } from '../../utils/theme';
 
@@ -24,16 +25,32 @@ export const RecentReceiptsSection = ({
     onReceiptPress,
     onViewAll
 }) => {
+    const [isNavigating, setIsNavigating] = useState(false);
+
+    const handleReceiptPress = useCallback((receiptId) => {
+        if (isNavigating) {
+            return;
+        }
+        
+        setIsNavigating(true);
+        onReceiptPress && onReceiptPress(receiptId);
+        
+        // Reseta após a navegação
+        setTimeout(() => setIsNavigating(false), 1000);
+    }, [isNavigating, onReceiptPress]);
+
     return (
         <View style={styles.section}>
             <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Notas Recentes</Text>
             </View>
 
+            {/* ✨ Loading padronizado */}
             {loading && receipts.length === 0 ? (
-                <View style={styles.loadingContainer}>
-                    <Text style={styles.loadingText}>Carregando...</Text>
-                </View>
+                <LoadingOverlay 
+                    visible={true}
+                    message="Carregando notas..."
+                />
             ) : receipts.length === 0 ? (
                 <View style={styles.emptyContainer}>
                     <Ionicons name="receipt-outline" size={moderateScale(64)} color="#ccc" />
@@ -54,7 +71,7 @@ export const RecentReceiptsSection = ({
                                     month: '2-digit', 
                                     year: 'numeric' 
                                 }) : ''}
-                                onPress={() => onReceiptPress && onReceiptPress(receipt.id)}
+                                onPress={() => handleReceiptPress(receipt.id)}
                             />
                         ))}
                     </View>

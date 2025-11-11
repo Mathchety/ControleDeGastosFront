@@ -12,12 +12,7 @@ export const LoadingModal = ({ visible, message = 'Carregando...' }) => {
             animationType="fade"
         >
             <View style={styles.loadingOverlay}>
-                <View
-                    from={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ type: 'timing', duration: 300 }}
-                    style={styles.loadingContainer}
-                >
+                <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#667eea" />
                     <Text style={styles.loadingText}>{message}</Text>
                 </View>

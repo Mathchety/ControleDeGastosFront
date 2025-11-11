@@ -18,13 +18,7 @@ export const BottomSheetModal = ({ visible, onClose, children, title, height = 4
                 activeOpacity={1} 
                 onPress={onClose}
             >
-                <View
-                    from={{ translateY: height }}
-                    animate={{ translateY: 0 }}
-                    exit={{ translateY: height }}
-                    transition={{ type: 'timing', duration: 300 }}
-                    style={[styles.bottomSheet, { height }]}
-                >
+                <View style={[styles.bottomSheet, { height }]}>
                     <TouchableOpacity activeOpacity={1}>
                         <View style={styles.bottomSheetHandle} />
                         

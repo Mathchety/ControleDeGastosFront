@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
     View, 
     Text, 
@@ -6,7 +6,7 @@ import {
     Image, 
     TouchableOpacity, 
     ScrollView,
-    Alert 
+    Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -88,12 +88,7 @@ export default function ProfileScreen({ navigation }) {
                 colors={['#667eea', '#764ba2']}
                 style={styles.header}
             >
-                <View
-                    from={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ type: 'timing', duration: 500 }}
-                    style={styles.avatarContainer}
-                >
+                <View style={styles.avatarContainer}>
                     {user.avatar ? (
                         <Image source={{ uri: user.avatar }} style={styles.avatar} />
                     ) : (
@@ -109,11 +104,7 @@ export default function ProfileScreen({ navigation }) {
                     </TouchableOpacity>
                 </View>
 
-                <View
-                    from={{ opacity: 0, translateY: 20 }}
-                    animate={{ opacity: 1, translateY: 0 }}
-                    transition={{ type: 'timing', duration: 500, delay: 200 }}
-                >
+                <View>
                     <Text style={styles.userName}>{user.name}</Text>
                     <Text style={styles.userEmail}>{user.email}</Text>
                     <View style={styles.memberBadge}>

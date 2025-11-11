@@ -16,6 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../contexts/DataContext';
 import { ConfirmButton } from '../components/buttons';
 import { PreviewHeader, ReceiptSummaryCard, EditableReceiptItemCard } from '../components/cards';
+import { SkeletonPreviewScreen } from '../components/common';
+import { useRequestThrottle } from '../hooks/useScreenFade';
 import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
 
@@ -24,16 +26,20 @@ export default function PreViewScreen({ route, navigation }) {
     const { previewQRCode, confirmQRCode, fetchReceiptById, loading } = useData();
     const [previewData, setPreviewData] = useState(receivedData || null);
     const [isReadOnly, setIsReadOnly] = useState(false);
+    const [isOpening, setIsOpening] = useState(false); // ⚡ Previne múltiplos cliques
+    const [isInitializing, setIsInitializing] = useState(!receivedData); // ✨ Mostra skeleton na inicialização
     
     // Animação do header ao rolar
     const scrollY = useRef(new Animated.Value(0)).current;
     const HEADER_HEIGHT = Platform.OS === 'ios' ? moderateScale(80) : moderateScale(110);
     const HEADER_SCROLL_DISTANCE = Platform.OS === 'ios' ? moderateScale(50) : moderateScale(45);
+    
+    // ✨ Throttle para prevenir sobrecarga de requisições
+    const { getDelay } = useRequestThrottle('PreViewScreen');
 
     useEffect(() => {
         // MODO 1: Se recebeu ID de uma nota já salva, busca pelo endpoint
         if (receiptId) {
-            console.log('[Preview] Carregando receipt por ID:', receiptId);
             setIsReadOnly(false); // AGORA PERMITE EDIÇÃO mesmo do histórico
             loadReceiptById();
             return;
@@ -41,8 +47,9 @@ export default function PreViewScreen({ route, navigation }) {
         
         // MODO 2: Se já recebeu os dados do ScanScreen, não precisa chamar previewQRCode de novo
         if (receivedData) {
-            console.log('[Preview] Dados recebidos do ScanScreen:', receivedData);
             setIsReadOnly(false); // Modo edição, pode salvar
+            // ✨ Pequeno delay para mostrar transição suave
+            setTimeout(() => setIsInitializing(false), 300);
             return;
         }
         
@@ -54,19 +61,21 @@ export default function PreViewScreen({ route, navigation }) {
     }, [qrLink, receivedData, receiptId]);
 
     const loadReceiptById = async () => {
+        // ⚡ Previne múltiplas chamadas se já está carregando
+        if (isOpening) return;
+        
         try {
-            console.log('[Preview] ========== CARREGANDO RECEIPT ==========');
-            console.log('[Preview] Receipt ID:', receiptId);
+            setIsOpening(true);
+            
+            // ✨ Adiciona delay progressivo se usuário abriu a tela múltiplas vezes
+            const delay = getDelay();
+            if (delay > 0) {
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+            
             const data = await fetchReceiptById(receiptId);
-            console.log('[Preview] ========== DADOS RECEBIDOS ==========');
-            console.log('[Preview] Data completo:', JSON.stringify(data, null, 2));
-            console.log('[Preview] Store Name:', data.storeName);
-            console.log('[Preview] Items:', data.items?.length);
-            console.log('[Preview] First Item Product:', data.items?.[0]?.product);
             setPreviewData(data);
         } catch (error) {
-            console.error('[Preview] ❌ Erro ao carregar receipt:', error);
-            console.error('[Preview] Stack trace:', error.stack);
             Alert.alert(
                 'Erro',
                 `Não foi possível carregar os dados da nota fiscal.\n\nDetalhes: ${error.message}`,
@@ -77,17 +86,17 @@ export default function PreViewScreen({ route, navigation }) {
                     }
                 ]
             );
+        } finally {
+            setIsOpening(false);
+            setIsInitializing(false); // ✨ Finaliza inicialização
         }
     };
 
     const loadPreview = async () => {
         try {
-            console.log('[Preview] Carregando preview com link:', qrLink);
             const data = await previewQRCode(qrLink);
             setPreviewData(data);
-            console.log('[Preview] Dados recebidos:', data);
         } catch (error) {
-            console.error('[Preview] Erro ao carregar preview:', error);
             Alert.alert(
                 'Erro',
                 'Não foi possível carregar os dados da nota fiscal.',
@@ -98,22 +107,14 @@ export default function PreViewScreen({ route, navigation }) {
                     }
                 ]
             );
+        } finally {
+            setIsInitializing(false); // ✨ Finaliza inicialização
         }
     };
 
     const handleUpdateItem = (updatedItem, itemIndex) => {
-        console.log('[Preview] 📝 handleUpdateItem chamado:', {
-            itemIndex,
-            updatedItem: {
-                quantity: updatedItem.quantity,
-                total: updatedItem.total,
-                unitPrice: updatedItem.unitPrice
-            }
-        });
-        
         setPreviewData(prev => {
             if (!prev || !prev.items) {
-                console.log('[Preview] ❌ Dados inválidos em previewData');
                 return prev;
             }
             
@@ -129,13 +130,6 @@ export default function PreViewScreen({ route, navigation }) {
             // Recalcula o total
             const newTotal = newSubtotal - parseFloat(prev.discount || 0);
             
-            console.log('[Preview] ✅ Item atualizado com sucesso:', {
-                itemIndex,
-                newTotal: updatedItem.total,
-                newSubtotal,
-                finalTotal: newTotal
-            });
-            
             return {
                 ...prev,
                 items: updatedItems,
@@ -147,8 +141,6 @@ export default function PreViewScreen({ route, navigation }) {
     };
 
     const handleDeleteItem = (itemIndex) => {
-        console.log('[Preview] 🗑️ handleDeleteItem chamado:', { itemIndex });
-        
         Alert.alert(
             'Excluir Item',
             'Tem certeza que deseja excluir este item?',
@@ -158,11 +150,8 @@ export default function PreViewScreen({ route, navigation }) {
                     text: 'Excluir',
                     style: 'destructive',
                     onPress: () => {
-                        console.log('[Preview] ✅ Confirmado exclusão do item:', itemIndex);
-                        
                         setPreviewData(prev => {
                             if (!prev || !prev.items) {
-                                console.log('[Preview] ❌ Dados inválidos em previewData');
                                 return prev;
                             }
                             
@@ -175,12 +164,6 @@ export default function PreViewScreen({ route, navigation }) {
                                 sum + (item.deleted ? 0 : parseFloat(item.total || 0)), 0
                             );
                             const newTotal = newSubtotal - parseFloat(prev.discount || 0);
-                            
-                            console.log('[Preview] ✅ Item deletado com sucesso:', {
-                                itemIndex,
-                                newSubtotal,
-                                finalTotal: newTotal
-                            });
                             
                             return {
                                 ...prev,
@@ -200,7 +183,6 @@ export default function PreViewScreen({ route, navigation }) {
         try {
             if (receiptId) {
                 // MODO HISTÓRICO: Salva as alterações da nota existente
-                console.log('[Preview] 💾 Salvando alterações da nota:', receiptId);
                 Alert.alert(
                     'Sucesso',
                     'Alterações salvas com sucesso!',
@@ -213,13 +195,12 @@ export default function PreViewScreen({ route, navigation }) {
                 );
             } else {
                 // MODO SCAN: Confirma e salva nova nota
-                console.log('[Preview] 💾 Salvando nova nota fiscal...');
                 // Navega para Home IMEDIATAMENTE ao clicar em salvar
                 navigation.navigate('Main', { screen: 'Home' });
                 
                 // Callback de timeout: ativa notificação se demorar mais de 5s
                 const handleTimeout = () => {
-                    console.log('[Preview] Timeout: mostrando notificação de processamento');
+                    // Notificação de processamento
                 };
 
                 // Inicia o salvamento em background
@@ -233,11 +214,22 @@ export default function PreViewScreen({ route, navigation }) {
         }
     };
 
-    if (loading) {
+    // ✨ Mostra skeleton durante loading OU inicialização
+    if (loading || isInitializing) {
         return (
-            <View style={styles.fullLoading}>
-                <ActivityIndicator size="large" color="#fff" />
-                <Text style={styles.fullLoadingText}>Carregando nota fiscal...</Text>
+            <View style={styles.safeArea}>
+                <StatusBar 
+                    barStyle="light-content" 
+                    backgroundColor="transparent" 
+                    translucent={true}
+                />
+                <LinearGradient
+                    colors={['#667eea', '#764ba2']}
+                    style={styles.headerGradient}
+                >
+                    <PreviewHeader onBack={() => navigation.goBack()} />
+                </LinearGradient>
+                <SkeletonPreviewScreen />
             </View>
         );
     }

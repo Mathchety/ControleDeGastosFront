@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Platform } from 'react-native';
 import * as NavigationBar from 'expo-navigation-bar';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
 import AppNavigator from './navigation/AppNavigator';
 import SplashScreen from './screens/SplashScreen';
@@ -12,20 +12,26 @@ import useAndroidNavigationBar from './hooks/useAndroidNavigationBar';
 function AppContent() {
   const navigationRef = useRef();
   const [showSplash, setShowSplash] = useState(true);
+  const [splashFinished, setSplashFinished] = useState(false);
+  const { loading: authLoading } = useAuth(); // ✨ Pega o estado de loading do AuthContext
   
   // Configura a barra de navegação do Android em modo imersivo
   useAndroidNavigationBar();
 
   const handleSplashFinish = () => {
-    setShowSplash(false);
+    setSplashFinished(true);
   };
 
-  if (showSplash) {
-    return <SplashScreen onFinish={handleSplashFinish} />;
-  }
-
+  // ✨ Só esconde o splash quando AMBOS terminarem: animação E auth
   useEffect(() => {
-    if (Platform.OS === 'android') {
+    if (splashFinished && !authLoading) {
+      setShowSplash(false);
+    }
+  }, [splashFinished, authLoading]);
+
+  // useEffect DEVE vir ANTES de qualquer return condicional
+  useEffect(() => {
+    if (Platform.OS === 'android' && !showSplash) {
       // Listener para mudanças de rota
       const unsubscribe = navigationRef.current?.addListener('state', () => {
         // Reaplica configuração ao mudar de tela
@@ -38,7 +44,12 @@ function AppContent() {
         if (unsubscribe) unsubscribe();
       };
     }
-  }, []);
+  }, [showSplash]);
+
+  // ✨ Mostra o splash até que AMBOS terminem
+  if (showSplash) {
+    return <SplashScreen onFinish={handleSplashFinish} />;
+  }
 
   return (
     <NavigationContainer ref={navigationRef}>
