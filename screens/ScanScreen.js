@@ -10,9 +10,12 @@ export default function ScanScreen({ navigation }) {
   const [scannedData, setScannedData] = useState(null);
   const [localLoading, setLocalLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [scanTimeout, setScanTimeout] = useState(false);
 
   const { loading: contextLoading, previewQRCode } = useData();
   const loading = contextLoading || localLoading;
+  
+  const scanTimeoutRef = useRef(null);
 
   // Animação da tela de scan (fecha a câmera)
   const screenAnim = useRef(new Animated.Value(1)).current; // 1 = aberto, 0 = fechado
@@ -24,6 +27,54 @@ export default function ScanScreen({ navigation }) {
     }
   }, [permission]);
 
+  // ⏱️ Timeout de 30 segundos para escanear
+  useEffect(() => {
+    // Inicia timeout quando a tela recebe foco
+    const unsubscribeFocus = navigation.addListener('focus', () => {
+      setScanTimeout(false);
+      
+      // Limpa timeout anterior se existir
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current);
+      }
+      
+      // Define novo timeout de 30 segundos
+      scanTimeoutRef.current = setTimeout(() => {
+        if (!scanned) {
+          setScanTimeout(true);
+          Alert.alert(
+            'Tempo Esgotado',
+            'Não foi possível escanear o QR Code.\nTente novamente.',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  setScanTimeout(false);
+                  setScanned(false);
+                }
+              }
+            ]
+          );
+        }
+      }, 30000); // 30 segundos
+    });
+
+    // Limpa timeout quando sair da tela
+    const unsubscribeBlur = navigation.addListener('blur', () => {
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current);
+      }
+    });
+
+    return () => {
+      unsubscribeFocus();
+      unsubscribeBlur();
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current);
+      }
+    };
+  }, [navigation, scanned]);
+
   // Reset scanner quando a tela voltar a foco (permite escanear novamente)
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -31,6 +82,7 @@ export default function ScanScreen({ navigation }) {
       setScannedData(null);
       setLocalLoading(false);
       setShowSuccess(false);
+      setScanTimeout(false);
       screenAnim.setValue(1);
       successAnim.setValue(0);
     });
@@ -39,7 +91,31 @@ export default function ScanScreen({ navigation }) {
 
   // Ao ler o QR: processa e navega para Preview
   const handleBarCodeScanned = async ({ data }) => {
-    if (scanned || loading) return;
+    if (scanned || loading || scanTimeout) return;
+    
+    // 🔍 Validar se é uma nota fiscal do Paraná (.pr)
+    const qrLink = data.toLowerCase();
+    if (!qrLink.includes('.pr')) {
+      Alert.alert(
+        'Nota Fiscal Inválida',
+        'Este aplicativo só aceita notas fiscais eletrônicas do Paraná.\n\nProcure por links contendo ".pr" no QR Code.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Permite escanear novamente
+              setScanned(false);
+            }
+          }
+        ]
+      );
+      return;
+    }
+    
+    // Limpa o timeout ao escanear com sucesso
+    if (scanTimeoutRef.current) {
+      clearTimeout(scanTimeoutRef.current);
+    }
     
     setScanned(true);
     setScannedData(data);
@@ -176,10 +252,19 @@ export default function ScanScreen({ navigation }) {
             </View>
 
             {/* Instrução quando não está processando */}
-            {!loading && (
+            {!loading && !scanTimeout && (
               <Text style={styles.instructionText}>
                 Posicione o QR Code da nota fiscal dentro do quadro
               </Text>
+            )}
+            
+            {/* Mensagem de timeout */}
+            {scanTimeout && (
+              <View style={styles.timeoutContainer}>
+                <Ionicons name="time-outline" size={40} color="#ef4444" />
+                <Text style={styles.timeoutText}>Tempo esgotado</Text>
+                <Text style={styles.timeoutSubText}>Toque para tentar novamente</Text>
+              </View>
             )}
           </View>
         </View>
@@ -316,5 +401,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
+  },
+  timeoutContainer: {
+    marginTop: 30,
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    paddingHorizontal: 30,
+    paddingVertical: 20,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#ef4444',
+  },
+  timeoutText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginTop: 10,
+  },
+  timeoutSubText: {
+    fontSize: 14,
+    color: '#fca5a5',
+    marginTop: 5,
+    textAlign: 'center',
   },
 });

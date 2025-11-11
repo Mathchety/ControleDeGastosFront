@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 import * as NavigationBar from 'expo-navigation-bar';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
+import { FilterProvider } from './contexts/FilterContext';
 import AppNavigator from './navigation/AppNavigator';
 import SplashScreen from './screens/SplashScreen';
 import useAndroidNavigationBar from './hooks/useAndroidNavigationBar';
@@ -63,7 +64,9 @@ export default function App() {
     <SafeAreaProvider>
       <AuthProvider>
         <DataProvider>
-          <AppContent />
+          <FilterProvider>
+            <AppContent />
+          </FilterProvider>
         </DataProvider>
       </AuthProvider>
     </SafeAreaProvider>

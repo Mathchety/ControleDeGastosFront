@@ -6,3 +6,4 @@ export { ConfirmModal } from './ConfirmModal';
 export { AlertModal } from './AlertModal';
 export { LoadingModal } from './LoadingModal';
 export { BottomSheetModal } from './BottomSheetModal';
+export { DatePeriodModal } from './DatePeriodModal';

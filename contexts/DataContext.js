@@ -318,12 +318,17 @@ export const DataProvider = ({ children }) => {
     // ⚡ Busca categorias OTIMIZADO - Usa apenas /categories/summary (50% mais rápido!)
     // Backend já retorna: name, description, icon, color, itemCount
     // Eliminada requisição duplicada ao /categories/graph (era 2 requests, agora é 1)
-    const fetchCategories = async () => {
+    const fetchCategories = async (startDate = null, endDate = null) => {
         try {
             setLoading(true);
             
-            // ✅ Uma única requisição otimizada
-            const response = await httpClient.get('/categories/summary');
+            // ✅ Uma única requisição otimizada (com filtro de período opcional)
+            let url = '/categories/summary';
+            if (startDate && endDate) {
+                url += `?start_date=${startDate}&end_date=${endDate}`;
+            }
+            
+            const response = await httpClient.get(url);
             
             let categoriesData = [];
             // Backend retorna formato: { categories: [...], total: 23 }
@@ -351,10 +356,33 @@ export const DataProvider = ({ children }) => {
     };
 
     // Busca itens de uma categoria específica - GET /category/{id}
-    const fetchCategoryById = async (id) => {
+    // Agora com suporte a filtros de período e paginação
+    const fetchCategoryById = async (id, options = {}) => {
         try {
             setLoading(true);
-            const response = await httpClient.get(`/category/${id}`);
+            
+            // Constrói URL com parâmetros opcionais
+            let url = `/category/${id}`;
+            const params = [];
+            
+            if (options.startDate && options.endDate) {
+                params.push(`start_date=${options.startDate}`);
+                params.push(`end_date=${options.endDate}`);
+            }
+            
+            if (options.page) {
+                params.push(`page=${options.page}`);
+            }
+            
+            if (options.limit) {
+                params.push(`limit=${options.limit}`);
+            }
+            
+            if (params.length > 0) {
+                url += `?${params.join('&')}`;
+            }
+            
+            const response = await httpClient.get(url);
             
             let categoryData = null;
             if (response?.category) {
@@ -367,7 +395,13 @@ export const DataProvider = ({ children }) => {
                 categoryData = response.data;
             }
             
-            return categoryData;
+            // Retorna também informações de paginação e summary do backend
+            return {
+                category: categoryData,
+                items: response?.items || response?.data?.items || [],
+                summary: response?.summary || response?.data?.summary || null,
+                pagination: response?.pagination || response?.data?.pagination || null,
+            };
         } catch (error) {
             const errorMessage = getErrorMessage(error, 'Não foi possível carregar os detalhes da categoria.');
             Alert.alert(getErrorTitle(error), errorMessage);

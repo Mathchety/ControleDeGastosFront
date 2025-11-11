@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -16,7 +16,9 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../contexts/DataContext';
+import { useFilters } from '../contexts/FilterContext';
 import { SkeletonCategoryCard } from '../components/common';
+import { DatePeriodModal } from '../components/modals';
 import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
 import { getValidIcon } from '../utils/iconHelper';
@@ -33,35 +35,71 @@ const COLOR_PALETTE = [
 
 export default function CategoriesScreen({ navigation }) {
     const { fetchCategories, createCategory, deleteCategory } = useData();
+    const { categoriesFilter, updateCategoriesFilter } = useFilters();
+    
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [filterLoading, setFilterLoading] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editingCategory, setEditingCategory] = useState(null);
+    
+    // ✅ Usa filtros do Context (persistem entre navegações)
+    const [filterPeriod, setFilterPeriod] = useState(categoriesFilter.filterPeriod);
+    const [customDateModalVisible, setCustomDateModalVisible] = useState(false);
+    const [startDate, setStartDate] = useState(categoriesFilter.startDate);
+    const [endDate, setEndDate] = useState(categoriesFilter.endDate);
     
     // Estados do formulário
     const [categoryName, setCategoryName] = useState('');
     const [categoryDescription, setCategoryDescription] = useState('');
     const [selectedColor, setSelectedColor] = useState(COLOR_PALETTE[0]);
 
+    // ✅ Carrega categorias quando monta a tela ou quando filtros mudam
     useEffect(() => {
         loadCategories();
-        
-        // Atualiza a lista quando a tela recebe foco
+    }, [filterPeriod, startDate, endDate]);
+
+    // ✅ Recarrega quando a tela recebe foco (volta da navegação)
+    useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
             loadCategories();
         });
 
         return unsubscribe;
-    }, [navigation]);
+    }, [navigation, filterPeriod, startDate, endDate]); // ✅ Inclui filtros nas dependências
 
     const loadCategories = async () => {
         try {
-            setLoading(true);
+            setFilterLoading(true); // ⚡ Ativa loading ao trocar filtro
             
-            // ⚡ fetchCategories agora usa apenas /categories/summary (OTIMIZADO - 50% mais rápido!)
-            // Backend já retorna: name, description, icon, color, itemCount em 1 requisição
-            const categoriesData = await fetchCategories();
+            let start, end;
+            const formatDate = (date) => date.toISOString().split('T')[0]; // YYYY-MM-DD
+            const today = new Date();
+
+            switch (filterPeriod) {
+                case 'week':
+                    end = new Date();
+                    start = new Date();
+                    start.setDate(today.getDate() - 7);
+                    break;
+                case 'month':
+                    end = new Date();
+                    start = new Date(today.getFullYear(), today.getMonth(), 1);
+                    break;
+                case 'custom':
+                    start = startDate;
+                    end = endDate;
+                    break;
+                default: // 'all'
+                    start = null;
+                    end = null;
+            }
+
+            // ⚡ fetchCategories agora aceita filtros opcionais de data
+            const categoriesData = start && end 
+                ? await fetchCategories(formatDate(start), formatDate(end))
+                : await fetchCategories();
             
             // ✨ Ordena as categorias: por letra inicial, depois por quantidade de itens
             const sortedCategories = categoriesData.sort((a, b) => {
@@ -83,7 +121,60 @@ export default function CategoriesScreen({ navigation }) {
             // Erro já tratado no DataContext com Alert
         } finally {
             setLoading(false);
+            setFilterLoading(false); // ⚡ Desativa loading
         }
+    };
+
+    const handleFilterPress = (filter) => {
+        setFilterPeriod(filter);
+        
+        const today = new Date();
+        let newStartDate = null;
+        let newEndDate = null;
+        
+        // Configura datas baseado no filtro
+        switch (filter) {
+            case 'week':
+                const weekAgo = new Date();
+                weekAgo.setDate(weekAgo.getDate() - 7);
+                newStartDate = weekAgo;
+                newEndDate = today;
+                break;
+            
+            case 'month':
+                const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                newStartDate = monthStart;
+                newEndDate = today;
+                break;
+            
+            case 'all':
+                newStartDate = null;
+                newEndDate = null;
+                break;
+        }
+        
+        setStartDate(newStartDate);
+        setEndDate(newEndDate);
+        
+        // ✅ Salva no Context para persistir entre navegações
+        updateCategoriesFilter({
+            filterPeriod: filter,
+            startDate: newStartDate,
+            endDate: newEndDate,
+        });
+    };
+
+    const handleApplyCustomPeriod = ({ startDate: newStart, endDate: newEnd }) => {
+        setStartDate(newStart);
+        setEndDate(newEnd);
+        setFilterPeriod('custom');
+        
+        // ✅ Salva no Context
+        updateCategoriesFilter({
+            filterPeriod: 'custom',
+            startDate: newStart,
+            endDate: newEnd,
+        });
     };
 
     const handleAddCategory = () => {
@@ -190,6 +281,106 @@ export default function CategoriesScreen({ navigation }) {
                     </TouchableOpacity>
                 </View>
             </LinearGradient>
+
+            {/* Filtros */}
+            <View style={styles.filtersContainer}>
+                <View style={styles.filtersRow}>
+                    <TouchableOpacity
+                        style={[styles.filterButton, filterPeriod === 'all' && styles.filterButtonActive]}
+                        onPress={() => handleFilterPress('all')}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons 
+                            name="apps" 
+                            size={18} 
+                            color={filterPeriod === 'all' ? '#fff' : '#667eea'} 
+                        />
+                        <Text style={[
+                            styles.filterButtonText,
+                            filterPeriod === 'all' && styles.filterButtonTextActive
+                        ]}>
+                            Todas
+                        </Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                        style={[styles.filterButton, filterPeriod === 'week' && styles.filterButtonActive]}
+                        onPress={() => handleFilterPress('week')}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons 
+                            name="calendar" 
+                            size={18} 
+                            color={filterPeriod === 'week' ? '#fff' : '#667eea'} 
+                        />
+                        <Text style={[
+                            styles.filterButtonText,
+                            filterPeriod === 'week' && styles.filterButtonTextActive
+                        ]}>
+                            Semana
+                        </Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                        style={[styles.filterButton, filterPeriod === 'month' && styles.filterButtonActive]}
+                        onPress={() => handleFilterPress('month')}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons 
+                            name="calendar-outline" 
+                            size={18} 
+                            color={filterPeriod === 'month' ? '#fff' : '#667eea'} 
+                        />
+                        <Text style={[
+                            styles.filterButtonText,
+                            filterPeriod === 'month' && styles.filterButtonTextActive
+                        ]}>
+                            Mês
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+                
+                {/* Período Customizado */}
+                <TouchableOpacity 
+                    style={[
+                        styles.customPeriodButton,
+                        filterPeriod === 'custom' && styles.customPeriodButtonActive
+                    ]}
+                    onPress={() => setCustomDateModalVisible(true)}
+                >
+                    <Ionicons 
+                        name="calendar-sharp" 
+                        size={18} 
+                        color={filterPeriod === 'custom' ? '#fff' : '#667eea'} 
+                    />
+                    <Text style={[
+                        styles.customPeriodText,
+                        filterPeriod === 'custom' && styles.customPeriodTextActive
+                    ]}>
+                        {filterPeriod === 'custom' && startDate && endDate
+                            ? `${startDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - ${endDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`
+                            : 'Período customizado'
+                        }
+                    </Text>
+                </TouchableOpacity>
+
+                {/* Indicador de Loading ao Filtrar */}
+                {filterLoading && (
+                    <View style={styles.filterLoadingIndicator}>
+                        <ActivityIndicator size="small" color="#667eea" />
+                        <Text style={styles.filterLoadingText}>Filtrando...</Text>
+                    </View>
+                )}
+            </View>
+
+            {/* Modal de Período Customizado */}
+            <DatePeriodModal
+                visible={customDateModalVisible}
+                onClose={() => setCustomDateModalVisible(false)}
+                onApply={handleApplyCustomPeriod}
+                initialStartDate={startDate}
+                initialEndDate={endDate}
+            />
 
             {/* Lista de categorias */}
             <ScrollView
@@ -432,6 +623,77 @@ const styles = StyleSheet.create({
     },
     addButton: {
         padding: moderateScale(4),
+    },
+    filtersContainer: {
+        backgroundColor: 'white',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0',
+    },
+    filtersRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 12,
+    },
+    filterButton: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        marginHorizontal: 4,
+        borderRadius: 20,
+        backgroundColor: '#f5f5f5',
+    },
+    filterButtonActive: {
+        backgroundColor: '#667eea',
+    },
+    filterButtonText: {
+        fontSize: 13,
+        color: '#666',
+        marginLeft: 4,
+        fontWeight: '500',
+    },
+    filterButtonTextActive: {
+        color: 'white',
+    },
+    customPeriodButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#667eea',
+        borderStyle: 'dashed',
+    },
+    customPeriodButtonActive: {
+        backgroundColor: '#667eea',
+        borderStyle: 'solid',
+    },
+    customPeriodText: {
+        fontSize: 13,
+        color: '#667eea',
+        marginLeft: 8,
+        fontWeight: '500',
+    },
+    customPeriodTextActive: {
+        color: '#fff',
+    },
+    filterLoadingIndicator: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 8,
+        gap: 8,
+    },
+    filterLoadingText: {
+        fontSize: 13,
+        color: '#667eea',
+        fontWeight: '500',
     },
     content: {
         flex: 1,

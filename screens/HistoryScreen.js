@@ -1,10 +1,11 @@
-﻿import React, { useEffect, useState, useRef, useCallback } from 'react';
+﻿import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Platform, StatusBar, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useData } from '../contexts/DataContext';
+import { useFilters } from '../contexts/FilterContext';
 import { EmptyCard } from '../components/cards';
-import { GradientHeader, LoadingOverlay, SkeletonReceiptCard } from '../components/common';
+import { GradientHeader, SkeletonReceiptCard } from '../components/common';
+import { DatePeriodModal } from '../components/modals';
 import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
 
@@ -21,18 +22,30 @@ export default function HistoryScreen({ navigation }) {
     storeNameList 
   } = useData();
   
+  // ✅ Obtém filtros salvos do Context
+  const { historyFilter, updateHistoryFilter } = useFilters();
+  
   const [refreshing, setRefreshing] = useState(false);
-  const [filterType, setFilterType] = useState('all'); // 'all', 'today', 'week', 'month', 'custom'
-  const [showStartPicker, setShowStartPicker] = useState(false);
-  const [showEndPicker, setShowEndPicker] = useState(false);
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(new Date());
-  const [selectedFilter, setSelectedFilter] = useState('all'); // 'all', 'today', 'week', 'month'
+  const [filterType, setFilterType] = useState(historyFilter.filterType); // ✅ Inicializa do Context
+  const [filterLoading, setFilterLoading] = useState(false); // Loading ao trocar filtros
+  const [customDateModalVisible, setCustomDateModalVisible] = useState(false);
+  const [startDate, setStartDate] = useState(historyFilter.startDate); // ✅ Inicializa do Context
+  const [endDate, setEndDate] = useState(historyFilter.endDate); // ✅ Inicializa do Context
   const [isNavigating, setIsNavigating] = useState(false);
 
+  // ✅ Carrega receipts quando monta a tela ou quando filtros mudam
   useEffect(() => {
     loadReceipts();
-  }, []);
+  }, [filterType, startDate, endDate]);
+
+  // ✅ Recarrega quando a tela recebe foco (volta da navegação)
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadReceipts();
+    });
+
+    return unsubscribe;
+  }, [navigation, filterType, startDate, endDate]); // ✅ Inclui filtros nas dependências
 
   const handleReceiptPress = useCallback((receiptId) => {
     if (isNavigating) {
@@ -46,26 +59,26 @@ export default function HistoryScreen({ navigation }) {
     setTimeout(() => setIsNavigating(false), 1000);
   }, [isNavigating, navigation]);
 
-  const loadReceipts = async (filter = 'all') => {
+  const loadReceipts = async () => {
     try {
+      setFilterLoading(true); // ⚡ Ativa loading ao trocar filtro
       const today = new Date();
       const formatDate = (date) => date.toISOString().split('T')[0]; // YYYY-MM-DD
 
-      switch (filter) {
-        case 'today':
-          await fetchReceiptsByDate(formatDate(today));
-          break;
-        
+      switch (filterType) {
         case 'week':
-          const weekAgo = new Date(today);
-          weekAgo.setDate(today.getDate() - 7);
+          const weekAgo = new Date();
+          weekAgo.setDate(weekAgo.getDate() - 7);
           await fetchReceiptsByPeriod(formatDate(weekAgo), formatDate(today));
           break;
         
         case 'month':
-          const monthAgo = new Date(today);
-          monthAgo.setMonth(today.getMonth() - 1);
-          await fetchReceiptsByPeriod(formatDate(monthAgo), formatDate(today));
+          const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+          await fetchReceiptsByPeriod(formatDate(monthStart), formatDate(today));
+          break;
+        
+        case 'custom':
+          await fetchReceiptsByPeriod(formatDate(startDate), formatDate(endDate));
           break;
         
         default: // 'all'
@@ -74,60 +87,83 @@ export default function HistoryScreen({ navigation }) {
       }
     } catch (error) {
       // Erro tratado pelo DataContext com Alert
+    } finally {
+      setFilterLoading(false); // ⚡ Desativa loading
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadReceipts(selectedFilter);
+    await loadReceipts();
     setRefreshing(false);
   };
 
   const handleFilterPress = (filter) => {
-    setSelectedFilter(filter);
-    loadReceipts(filter);
+    const today = new Date();
+    let newStartDate = null;
+    let newEndDate = null;
+    
+    // Calcula datas baseado no filtro
+    switch (filter) {
+      case 'week':
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        newStartDate = weekAgo;
+        newEndDate = today;
+        break;
+      
+      case 'month':
+        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+        newStartDate = monthStart;
+        newEndDate = today;
+        break;
+      
+      case 'all':
+        newStartDate = null;
+        newEndDate = null;
+        break;
+    }
+    
+    // Atualiza estado local
+    setFilterType(filter);
+    setStartDate(newStartDate);
+    setEndDate(newEndDate);
+    
+    // ✅ Salva no Context para persistir entre navegações
+    updateHistoryFilter({
+      filterType: filter,
+      startDate: newStartDate,
+      endDate: newEndDate,
+    });
   };
 
-  const handleCustomPeriod = async () => {
-    try {
-      const formatDate = (date) => date.toISOString().split('T')[0];
-      await fetchReceiptsByPeriod(formatDate(startDate), formatDate(endDate));
-      setSelectedFilter('custom');
-    } catch (error) {
-      // Erro tratado pelo DataContext com Alert
-    }
-  };
-
-  const onChangeStartDate = (event, selectedDate) => {
-    setShowStartPicker(false);
-    if (selectedDate) {
-      setStartDate(selectedDate);
-    }
-  };
-
-  const onChangeEndDate = (event, selectedDate) => {
-    setShowEndPicker(false);
-    if (selectedDate) {
-      setEndDate(selectedDate);
-      // Aplica automaticamente após selecionar data final
-      setTimeout(() => handleCustomPeriod(), 100);
-    }
+  const handleApplyCustomPeriod = ({ startDate: newStart, endDate: newEnd }) => {
+    setStartDate(newStart);
+    setEndDate(newEnd);
+    setFilterType('custom');
+    
+    // ✅ Salva no Context
+    updateHistoryFilter({
+      filterType: 'custom',
+      startDate: newStart,
+      endDate: newEnd,
+    });
   };
 
   const renderFilterButton = (filter, label, icon) => (
     <TouchableOpacity
-      style={[styles.filterButton, selectedFilter === filter && styles.filterButtonActive]}
+      style={[styles.filterButton, filterType === filter && styles.filterButtonActive]}
       onPress={() => handleFilterPress(filter)}
       activeOpacity={0.7}
     >
       <Ionicons 
         name={icon} 
         size={18} 
-        color={selectedFilter === filter ? '#fff' : '#667eea'} 
+        color={filterType === filter ? '#fff' : '#667eea'} 
       />
       <Text style={[
         styles.filterButtonText,
-        selectedFilter === filter && styles.filterButtonTextActive
+        filterType === filter && styles.filterButtonTextActive
       ]}>
         {label}
       </Text>
@@ -257,47 +293,51 @@ export default function HistoryScreen({ navigation }) {
       <View style={styles.filtersContainer}>
         <View style={styles.filtersRow}>
           {renderFilterButton('all', 'Todas', 'apps')}
-          {renderFilterButton('today', 'Hoje', 'today')}
           {renderFilterButton('week', 'Semana', 'calendar')}
           {renderFilterButton('month', 'Mês', 'calendar-outline')}
         </View>
         
         {/* Período Customizado */}
         <TouchableOpacity 
-          style={styles.customPeriodButton}
-          onPress={() => setShowStartPicker(true)}
+          style={[
+            styles.customPeriodButton,
+            filterType === 'custom' && styles.customPeriodButtonActive
+          ]}
+          onPress={() => setCustomDateModalVisible(true)}
         >
-          <Ionicons name="calendar-sharp" size={18} color="#667eea" />
-          <Text style={styles.customPeriodText}>
-            {selectedFilter === 'custom' 
+          <Ionicons 
+            name="calendar-sharp" 
+            size={18} 
+            color={filterType === 'custom' ? '#fff' : '#667eea'} 
+          />
+          <Text style={[
+            styles.customPeriodText,
+            filterType === 'custom' && styles.customPeriodTextActive
+          ]}>
+            {filterType === 'custom' 
               ? `${startDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - ${endDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`
               : 'Período customizado'
             }
           </Text>
         </TouchableOpacity>
+
+        {/* Indicador de Loading ao Filtrar */}
+        {filterLoading && (
+          <View style={styles.filterLoadingIndicator}>
+            <ActivityIndicator size="small" color="#667eea" />
+            <Text style={styles.filterLoadingText}>Filtrando...</Text>
+          </View>
+        )}
       </View>
 
-      {/* DatePickers */}
-      {showStartPicker && (
-        <DateTimePicker
-          value={startDate}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={onChangeStartDate}
-          maximumDate={new Date()}
-        />
-      )}
-      
-      {showEndPicker && (
-        <DateTimePicker
-          value={endDate}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={onChangeEndDate}
-          maximumDate={new Date()}
-          minimumDate={startDate}
-        />
-      )}
+      {/* Modal de Período Customizado */}
+      <DatePeriodModal
+        visible={customDateModalVisible}
+        onClose={() => setCustomDateModalVisible(false)}
+        onApply={handleApplyCustomPeriod}
+        initialStartDate={startDate}
+        initialEndDate={endDate}
+      />
 
       {loading && receipts.length === 0 ? (
         <View style={styles.list}>
@@ -508,10 +548,29 @@ const styles = StyleSheet.create({
     borderColor: '#667eea',
     borderStyle: 'dashed',
   },
+  customPeriodButtonActive: {
+    backgroundColor: '#667eea',
+    borderStyle: 'solid',
+  },
   customPeriodText: {
     fontSize: 13,
     color: '#667eea',
     marginLeft: 8,
+    fontWeight: '500',
+  },
+  customPeriodTextActive: {
+    color: '#fff',
+  },
+  filterLoadingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    gap: 8,
+  },
+  filterLoadingText: {
+    fontSize: 13,
+    color: '#667eea',
     fontWeight: '500',
   },
 });

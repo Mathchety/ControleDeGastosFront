@@ -33,6 +33,7 @@ export default function HomeScreen({ navigation }) {
     const [refreshing, setRefreshing] = useState(false);
     const [monthSpent, setMonthSpent] = useState(0);
     const [allReceipts, setAllReceipts] = useState([]); // Estado local para não ser afetado por filtros
+    const isLoadingRef = useRef(false); // ⚡ Ref para prevenir múltiplas chamadas simultâneas
     const scrollY = useRef(new Animated.Value(0)).current;
     const HEADER_HEIGHT = moderateScale(170);
     const HEADER_SCROLL_DISTANCE = Platform.OS === 'ios' ? moderateScale(115) : moderateScale(110);
@@ -64,12 +65,20 @@ export default function HomeScreen({ navigation }) {
     }, [allReceipts]);
 
     const loadData = async () => {
+        // ⚡ Previne múltiplas chamadas simultâneas
+        if (isLoadingRef.current) {
+            return;
+        }
+
         try {
+            isLoadingRef.current = true;
             const data = await fetchReceiptsBasic();
             // Salva uma cópia local dos receipts para não ser afetado por filtros de outras telas
             setAllReceipts(data || receipts);
         } catch (error) {
             // Erro já tratado no DataContext
+        } finally {
+            isLoadingRef.current = false;
         }
     };
 
