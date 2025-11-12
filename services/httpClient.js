@@ -95,16 +95,27 @@ class HttpClient {
 
                 console.log('[HTTP Error Data]', JSON.stringify(errorData, null, 2));
 
-                // Se for 401, o token é inválido/expirado
+                // Se for 401, verifica se é erro de autenticação ou sessão expirada
                 if (response.status === 401) {
+                    // Se for login/register (não requer auth), usa a mensagem do servidor
+                    if (!requiresAuth) {
+                        const error = new Error(errorData.error || errorData.message || 'Credenciais inválidas');
+                        error.statusCode = 401;
+                        error.response = { status: 401, data: errorData };
+                        throw error;
+                    }
+                    
+                    // Se requer autenticação, token é inválido/expirado
                     this.setToken(null); // Limpa o token
                     const error = new Error('Sessão expirada. Faça login novamente.');
+                    error.statusCode = 401;
                     error.response = { status: 401, data: errorData };
                     throw error;
                 }
 
                 // Cria erro com informações completas
                 const error = new Error(errorData.error || errorData.message || `Erro ${response.status}`);
+                error.statusCode = response.status;
                 error.response = {
                     status: response.status,
                     data: errorData

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
     View, 
     Text, 
@@ -19,18 +19,23 @@ import { useAuth } from '../contexts/AuthContext';
 import { PrimaryButton } from '../components/buttons';
 import { Input } from '../components/inputs';
 import { LoadingModal } from '../components/modals';
-import { FinansyncLogo } from '../components/common';
+import { FinansyncLogo, ErrorMessage, useErrorMessage } from '../components/common';
 import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
 
 const { width } = Dimensions.get('window');
 
 // Componente de formulário reutilizável
-const AnimatedForm = ({ isRegisterView, onSuccess, navigation }) => {
+const AnimatedForm = React.memo(({ isRegisterView, onSuccess, navigation }) => {
     const { login, register } = useAuth();
+    const { getErrorMessage } = useErrorMessage();
     
-    // Estado para loading
+    // Estado para loading e erro
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState({ visible: false, message: '', type: 'error' });
+    
+    console.log('[AnimatedForm] Renderizando - isRegisterView:', isRegisterView);
+    console.log('[AnimatedForm] Estado do erro:', error);
     
     // Handler para esqueceu a senha
     const handleForgotPassword = () => {
@@ -55,16 +60,38 @@ const AnimatedForm = ({ isRegisterView, onSuccess, navigation }) => {
      */
     const handleLogin = async () => {
         if (!emailLogin || !passwordLogin) {
-            Alert.alert("Erro", "Por favor, preencha o e-mail e a senha.");
+            setError({
+                visible: true,
+                message: "Por favor, preencha o e-mail e a senha.",
+                type: 'warning'
+            });
             return;
         }
         
         try {
             setLoading(true);
+            setError({ visible: false, message: '', type: 'error' });
             await login(emailLogin, passwordLogin);
             onSuccess && onSuccess();
-        } catch (error) {
-            Alert.alert("Erro", error.message || "Não foi possível fazer login.");
+        } catch (err) {
+            console.log('[AuthScreen] Erro capturado:', err);
+            console.log('[AuthScreen] Erro statusCode:', err?.statusCode);
+            console.log('[AuthScreen] Erro message:', err?.message);
+            
+            const errorInfo = getErrorMessage(err);
+            console.log('[AuthScreen] ErrorInfo:', errorInfo);
+            
+            setError({
+                visible: true,
+                message: errorInfo.message,
+                type: errorInfo.type
+            });
+            
+            console.log('[AuthScreen] Estado do erro definido:', {
+                visible: true,
+                message: errorInfo.message,
+                type: errorInfo.type
+            });
         } finally {
             setLoading(false);
         }
@@ -75,21 +102,35 @@ const AnimatedForm = ({ isRegisterView, onSuccess, navigation }) => {
      */
     const handleRegister = async () => {
         if (!nameRegister || !emailRegister || !passwordRegister) {
-            Alert.alert("Erro", "Por favor, preencha todos os campos.");
+            setError({
+                visible: true,
+                message: "Por favor, preencha todos os campos.",
+                type: 'warning'
+            });
             return;
         }
         
         if (passwordRegister.length < 6) {
-            Alert.alert("Erro", "A senha deve ter pelo menos 6 caracteres.");
+            setError({
+                visible: true,
+                message: "A senha deve ter pelo menos 6 caracteres.",
+                type: 'warning'
+            });
             return;
         }
         
         try {
             setLoading(true);
+            setError({ visible: false, message: '', type: 'error' });
             await register(nameRegister, emailRegister, passwordRegister);
             onSuccess && onSuccess();
-        } catch (error) {
-            Alert.alert("Erro", error.message || "Não foi possível criar a conta.");
+        } catch (err) {
+            const errorInfo = getErrorMessage(err);
+            setError({
+                visible: true,
+                message: errorInfo.message,
+                type: errorInfo.type
+            });
         } finally {
             setLoading(false);
         }
@@ -107,6 +148,14 @@ const AnimatedForm = ({ isRegisterView, onSuccess, navigation }) => {
                     
                     <Text style={styles.formTitle}>Criar Conta</Text>
                     <Text style={styles.formSubtitle}>Junte-se a nós hoje!</Text>
+                    
+                    <ErrorMessage
+                        visible={error.visible}
+                        message={error.message}
+                        type={error.type}
+                        onDismiss={() => setError({ ...error, visible: false })}
+                        autoDismiss={5000}
+                    />
                     
                     <Input
                         icon="person-outline"
@@ -156,6 +205,14 @@ const AnimatedForm = ({ isRegisterView, onSuccess, navigation }) => {
                 <Text style={styles.formTitle}>Bem-vindo de Volta!</Text>
                 <Text style={styles.formSubtitle}>Faça login para continuar</Text>
                 
+                <ErrorMessage
+                    visible={error.visible}
+                    message={error.message}
+                    type={error.type}
+                    onDismiss={() => setError({ ...error, visible: false })}
+                    autoDismiss={5000}
+                />
+                
                 <Input
                     icon="mail-outline"
                     placeholder="E-mail"
@@ -190,12 +247,17 @@ const AnimatedForm = ({ isRegisterView, onSuccess, navigation }) => {
             </View>
         </>
     );
-};
+});
 
 const AuthScreen = ({ navigation }) => {
     const [isRegister, setIsRegister] = useState(false);
     const [keyboardVisible, setKeyboardVisible] = useState(false);
     const headerHeight = useRef(new Animated.Value(1)).current; // 1 = tamanho normal, 0 = pequeno
+
+    const handleSuccess = useCallback(() => {
+        // Não precisa navegar manualmente - o AppNavigator faz isso automaticamente
+        // quando isAuthenticated muda para true
+    }, []);
 
     useEffect(() => {
         const keyboardDidShowListener = Keyboard.addListener(
@@ -228,11 +290,6 @@ const AuthScreen = ({ navigation }) => {
             keyboardDidHideListener.remove();
         };
     }, []);
-
-    const handleSuccess = () => {
-        // Não precisa navegar manualmente - o AppNavigator faz isso automaticamente
-        // quando isAuthenticated muda para true
-    };
 
     // Interpolações para animar o header
     const headerPaddingTop = headerHeight.interpolate({
@@ -321,7 +378,12 @@ const AuthScreen = ({ navigation }) => {
                     scrollEnabled={true}
                     keyboardDismissMode="on-drag"
                 >
-                    <AnimatedForm isRegisterView={isRegister} onSuccess={handleSuccess} navigation={navigation} />
+                    <AnimatedForm 
+                        key={isRegister ? 'register' : 'login'} 
+                        isRegisterView={isRegister} 
+                        onSuccess={handleSuccess} 
+                        navigation={navigation} 
+                    />
 
                     {/* Toggle entre Login e Registro */}
                     <View style={styles.toggleContainer}>
