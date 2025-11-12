@@ -14,7 +14,8 @@ export const Input = ({
     showToggle = false,
     onToggle,
     style,
-    error
+    error,
+    maxLength = 255
 }) => (
     <View>
         <View style={[styles.inputContainer, error && styles.inputError, style]}>
@@ -35,6 +36,7 @@ export const Input = ({
                 secureTextEntry={secureTextEntry}
                 keyboardType={keyboardType}
                 autoCapitalize="none"
+                maxLength={maxLength}
             />
             {showToggle && (
                 <TouchableOpacity onPress={onToggle}>

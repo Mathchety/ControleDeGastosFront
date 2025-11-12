@@ -11,12 +11,15 @@ import { theme } from '../../utils/theme';
  * @param {string} title - Título principal
  * @param {string} subtitle - Subtítulo (opcional)
  * @param {array} colors - Cores do gradiente (opcional, padrão: roxo)
+ * @param {ReactNode} leftButton - Botão personalizado à esquerda (ex: voltar)
+ * @param {ReactNode} children - Conteúdo adicional abaixo do header
  */
 export const GradientHeader = ({ 
     icon, 
     title, 
     subtitle, 
     colors = ['#667eea', '#764ba2'],
+    leftButton,
     children 
 }) => {
     return (
@@ -24,6 +27,13 @@ export const GradientHeader = ({
             colors={colors} 
             style={styles.header}
         >
+            {/* Botão à esquerda (se fornecido) */}
+            {leftButton && (
+                <View style={styles.leftButtonContainer}>
+                    {leftButton}
+                </View>
+            )}
+            
             <View style={styles.headerContent}>
                 {icon && (
                     <View style={styles.headerIcon}>
@@ -50,9 +60,17 @@ const styles = StyleSheet.create({
         borderBottomLeftRadius: moderateScale(30),
         borderBottomRightRadius: moderateScale(30),
     },
+    leftButtonContainer: {
+        position: 'absolute',
+        top: moderateScale(70),
+        left: moderateScale(20),
+        zIndex: 100,
+    },
     headerContent: {
         flexDirection: 'row',
         alignItems: 'center',
+        zIndex: 1,
+        marginLeft: moderateScale(50),
     },
     headerIcon: {
         width: moderateScale(60),
@@ -67,12 +85,12 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     headerTitle: {
-        fontSize: moderateScale(24),
+        fontSize: moderateScale(18),
         fontWeight: '700',
         color: '#fff',
     },
     headerSubtitle: {
-        fontSize: moderateScale(14),
+        fontSize: moderateScale(12),
         color: 'rgba(255, 255, 255, 0.9)',
         marginTop: moderateScale(4),
     },

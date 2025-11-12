@@ -6,6 +6,10 @@ import AuthScreen from '../screens/AuthScreen';
 import MainTabNavigator from './MainTabNavigator';
 import PreViewScreen from '../screens/PreViewScreen';
 import CategoryDetailsScreen from '../screens/CategoryDetailsScreen';
+import ManualReceiptScreen from '../screens/ManualReceiptScreen';
+import ChangePasswordScreen from '../screens/ChangePasswordScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
+import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 
 const Stack = createStackNavigator();
 
@@ -63,9 +67,39 @@ export default function AppNavigator() {
               cardStyle: { backgroundColor: '#f8f9fa' },
             }}
           />
+          <Stack.Screen 
+            name="ManualReceipt" 
+            component={ManualReceiptScreen}
+            options={{
+              cardStyle: { backgroundColor: '#f8f9fa' },
+            }}
+          />
+          <Stack.Screen 
+            name="ChangePassword" 
+            component={ChangePasswordScreen}
+            options={{
+              cardStyle: { backgroundColor: '#f8f9fa' },
+            }}
+          />
         </>
       ) : (
-        <Stack.Screen name="Auth" component={AuthScreen} />
+        <>
+          <Stack.Screen name="Auth" component={AuthScreen} />
+          <Stack.Screen 
+            name="ForgotPassword" 
+            component={ForgotPasswordScreen}
+            options={{
+              cardStyle: { backgroundColor: '#fff' },
+            }}
+          />
+          <Stack.Screen 
+            name="ResetPassword" 
+            component={ResetPasswordScreen}
+            options={{
+              cardStyle: { backgroundColor: '#fff' },
+            }}
+          />
+        </>
       )}
     </Stack.Navigator>
   );

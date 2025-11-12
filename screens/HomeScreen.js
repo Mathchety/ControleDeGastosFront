@@ -33,6 +33,7 @@ export default function HomeScreen({ navigation }) {
     const [refreshing, setRefreshing] = useState(false);
     const [monthSpent, setMonthSpent] = useState(0);
     const [allReceipts, setAllReceipts] = useState([]); // Estado local para não ser afetado por filtros
+    const [initialLoading, setInitialLoading] = useState(true); // ⚡ Loading apenas na primeira carga
     const isLoadingRef = useRef(false); // ⚡ Ref para prevenir múltiplas chamadas simultâneas
     const scrollY = useRef(new Animated.Value(0)).current;
     const HEADER_HEIGHT = moderateScale(170);
@@ -75,8 +76,10 @@ export default function HomeScreen({ navigation }) {
             const data = await fetchReceiptsBasic();
             // Salva uma cópia local dos receipts para não ser afetado por filtros de outras telas
             setAllReceipts(data || receipts);
+            setInitialLoading(false); // ⚡ Marca que a primeira carga foi concluída
         } catch (error) {
             // Erro já tratado no DataContext
+            setInitialLoading(false);
         } finally {
             isLoadingRef.current = false;
         }
@@ -168,9 +171,9 @@ export default function HomeScreen({ navigation }) {
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
                 }
             >
-                {loading && allReceipts.length === 0 ? (
+                {initialLoading && allReceipts.length === 0 ? (
                     <>
-                        {/* Skeleton Loading */}
+                        {/* Skeleton Loading - apenas na primeira carga */}
                         <View style={styles.statsSkeletonRow}>
                             <SkeletonStatCard />
                             <SkeletonStatCard />
@@ -194,7 +197,7 @@ export default function HomeScreen({ navigation }) {
 
                         {/* ✅ Notas Recentes ACIMA de Categorias */}
                         <RecentReceiptsSection 
-                            loading={loading}
+                            loading={false}
                             receipts={allReceipts}
                             storeNameList={storeNameList}
                             itemCountList={itemCountList}
@@ -206,8 +209,9 @@ export default function HomeScreen({ navigation }) {
                         <CategoriesSection />
 
                         <ScanButton 
-                            title="Escanear Nova Nota"
-                            onPress={() => navigation.navigate('Scan')}
+                            title="Adicionar Nota Manual"
+                            iconName="add-circle"
+                            onPress={() => navigation.navigate('ManualReceipt')}
                             style={styles.addButton}
                         />
                     </>

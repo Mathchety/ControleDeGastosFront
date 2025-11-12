@@ -405,6 +405,7 @@ export default function CategoryDetailsScreen({ route, navigation }) {
                                     onChangeText={setItemQuantity}
                                     placeholder="Ex: 2"
                                     keyboardType="decimal-pad"
+                                    maxLength={10}
                                 />
                             </View>
 
@@ -417,6 +418,7 @@ export default function CategoryDetailsScreen({ route, navigation }) {
                                     onChangeText={setItemTotal}
                                     placeholder="Ex: 10.50"
                                     keyboardType="decimal-pad"
+                                    maxLength={10}
                                 />
                             </View>
 
@@ -503,6 +505,8 @@ const styles = StyleSheet.create({
     backButton: {
         width: 40,
         height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.2)',
         alignItems: 'center',
         justifyContent: 'center',
     },

@@ -25,11 +25,20 @@ import { theme } from '../utils/theme';
 const { width } = Dimensions.get('window');
 
 // Componente de formulário reutilizável
-const AnimatedForm = ({ isRegisterView, onSuccess }) => {
+const AnimatedForm = ({ isRegisterView, onSuccess, navigation }) => {
     const { login, register } = useAuth();
     
     // Estado para loading
     const [loading, setLoading] = useState(false);
+    
+    // Handler para esqueceu a senha
+    const handleForgotPassword = () => {
+        if (navigation) {
+            navigation.navigate('ForgotPassword');
+        } else {
+            console.error('Navigation prop is undefined');
+        }
+    };
     
     // Estado para os campos de Login
     const [emailLogin, setEmailLogin] = useState('');
@@ -163,7 +172,10 @@ const AnimatedForm = ({ isRegisterView, onSuccess }) => {
                     onChangeText={setPasswordLogin}
                 />
 
-                <TouchableOpacity style={styles.forgotPassword}>
+                <TouchableOpacity 
+                    style={styles.forgotPassword}
+                    onPress={handleForgotPassword}
+                >
                     <Text style={styles.forgotPasswordText}>Esqueceu a senha?</Text>
                 </TouchableOpacity>
 
@@ -308,7 +320,7 @@ const AuthScreen = ({ navigation }) => {
                     scrollEnabled={true}
                     keyboardDismissMode="on-drag"
                 >
-                    <AnimatedForm isRegisterView={isRegister} onSuccess={handleSuccess} />
+                    <AnimatedForm isRegisterView={isRegister} onSuccess={handleSuccess} navigation={navigation} />
 
                     {/* Toggle entre Login e Registro */}
                     <View style={styles.toggleContainer}>

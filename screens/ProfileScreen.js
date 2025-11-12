@@ -7,9 +7,11 @@ import {
     TouchableOpacity, 
     ScrollView,
     Alert,
+    Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
@@ -30,13 +32,13 @@ const InfoItem = ({ icon, label, value, onPress, delay }) => (
         >
             <View style={styles.infoLeft}>
                 <View style={styles.infoIconContainer}>
-                    <Ionicons name={icon} size={22} color="#667eea" />
+                    <Ionicons name={icon} size={moderateScale(22)} color="#667eea" />
                 </View>
-                <Text style={styles.infoLabel}>{label}</Text>
+                <Text style={styles.infoLabel} numberOfLines={1}>{label}</Text>
             </View>
             <View style={styles.infoRight}>
-                <Text style={styles.infoValue}>{value}</Text>
-                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                <Text style={styles.infoValue} numberOfLines={1}>{value}</Text>
+                <Ionicons name="chevron-forward" size={moderateScale(20)} color="#ccc" />
             </View>
         </TouchableOpacity>
     </AnimatedCard>
@@ -44,11 +46,38 @@ const InfoItem = ({ icon, label, value, onPress, delay }) => (
 
 export default function ProfileScreen({ navigation }) {
     const { user: authUser, logout } = useAuth();
+    const insets = useSafeAreaInsets();
+    
+    // Função para formatar a data de criação
+    const formatMemberSince = (dateString) => {
+        if (!dateString) return 'Data não disponível';
+        
+        try {
+            const date = new Date(dateString);
+            const months = [
+                'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+            ];
+            
+            const month = months[date.getMonth()];
+            const year = date.getFullYear();
+            
+            return `${month} ${year}`;
+        } catch (error) {
+            console.error('Erro ao formatar data:', error);
+            return 'Data não disponível';
+        }
+    };
+    
+    // Log para debug - ver quais campos estão disponíveis
+    useEffect(() => {
+        console.log('[ProfileScreen] authUser completo:', JSON.stringify(authUser, null, 2));
+    }, []);
     
     const [user] = useState({
         name: authUser?.name || 'João Silva',
         email: authUser?.email || 'joao.silva@email.com',
-        memberSince: 'Outubro 2025',
+        memberSince: formatMemberSince(authUser?.createdAt || authUser?.created_at),
         avatar: null, // URL da imagem ou null para placeholder
     });
 
@@ -57,11 +86,7 @@ export default function ProfileScreen({ navigation }) {
     };
 
     const handleChangePassword = () => {
-        Alert.alert('Alterar Senha', 'Função em desenvolvimento');
-    };
-
-    const handleViewCategories = () => {
-        navigation.navigate('Categories');
+        navigation.navigate('ChangePassword');
     };
 
     const handleLogout = () => {
@@ -93,22 +118,34 @@ export default function ProfileScreen({ navigation }) {
                         <Image source={{ uri: user.avatar }} style={styles.avatar} />
                     ) : (
                         <View style={styles.avatarPlaceholder}>
-                            <Ionicons name="person" size={50} color="#667eea" />
+                            <Ionicons name="person" size={moderateScale(50)} color="#667eea" />
                         </View>
                     )}
                     <TouchableOpacity 
                         style={styles.editAvatarButton}
                         onPress={() => Alert.alert('Foto', 'Função em desenvolvimento')}
                     >
-                        <Ionicons name="camera" size={18} color="#fff" />
+                        <Ionicons name="camera" size={moderateScale(18)} color="#fff" />
                     </TouchableOpacity>
                 </View>
 
-                <View>
-                    <Text style={styles.userName}>{user.name}</Text>
-                    <Text style={styles.userEmail}>{user.email}</Text>
+                <View style={styles.userInfoContainer}>
+                    <Text 
+                        style={styles.userName}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                    >
+                        {user.name}
+                    </Text>
+                    <Text 
+                        style={styles.userEmail}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                    >
+                        {user.email}
+                    </Text>
                     <View style={styles.memberBadge}>
-                        <Ionicons name="star" size={14} color="#fbbf24" />
+                        <Ionicons name="star" size={moderateScale(14)} color="#fbbf24" />
                         <Text style={styles.memberText}>Membro desde {user.memberSince}</Text>
                     </View>
                 </View>
@@ -151,27 +188,6 @@ export default function ProfileScreen({ navigation }) {
                         onPress={handleChangePassword}
                         delay={250}
                     />
-                    
-                    <InfoItem
-                        icon="shield-checkmark-outline"
-                        label="Autenticação em Dois Fatores"
-                        value="Desativada"
-                        onPress={() => Alert.alert('2FA', 'Função em desenvolvimento')}
-                        delay={300}
-                    />
-                </View>
-
-                {/* Categorias */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Categorias</Text>
-                    
-                    <InfoItem
-                        icon="pricetags-outline"
-                        label="Ver Categorias"
-                        value=""
-                        onPress={handleViewCategories}
-                        delay={350}
-                    />
                 </View>
 
                 {/* Estatísticas */}
@@ -209,7 +225,12 @@ export default function ProfileScreen({ navigation }) {
                     </TouchableOpacity>
                 </AnimatedCard>
 
-                <View style={{ height: 30 }} />
+                {/* Espaçamento extra automático baseado no dispositivo */}
+                <View style={{ 
+                    height: Platform.OS === 'android' 
+                        ? Math.max(insets.bottom + 20, 50)
+                        : 30 
+                }} />
             </ScrollView>
         </View>
     );
@@ -261,17 +282,24 @@ const styles = StyleSheet.create({
         borderWidth: 3,
         borderColor: '#fff',
     },
+    userInfoContainer: {
+        alignItems: 'center',
+        width: '100%',
+        paddingHorizontal: moderateScale(20),
+    },
     userName: {
         fontSize: theme.fonts.h2,
         fontWeight: 'bold',
         color: '#fff',
         textAlign: 'center',
+        width: '100%',
     },
     userEmail: {
         fontSize: theme.fonts.body,
         color: 'rgba(255, 255, 255, 0.9)',
         marginTop: theme.spacing.xs,
         textAlign: 'center',
+        width: '100%',
     },
     memberBadge: {
         flexDirection: 'row',
@@ -303,13 +331,13 @@ const styles = StyleSheet.create({
         fontSize: theme.fonts.h4,
         fontWeight: 'bold',
         color: '#333',
-        marginBottom: 15,
+        marginBottom: moderateScale(15),
     },
     infoItem: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 15,
+        paddingVertical: moderateScale(15),
         borderBottomWidth: 1,
         borderBottomColor: '#f0f0f0',
     },
@@ -319,16 +347,16 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     infoIconContainer: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: moderateScale(40),
+        height: moderateScale(40),
+        borderRadius: moderateScale(20),
         backgroundColor: '#f0f4ff',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 12,
+        marginRight: moderateScale(12),
     },
     infoLabel: {
-        fontSize: 15,
+        fontSize: theme.fonts.body,
         color: '#666',
     },
     infoRight: {
@@ -336,16 +364,16 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     infoValue: {
-        fontSize: 15,
+        fontSize: theme.fonts.body,
         fontWeight: '600',
         color: '#333',
-        marginRight: 8,
+        marginRight: moderateScale(8),
     },
     statsCard: {
         backgroundColor: '#fff',
-        borderRadius: 20,
-        padding: 20,
-        marginBottom: 20,
+        borderRadius: moderateScale(20),
+        padding: moderateScale(20),
+        marginBottom: moderateScale(20),
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
@@ -359,18 +387,18 @@ const styles = StyleSheet.create({
     statItem: {
         flex: 1,
         alignItems: 'center',
-        padding: 15,
+        padding: moderateScale(15),
     },
     statValue: {
-        fontSize: 18,
+        fontSize: theme.fonts.h4,
         fontWeight: 'bold',
         color: '#333',
-        marginTop: 10,
+        marginTop: moderateScale(10),
     },
     statLabel: {
-        fontSize: 12,
+        fontSize: theme.fonts.caption,
         color: '#666',
-        marginTop: 5,
+        marginTop: moderateScale(5),
         textAlign: 'center',
     },
     logoutButton: {
@@ -378,16 +406,16 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#fff',
-        padding: 18,
-        borderRadius: 15,
-        marginBottom: 20,
+        padding: moderateScale(18),
+        borderRadius: moderateScale(15),
+        marginBottom: moderateScale(20),
         borderWidth: 2,
         borderColor: '#fee2e2',
     },
     logoutText: {
         color: '#ef4444',
-        fontSize: 16,
+        fontSize: theme.fonts.body,
         fontWeight: 'bold',
-        marginLeft: 10,
+        marginLeft: moderateScale(10),
     },
 });

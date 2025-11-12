@@ -45,9 +45,11 @@ export default function MainTabNavigator() {
         tabBarActiveTintColor: '#667eea',
         tabBarInactiveTintColor: 'gray',
         tabBarStyle: {
-          paddingBottom: Platform.OS === 'android' ? 5 : insets.bottom,
+          paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 8) : insets.bottom,
           paddingTop: 5,
-          height: Platform.OS === 'android' ? 60 : 60 + insets.bottom,
+          height: Platform.OS === 'android' 
+            ? 60 + Math.max(insets.bottom, 8)
+            : 60 + insets.bottom,
           backgroundColor: '#fff',
           borderTopWidth: 1,
           borderTopColor: '#f0f0f0',

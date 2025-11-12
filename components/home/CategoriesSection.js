@@ -98,6 +98,16 @@ const CategoriesSectionComponent = () => {
         }
     }, [isProcessingReceipt]);
 
+    // ✅ Recarrega dados quando a tela ganhar foco (ex: voltar de adicionar nota manual)
+    useFocusEffect(
+        useCallback(() => {
+            if (globalHasLoaded) {
+                console.log('[CategoriesSection] Tela ganhou foco - recarregando dados');
+                loadGraphData();
+            }
+        }, [])
+    );
+
     const loadGraphData = async () => {
         // ⚡ Previne múltiplas chamadas simultâneas GLOBALMENTE
         if (globalIsLoading) {

@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { moderateScale, fontScale } from '../../utils/responsive';
 import { theme } from '../../utils/theme';
 
-export const ScanButton = ({ onPress, title = 'Escanear Nota', style }) => (
+export const ScanButton = ({ onPress, title = 'Escanear Nota', style, iconName = 'scan' }) => (
     <TouchableOpacity 
         style={[styles.scanButton, style]}
         onPress={onPress}
@@ -14,7 +14,7 @@ export const ScanButton = ({ onPress, title = 'Escanear Nota', style }) => (
             colors={['#667eea', '#764ba2']}
             style={styles.scanButtonGradient}
         >
-            <Ionicons name="scan" size={theme.iconSizes.lg} color="#fff" />
+            <Ionicons name={iconName} size={theme.iconSizes.lg} color="#fff" />
             <Text style={styles.scanButtonText}>{title}</Text>
         </LinearGradient>
     </TouchableOpacity>

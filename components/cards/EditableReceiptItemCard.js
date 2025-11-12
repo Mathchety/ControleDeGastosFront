@@ -150,6 +150,7 @@ export default function EditableReceiptItemCard({ item, itemIndex, onUpdate, onD
                                     onChangeText={setFormQuantity}
                                     keyboardType="decimal-pad"
                                     placeholder="0"
+                                    maxLength={10}
                                 />
                             </View>
 
@@ -162,6 +163,7 @@ export default function EditableReceiptItemCard({ item, itemIndex, onUpdate, onD
                                     onChangeText={setFormTotal}
                                     keyboardType="decimal-pad"
                                     placeholder="0.00"
+                                    maxLength={10}
                                 />
                             </View>
 

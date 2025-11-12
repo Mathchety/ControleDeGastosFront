@@ -14,6 +14,7 @@ export const DataProvider = ({ children }) => {
     const [storeNameList, setStoreNameList] = useState([]);
     const [isProcessingReceipt, setIsProcessingReceipt] = useState(false);
     const [categoriesCache, setCategoriesCache] = useState([]); // Cache para itemCount das categorias
+    const [categories, setCategories] = useState([]); // Lista completa de categorias
 
     // Preview da Nota Fiscal - POST /scan-qrcode/preview
     const previewQRCode = async (qrCodeUrl) => {
@@ -344,6 +345,7 @@ export const DataProvider = ({ children }) => {
             
             // Armazena no cache para uso posterior
             setCategoriesCache(categoriesData);
+            setCategories(categoriesData); // Atualiza o estado de categories
             
             return categoriesData;
         } catch (error) {
@@ -462,6 +464,28 @@ export const DataProvider = ({ children }) => {
         }
     };
 
+    // Criar Nota Fiscal Manual - POST /receipt
+    const createManualReceipt = async (receiptData) => {
+        try {
+            setLoading(true);
+            console.log('[Data] 📝 Criando nota fiscal manual:', receiptData);
+            const response = await httpClient.post('/receipt', receiptData);
+            console.log('[Data] ✅ Nota fiscal criada:', response.data);
+            
+            // Recarrega a lista de notas
+            await fetchReceiptsBasic();
+            
+            return response.data;
+        } catch (error) {
+            console.error('[Data] ❌ Erro ao criar nota manual:', error);
+            const errorMessage = getErrorMessage(error, 'Não foi possível criar a nota fiscal.');
+            Alert.alert(getErrorTitle(error), errorMessage);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const clearPreview = () => setPreviewData(null);
 
     return (
@@ -484,6 +508,7 @@ export const DataProvider = ({ children }) => {
                 deleteCategory,
                 updateItem,
                 deleteReceipt,
+                createManualReceipt,
                 clearPreview,
                 dateList,
                 itemCountList,
@@ -491,6 +516,7 @@ export const DataProvider = ({ children }) => {
                 isProcessingReceipt,
                 setIsProcessingReceipt,
                 categoriesCache,
+                categories,
             }}
         >
             {children}
