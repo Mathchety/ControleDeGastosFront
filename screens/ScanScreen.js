@@ -3,6 +3,8 @@ import { Text, View, StyleSheet, Button, ActivityIndicator, Alert, Animated, Eas
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../contexts/DataContext';
+import useErrorModal from '../hooks/useErrorModal';
+import { ErrorModal } from '../components/modals';
 
 export default function ScanScreen({ navigation }) {
   const [permission, requestPermission] = useCameraPermissions();
@@ -13,6 +15,7 @@ export default function ScanScreen({ navigation }) {
   const [scanTimeout, setScanTimeout] = useState(false);
 
   const { loading: contextLoading, previewQRCode } = useData();
+  const { errorState, showError, hideError } = useErrorModal();
   const loading = contextLoading || localLoading;
   
   const scanTimeoutRef = useRef(null);
@@ -159,7 +162,10 @@ export default function ScanScreen({ navigation }) {
       setShowSuccess(false);
       screenAnim.setValue(1);
       successAnim.setValue(0);
-      Alert.alert('Erro', error.message || 'Não foi possível processar a nota fiscal');
+      
+      // ✨ Usa o modal bonito de erro ao invés do Alert.alert simples
+      showError(error, 'Não foi possível processar a nota fiscal');
+      
       console.error('[Scan] Erro:', error);
     }
   };

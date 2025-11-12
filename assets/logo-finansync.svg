@@ -1,0 +1,79 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradientes modernos -->
+    <linearGradient id="mainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4facfe;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00f2fe;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Sombra suave -->
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-opacity="0.3"/>
+    </filter>
+    
+    <!-- Brilho interno -->
+    <filter id="innerGlow">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="0" dy="2" result="offsetblur"/>
+      <feFlood flood-color="#ffffff" flood-opacity="0.5"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Fundo circular com gradiente -->
+  <circle cx="256" cy="256" r="240" fill="url(#mainGradient)" filter="url(#shadow)"/>
+  
+  <!-- Círculo interno decorativo -->
+  <circle cx="256" cy="256" r="200" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.1"/>
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.15"/>
+  
+  <!-- Símbolo: Gráfico de Barras Crescente + Seta -->
+  <g transform="translate(256, 180)">
+    <!-- Gráfico de barras crescente - centralizado -->
+    <rect x="-70" y="10" width="28" height="35" rx="5" fill="#ffffff" opacity="0.7"/>
+    <rect x="-35" y="-10" width="28" height="55" rx="5" fill="#ffffff" opacity="0.85"/>
+    <rect x="0" y="-35" width="28" height="80" rx="5" fill="url(#accentGradient)" opacity="0.95"/>
+    <rect x="35" y="-65" width="28" height="110" rx="5" fill="url(#accentGradient)" opacity="0.95"/>
+    
+    <!-- Seta para cima (crescimento) - centralizada -->
+    <path d="M 50 -90 L 70 -70 L 60 -70 L 60 -50 L 40 -50 L 40 -70 L 30 -70 Z" 
+          fill="#ffffff" 
+          opacity="0.95"
+          filter="url(#innerGlow)"/>
+  </g>
+  
+  <!-- Texto "FINAN" - Grande e destacado -->
+  <text x="256" y="300" 
+        font-family="'Arial Black', Arial, sans-serif" 
+        font-size="80" 
+        font-weight="900"
+        fill="#ffffff" 
+        text-anchor="middle"
+        letter-spacing="12"
+        opacity="0.98">FINAN</text>
+  
+  <!-- Texto "sync" - Menor, complementar -->
+  <text x="256" y="340" 
+        font-family="Arial, sans-serif" 
+        font-size="32" 
+        font-weight="600"
+        fill="#ffffff" 
+        text-anchor="middle"
+        letter-spacing="6"
+        opacity="0.85">SYNC</text>
+  
+  <!-- Elementos decorativos minimalistas -->
+  <circle cx="120" cy="140" r="4" fill="#ffffff" opacity="0.4"/>
+  <circle cx="392" cy="370" r="4" fill="#ffffff" opacity="0.4"/>
+  <circle cx="400" cy="160" r="3" fill="#ffffff" opacity="0.3"/>
+  <circle cx="112" cy="380" r="3" fill="#ffffff" opacity="0.3"/>
+</svg>

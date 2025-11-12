@@ -22,6 +22,11 @@ export const ERROR_MESSAGES = {
     INVALID_QR_CODE: 'Código QR inválido ou não reconhecido.',
     QR_CODE_ALREADY_SCANNED: 'Este QR Code já foi escaneado anteriormente.',
     
+    // Erros de Processamento/IA
+    AI_PROCESSING_LIMIT: 'Muitas notas estão sendo processadas no momento. Por favor, aguarde alguns minutos e tente novamente.',
+    AI_PROCESSING_ERROR: 'Erro ao processar a nota fiscal com IA. Tente novamente.',
+    TOO_MANY_REQUESTS: 'Você está enviando muitas requisições. Aguarde um momento e tente novamente.',
+    
     // Erros de Categorias
     CATEGORY_NOT_FOUND: 'Categoria não encontrada.',
     CATEGORY_NAME_EXISTS: 'Já existe uma categoria com este nome.',
@@ -111,9 +116,25 @@ export const getErrorMessage = (error, defaultMessage = ERROR_MESSAGES.UNKNOWN_E
             }
             return 'Recurso não encontrado.';
 
+        case 429: // Too Many Requests
+            return ERROR_MESSAGES.TOO_MANY_REQUESTS;
+
+        case 503: // Service Unavailable
+            // Verifica se é erro de processamento de IA
+            if (message?.includes('processando') || 
+                message?.includes('processing') || 
+                message?.includes('IA') ||
+                message?.includes('AI') ||
+                message?.includes('muitas notas') ||
+                message?.includes('too many receipts') ||
+                message?.includes('limite') ||
+                message?.includes('limit')) {
+                return ERROR_MESSAGES.AI_PROCESSING_LIMIT;
+            }
+            return ERROR_MESSAGES.SERVER_ERROR;
+
         case 500: // Internal Server Error
         case 502: // Bad Gateway
-        case 503: // Service Unavailable
             return ERROR_MESSAGES.SERVER_ERROR;
 
         default:
@@ -144,9 +165,12 @@ export const getErrorTitle = (error) => {
             return 'Acesso Negado';
         case 404:
             return 'Não Encontrado';
+        case 429:
+            return 'Muitas Requisições';
+        case 503:
+            return 'Serviço Indisponível';
         case 500:
         case 502:
-        case 503:
             return 'Erro no Servidor';
         default:
             return 'Erro';
@@ -169,4 +193,86 @@ export const isAuthError = (error) => {
  */
 export const isNetworkError = (error) => {
     return !error.response && error.message === 'Network Error';
+};
+
+/**
+ * Retorna o ícone apropriado baseado no tipo de erro
+ * @param {Error} error - Erro retornado pela API
+ * @returns {string} Nome do ícone (Ionicons)
+ */
+export const getErrorIcon = (error) => {
+    if (!error) return 'alert-circle';
+
+    const status = error.response?.status;
+    const message = error.response?.data?.message || error.response?.data?.error || error.message;
+
+    // Erro de rede
+    if (isNetworkError(error)) {
+        return 'cloud-offline';
+    }
+
+    // Erro de processamento/IA/limite
+    if (status === 503 || status === 429) {
+        if (message?.includes('processando') || 
+            message?.includes('processing') || 
+            message?.includes('IA') ||
+            message?.includes('AI') ||
+            message?.includes('muitas notas') ||
+            message?.includes('limite')) {
+            return 'time'; // Ícone de relógio/aguardar
+        }
+        return 'server';
+    }
+
+    switch (status) {
+        case 400:
+            return 'warning';
+        case 401:
+            return 'lock-closed';
+        case 403:
+            return 'hand-left';
+        case 404:
+            return 'search';
+        case 500:
+        case 502:
+            return 'construct'; // Ícone de manutenção
+        default:
+            return 'alert-circle';
+    }
+};
+
+/**
+ * Retorna a cor do ícone baseada no tipo de erro
+ * @param {Error} error - Erro retornado pela API
+ * @returns {string} Cor em hexadecimal
+ */
+export const getErrorIconColor = (error) => {
+    if (!error) return '#ff6b6b';
+
+    const status = error.response?.status;
+
+    // Erro de rede
+    if (isNetworkError(error)) {
+        return '#4a90e2'; // Azul
+    }
+
+    // Erro de processamento/limite (não é tão grave, apenas aguardar)
+    if (status === 503 || status === 429) {
+        return '#f5a623'; // Laranja
+    }
+
+    switch (status) {
+        case 400:
+            return '#f5a623'; // Laranja - aviso
+        case 401:
+        case 403:
+            return '#e74c3c'; // Vermelho - acesso negado
+        case 404:
+            return '#9b59b6'; // Roxo - não encontrado
+        case 500:
+        case 502:
+            return '#e74c3c'; // Vermelho - erro crítico
+        default:
+            return '#ff6b6b'; // Vermelho padrão
+    }
 };

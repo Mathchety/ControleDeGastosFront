@@ -19,6 +19,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { PrimaryButton } from '../components/buttons';
 import { Input } from '../components/inputs';
 import { LoadingModal } from '../components/modals';
+import { FinansyncLogo } from '../components/common';
 import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
 
@@ -269,7 +270,7 @@ const AuthScreen = ({ navigation }) => {
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.keyboardView}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
                 enabled={true}
             >
                 {/* Header com gradiente - SEMPRE visível, apenas muda tamanho */}
@@ -289,7 +290,7 @@ const AuthScreen = ({ navigation }) => {
                         ]}
                     >
                         <Animated.View style={{ transform: [{ scale: headerHeight }] }}>
-                            <Ionicons name="wallet" size={60} color="#fff" />
+                            <FinansyncLogo size={80} showCircle={false} />
                         </Animated.View>
                         <Animated.Text 
                             style={[
@@ -297,7 +298,7 @@ const AuthScreen = ({ navigation }) => {
                                 { fontSize: titleFontSize }
                             ]}
                         >
-                            Controle de Gastos
+                            Finansync
                         </Animated.Text>
                         <Animated.Text 
                             style={[
@@ -305,7 +306,7 @@ const AuthScreen = ({ navigation }) => {
                                 { opacity: subtitleOpacity }
                             ]}
                         >
-                            Gerencie suas finanças com facilidade
+                            Sincronize suas finanças com inteligência
                         </Animated.Text>
                     </Animated.View>
                 </LinearGradient>
@@ -376,7 +377,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         paddingHorizontal: 20,
         paddingTop: 20,
-        paddingBottom: Platform.OS === 'android' ? 180 : 150,
+        paddingBottom: Platform.OS === 'android' ? 200 : 150,
     },
     formContainer: {
         backgroundColor: '#fff',

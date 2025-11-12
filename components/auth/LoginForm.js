@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { PrimaryButton } from '../buttons';
@@ -15,10 +15,13 @@ export const LoginForm = ({ onSuccess }) => {
     const [loading, setLoading] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [errorMessage, setErrorMessage] = useState('');
 
     const handleLogin = async () => {
+        setErrorMessage(''); // Limpa mensagem de erro anterior
+        
         if (!email || !password) {
-            Alert.alert("Erro", "Por favor, preencha o e-mail e a senha.");
+            setErrorMessage("Por favor, preencha o e-mail e a senha.");
             return;
         }
         
@@ -27,7 +30,12 @@ export const LoginForm = ({ onSuccess }) => {
             await login(email, password);
             onSuccess && onSuccess();
         } catch (error) {
-            Alert.alert("Erro", error.message || "Não foi possível fazer login.");
+            // Extrai a mensagem de erro do backend
+            const backendMessage = error.response?.data?.message || 
+                                  error.response?.data?.error ||
+                                  error.message;
+            
+            setErrorMessage(backendMessage || "Não foi possível fazer login. Tente novamente.");
         } finally {
             setLoading(false);
         }
@@ -43,6 +51,14 @@ export const LoginForm = ({ onSuccess }) => {
                 
                 <Text style={styles.formTitle}>Bem-vindo de Volta!</Text>
                 <Text style={styles.formSubtitle}>Faça login para continuar</Text>
+                
+                {/* Mensagem de Erro */}
+                {errorMessage ? (
+                    <View style={styles.errorContainer}>
+                        <Ionicons name="alert-circle" size={20} color="#ef4444" />
+                        <Text style={styles.errorText}>{errorMessage}</Text>
+                    </View>
+                ) : null}
                 
                 <Input
                     icon="mail-outline"
@@ -113,5 +129,23 @@ const styles = StyleSheet.create({
         color: '#007bff',
         fontSize: 14,
         fontWeight: '600',
+    },
+    errorContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fee2e2',
+        borderLeftWidth: 4,
+        borderLeftColor: '#ef4444',
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 20,
+        gap: 10,
+    },
+    errorText: {
+        flex: 1,
+        color: '#991b1b',
+        fontSize: 14,
+        fontWeight: '500',
+        lineHeight: 20,
     },
 });

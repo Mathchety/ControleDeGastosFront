@@ -5,7 +5,6 @@ import {
     StyleSheet,
     TextInput,
     TouchableOpacity,
-    Alert,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
@@ -13,17 +12,21 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '../contexts/AuthContext';
 import { moderateScale, fontScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
 
 export default function ResetPasswordScreen({ navigation, route }) {
     const { email } = route.params || {};
+    const { resetPassword, forgotPassword } = useAuth();
     const [code, setCode] = useState(['', '', '', '', '', '']);
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
     
     // Refs para os inputs do código
     const codeInputs = useRef([]);
@@ -67,61 +70,77 @@ export default function ResetPasswordScreen({ navigation, route }) {
     };
 
     const handleResetPassword = async () => {
+        setErrorMessage(''); // Limpa mensagem de erro anterior
+        setSuccessMessage(''); // Limpa mensagem de sucesso anterior
+        
         const verificationCode = code.join('');
         
         if (verificationCode.length !== 6) {
-            Alert.alert('Atenção', 'Digite o código de 6 dígitos');
+            setErrorMessage('Digite o código de 6 dígitos');
             return;
         }
 
         if (!newPassword.trim()) {
-            Alert.alert('Atenção', 'Digite a nova senha');
+            setErrorMessage('Digite a nova senha');
             return;
         }
 
         if (newPassword.length < 6) {
-            Alert.alert('Atenção', 'A senha deve ter no mínimo 6 caracteres');
+            setErrorMessage('A senha deve ter no mínimo 6 caracteres');
             return;
         }
 
         if (newPassword !== confirmPassword) {
-            Alert.alert('Atenção', 'As senhas não coincidem');
+            setErrorMessage('As senhas não coincidem');
             return;
         }
 
         try {
             setLoading(true);
             
-            // TODO: Integrar com API quando estiver pronta
-            // await authService.resetPassword(email, verificationCode, newPassword);
+            // ✅ Integrado com API
+            await resetPassword(email, verificationCode, newPassword);
             
-            // Simulação de redefinição
+            setLoading(false);
+            setSuccessMessage('Senha alterada com sucesso! Redirecionando...');
+            
+            // Aguarda 2 segundos para mostrar mensagem de sucesso
             setTimeout(() => {
-                setLoading(false);
-                Alert.alert(
-                    'Sucesso!',
-                    'Sua senha foi redefinida com sucesso. Faça login com sua nova senha.',
-                    [
-                        {
-                            text: 'OK',
-                            onPress: () => navigation.navigate('Auth'),
-                        },
-                    ]
-                );
-            }, 1500);
+                navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'Auth' }],
+                });
+            }, 2000);
         } catch (error) {
             setLoading(false);
-            Alert.alert('Erro', 'Não foi possível redefinir a senha. Verifique o código e tente novamente.');
+            
+            // Extrai a mensagem de erro do backend
+            const backendMessage = error.response?.data?.message || 
+                                  error.response?.data?.error ||
+                                  error.message;
+            
+            setErrorMessage(backendMessage || 'Não foi possível redefinir a senha. Verifique o código e tente novamente.');
         }
     };
 
-    const handleResendCode = () => {
-        Alert.alert(
-            'Reenviar Código',
-            'Um novo código foi enviado para seu e-mail.',
-            [{ text: 'OK' }]
-        );
-        // TODO: Integrar com API
+    const handleResendCode = async () => {
+        try {
+            setLoading(true);
+            
+            // ✅ Reenvia o código usando a API
+            await forgotPassword(email);
+            
+            setLoading(false);
+            Alert.alert(
+                'Código Reenviado',
+                'Um novo código de verificação foi enviado para seu e-mail.',
+                [{ text: 'OK' }]
+            );
+        } catch (error) {
+            setLoading(false);
+            const errorMessage = error.message || 'Não foi possível reenviar o código. Tente novamente.';
+            Alert.alert('Erro', errorMessage);
+        }
     };
 
     return (
@@ -129,11 +148,13 @@ export default function ResetPasswordScreen({ navigation, route }) {
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.keyboardView}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
             >
                 <ScrollView
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
+                    bounces={false}
                 >
                     {/* Header */}
                     <View style={styles.header}>
@@ -163,6 +184,22 @@ export default function ResetPasswordScreen({ navigation, route }) {
                             <Text style={styles.email}>{email}</Text>
                         </Text>
                     </View>
+
+                    {/* Mensagem de Erro */}
+                    {errorMessage ? (
+                        <View style={styles.errorContainer}>
+                            <Ionicons name="alert-circle" size={20} color="#ef4444" />
+                            <Text style={styles.errorText}>{errorMessage}</Text>
+                        </View>
+                    ) : null}
+
+                    {/* Mensagem de Sucesso */}
+                    {successMessage ? (
+                        <View style={styles.successContainer}>
+                            <Ionicons name="checkmark-circle" size={20} color="#10b981" />
+                            <Text style={styles.successText}>{successMessage}</Text>
+                        </View>
+                    ) : null}
 
                     {/* Formulário */}
                     <View style={styles.form}>
@@ -280,6 +317,7 @@ const styles = StyleSheet.create({
     scrollContent: {
         flexGrow: 1,
         paddingHorizontal: moderateScale(30),
+        paddingBottom: Platform.OS === 'android' ? moderateScale(200) : moderateScale(100),
     },
     header: {
         paddingTop: moderateScale(20),
@@ -328,6 +366,44 @@ const styles = StyleSheet.create({
     email: {
         fontWeight: '600',
         color: '#667eea',
+    },
+    errorContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fee2e2',
+        borderLeftWidth: 4,
+        borderLeftColor: '#ef4444',
+        borderRadius: moderateScale(10),
+        padding: moderateScale(14),
+        marginBottom: moderateScale(20),
+        marginHorizontal: moderateScale(4),
+        gap: 10,
+    },
+    errorText: {
+        flex: 1,
+        color: '#991b1b',
+        fontSize: fontScale(14),
+        fontWeight: '500',
+        lineHeight: 20,
+    },
+    successContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#d1fae5',
+        borderLeftWidth: 4,
+        borderLeftColor: '#10b981',
+        borderRadius: moderateScale(10),
+        padding: moderateScale(14),
+        marginBottom: moderateScale(20),
+        marginHorizontal: moderateScale(4),
+        gap: 10,
+    },
+    successText: {
+        flex: 1,
+        color: '#065f46',
+        fontSize: fontScale(14),
+        fontWeight: '500',
+        lineHeight: 20,
     },
     form: {
         flex: 1,

@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
+import { ChangePasswordModal } from '../components/modals';
 import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
 
@@ -45,8 +46,9 @@ const InfoItem = ({ icon, label, value, onPress, delay }) => (
 );
 
 export default function ProfileScreen({ navigation }) {
-    const { user: authUser, logout } = useAuth();
+    const { user: authUser, logout, changePassword } = useAuth();
     const insets = useSafeAreaInsets();
+    const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
     
     // Função para formatar a data de criação
     const formatMemberSince = (dateString) => {
@@ -86,7 +88,11 @@ export default function ProfileScreen({ navigation }) {
     };
 
     const handleChangePassword = () => {
-        navigation.navigate('ChangePassword');
+        setShowChangePasswordModal(true);
+    };
+
+    const handleChangePasswordSubmit = async ({ currentPassword, newPassword }) => {
+        await changePassword(currentPassword, newPassword);
     };
 
     const handleLogout = () => {
@@ -232,6 +238,13 @@ export default function ProfileScreen({ navigation }) {
                         : 30 
                 }} />
             </ScrollView>
+
+            {/* Modal de Trocar Senha */}
+            <ChangePasswordModal
+                visible={showChangePasswordModal}
+                onClose={() => setShowChangePasswordModal(false)}
+                onSuccess={handleChangePasswordSubmit}
+            />
         </View>
     );
 }

@@ -93,13 +93,23 @@ class HttpClient {
                     errorData = { message: textResponse || `Erro HTTP ${response.status}` };
                 }
 
+                console.log('[HTTP Error Data]', JSON.stringify(errorData, null, 2));
+
                 // Se for 401, o token é inválido/expirado
                 if (response.status === 401) {
                     this.setToken(null); // Limpa o token
-                    throw new Error('Sessão expirada. Faça login novamente.');
+                    const error = new Error('Sessão expirada. Faça login novamente.');
+                    error.response = { status: 401, data: errorData };
+                    throw error;
                 }
 
-                throw new Error(errorData.error || errorData.message || `Erro ${response.status}`);
+                // Cria erro com informações completas
+                const error = new Error(errorData.error || errorData.message || `Erro ${response.status}`);
+                error.response = {
+                    status: response.status,
+                    data: errorData
+                };
+                throw error;
             }
 
             // Tenta parsear a resposta como JSON

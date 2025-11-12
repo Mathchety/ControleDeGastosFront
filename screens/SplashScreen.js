@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { FinansyncLogo } from '../components/common';
 import { moderateScale } from '../utils/responsive';
 
 export default function SplashScreen({ onFinish }) {
@@ -66,14 +66,12 @@ export default function SplashScreen({ onFinish }) {
                         },
                     ]}
                 >
-                    <View style={styles.iconCircle}>
-                        <Ionicons name="receipt-outline" size={60} color="#fff" />
-                    </View>
+                    <FinansyncLogo size={120} showCircle={false} />
                 </Animated.View>
 
                 <Animated.View style={{ opacity: fadeAnim }}>
-                    <Text style={styles.appName}>SmartReceipt</Text>
-                    <Text style={styles.tagline}>Controle suas despesas com inteligência</Text>
+                    <Text style={styles.appName}>Finansync</Text>
+                    <Text style={styles.tagline}>Sincronize suas finanças com inteligência</Text>
                 </Animated.View>
 
                 {/* Indicador de Loading */}

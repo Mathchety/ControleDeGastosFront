@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "SmartReceipt",
-    "slug": "smart-receipt",
+    "name": "Finansync",
+    "slug": "finansync",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,7 +16,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.controle.gastos"
+      "bundleIdentifier": "com.finansync.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -26,7 +26,7 @@
       "permissions": [
         "CAMERA"
       ],
-      "package": "com.controle.gastos",
+      "package": "com.finansync.app",
       "softwareKeyboardLayoutMode": "pan",
       "navigationBar": {
         "visible": "immersive"

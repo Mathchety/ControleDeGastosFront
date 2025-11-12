@@ -7,3 +7,5 @@ export { AlertModal } from './AlertModal';
 export { LoadingModal } from './LoadingModal';
 export { BottomSheetModal } from './BottomSheetModal';
 export { DatePeriodModal } from './DatePeriodModal';
+export { default as ErrorModal } from './ErrorModal';
+export { ChangePasswordModal } from './ChangePasswordModal';

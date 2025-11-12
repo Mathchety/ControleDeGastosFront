@@ -1,12 +1,8 @@
-# Controle de Gastos - Scanner de Notas Fiscais# 💰 Controle de Gastos - App Mobile# Controle de Gastos - Captura de Comprovantes
+# 💰 Finansync - App Mobile de Controle Financeiro
 
+> Aplicativo React Native (Expo) completo para controle financeiro pessoal com IA
 
-
-App para escanear QR Codes de notas fiscais eletrônicas (NFC-e), categorizar automaticamente os itens com IA e visualizar seus gastos.
-
-
-
-## Funcionalidades> Aplicativo React Native (Expo) completo para controle financeiro pessoal com IAAplicativo React Native (Expo) que permite fotografar comprovantes diretamente da câmera do dispositivo e salvar a imagem na galeria, facilitando o registro de gastos.
+Sincronize suas finanças com inteligência! App para escanear QR Codes de notas fiscais eletrônicas (NFC-e), categorizar automaticamente os itens com IA e visualizar seus gastos em tempo real.
 
 
 

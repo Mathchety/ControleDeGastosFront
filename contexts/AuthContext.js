@@ -168,6 +168,123 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  /**
+   * Esqueci minha senha - Envia código de recuperação
+   */
+  const forgotPassword = async (email) => {
+    try {
+      // ❌ NÃO usa setLoading aqui (causa re-render do AppNavigator)
+      const response = await httpClient.post('/auth/forgot-password', { email }, false);
+      console.log('[Auth] Código de recuperação enviado para:', email);
+      return response;
+    } catch (error) {
+      console.error('[Auth] Erro ao solicitar recuperação:', error);
+      throw error;
+    }
+  };
+
+  /**
+   * Resetar senha com código de verificação
+   */
+  const resetPassword = async (email, token, newPassword) => {
+    try {
+      // ❌ NÃO usa setLoading aqui (causa re-render do AppNavigator)
+      const response = await httpClient.post('/auth/reset-password', { 
+        email, 
+        token, 
+        newPassword 
+      }, false);
+      console.log('[Auth] Senha resetada com sucesso para:', email);
+      return response;
+    } catch (error) {
+      console.error('[Auth] Erro ao resetar senha:', error);
+      throw error;
+    }
+  };
+
+  /**
+   * Atualizar nome do usuário
+   */
+  const updateProfile = async (name) => {
+    try {
+      setLoading(true);
+      const response = await httpClient.patch('/user/profile', { name });
+      
+      // Atualiza o usuário localmente
+      const updatedUser = response.user || { ...user, name };
+      setUser(updatedUser);
+      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      
+      console.log('[Auth] Perfil atualizado:', name);
+      return response;
+    } catch (error) {
+      console.error('[Auth] Erro ao atualizar perfil:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Solicitar troca de email - Envia código para novo email
+   */
+  const requestEmailChange = async (newEmail) => {
+    try {
+      setLoading(true);
+      const response = await httpClient.post('/user/request-email-change', { newEmail });
+      console.log('[Auth] Código de verificação enviado para:', newEmail);
+      return response;
+    } catch (error) {
+      console.error('[Auth] Erro ao solicitar troca de email:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Confirmar troca de email com código
+   */
+  const confirmEmailChange = async (newEmail, token) => {
+    try {
+      setLoading(true);
+      const response = await httpClient.post('/user/confirm-email-change', { 
+        newEmail, 
+        token 
+      });
+      
+      // Atualiza o email do usuário localmente
+      const updatedUser = response.user || { ...user, email: newEmail };
+      setUser(updatedUser);
+      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      
+      console.log('[Auth] Email atualizado para:', newEmail);
+      return response;
+    } catch (error) {
+      console.error('[Auth] Erro ao confirmar troca de email:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Alterar senha do usuário
+   */
+  const changePassword = async (currentPassword, newPassword) => {
+    try {
+      const response = await httpClient.post('/auth/change-password', { 
+        currentPassword, 
+        newPassword 
+      });
+      console.log('[Auth] Senha alterada com sucesso');
+      return response;
+    } catch (error) {
+      console.error('[Auth] Erro ao alterar senha:', error);
+      throw error;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -178,6 +295,12 @@ export const AuthProvider = ({ children }) => {
         register,
         logout,
         validateToken,
+        forgotPassword,
+        resetPassword,
+        updateProfile,
+        requestEmailChange,
+        confirmEmailChange,
+        changePassword,
       }}
     >
       {children}

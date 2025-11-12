@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { FinansyncLogo } from '../common';
 import { moderateScale, fontScale } from '../../utils/responsive';
 import { theme } from '../../utils/theme';
 
@@ -12,9 +12,9 @@ export const AuthHeader = () => (
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
     >
-        <Ionicons name="wallet" size={moderateScale(60)} color="#fff" />
-        <Text style={styles.headerTitle}>Controle de Gastos</Text>
-        <Text style={styles.headerSubtitle}>Gerencie suas finanças com facilidade</Text>
+        <FinansyncLogo size={moderateScale(80)} showCircle={false} />
+        <Text style={styles.headerTitle}>Finansync</Text>
+        <Text style={styles.headerSubtitle}>Sincronize suas finanças com inteligência</Text>
     </LinearGradient>
 );
 

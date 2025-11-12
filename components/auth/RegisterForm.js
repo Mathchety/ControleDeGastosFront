@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { PrimaryButton } from '../buttons';
@@ -16,15 +16,18 @@ export const RegisterForm = ({ onSuccess }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [errorMessage, setErrorMessage] = useState('');
 
     const handleRegister = async () => {
+        setErrorMessage(''); // Limpa mensagem de erro anterior
+        
         if (!name || !email || !password) {
-            Alert.alert("Erro", "Por favor, preencha todos os campos.");
+            setErrorMessage("Por favor, preencha todos os campos.");
             return;
         }
         
         if (password.length < 6) {
-            Alert.alert("Erro", "A senha deve ter pelo menos 6 caracteres.");
+            setErrorMessage("A senha deve ter pelo menos 6 caracteres.");
             return;
         }
         
@@ -33,7 +36,12 @@ export const RegisterForm = ({ onSuccess }) => {
             await register(name, email, password);
             onSuccess && onSuccess();
         } catch (error) {
-            Alert.alert("Erro", error.message || "Não foi possível criar a conta.");
+            // Extrai a mensagem de erro do backend
+            const backendMessage = error.response?.data?.message || 
+                                  error.response?.data?.error ||
+                                  error.message;
+            
+            setErrorMessage(backendMessage || "Não foi possível criar a conta. Tente novamente.");
         } finally {
             setLoading(false);
         }
@@ -49,6 +57,14 @@ export const RegisterForm = ({ onSuccess }) => {
                 
                 <Text style={styles.formTitle}>Criar Conta</Text>
                 <Text style={styles.formSubtitle}>Junte-se a nós hoje!</Text>
+                
+                {/* Mensagem de Erro */}
+                {errorMessage ? (
+                    <View style={styles.errorContainer}>
+                        <Ionicons name="alert-circle" size={20} color="#ef4444" />
+                        <Text style={styles.errorText}>{errorMessage}</Text>
+                    </View>
+                ) : null}
                 
                 <Input
                     icon="person-outline"
@@ -113,5 +129,23 @@ const styles = StyleSheet.create({
         color: '#666',
         textAlign: 'center',
         marginBottom: 25,
+    },
+    errorContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fee2e2',
+        borderLeftWidth: 4,
+        borderLeftColor: '#ef4444',
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 20,
+        gap: 10,
+    },
+    errorText: {
+        flex: 1,
+        color: '#991b1b',
+        fontSize: 14,
+        fontWeight: '500',
+        lineHeight: 20,
     },
 });

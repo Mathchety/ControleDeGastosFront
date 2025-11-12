@@ -5,7 +5,6 @@ import {
     StyleSheet,
     TextInput,
     TouchableOpacity,
-    Alert,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
@@ -13,12 +12,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '../contexts/AuthContext';
 import { moderateScale, fontScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
 
 export default function ForgotPasswordScreen({ navigation }) {
+    const { forgotPassword } = useAuth();
     const [email, setEmail] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [localLoading, setLocalLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
 
     const validateEmail = (email) => {
         const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -26,39 +28,50 @@ export default function ForgotPasswordScreen({ navigation }) {
     };
 
     const handleSendCode = async () => {
+        setErrorMessage(''); // Limpa mensagem de erro anterior
+        
         if (!email.trim()) {
-            Alert.alert('Atenção', 'Digite seu e-mail');
+            setErrorMessage('Digite seu e-mail');
             return;
         }
 
         if (!validateEmail(email)) {
-            Alert.alert('Atenção', 'Digite um e-mail válido');
+            setErrorMessage('Digite um e-mail válido');
             return;
         }
 
         try {
-            setLoading(true);
+            console.log('[ForgotPassword] 1. Iniciando envio de código...');
+            setLocalLoading(true);
             
-            // TODO: Integrar com API quando estiver pronta
-            // await authService.sendPasswordResetCode(email);
+            console.log('[ForgotPassword] 2. Chamando API forgotPassword...');
+            // ✅ Integrado com API
+            await forgotPassword(email);
             
-            // Simulação de envio
-            setTimeout(() => {
-                setLoading(false);
-                Alert.alert(
-                    'Código Enviado',
-                    'Enviamos um código de verificação para seu e-mail.',
-                    [
-                        {
-                            text: 'OK',
-                            onPress: () => navigation.navigate('ResetPassword', { email }),
-                        },
-                    ]
-                );
-            }, 1500);
+            console.log('[ForgotPassword] 3. API respondeu com sucesso');
+            
+            console.log('[ForgotPassword] 4. Navegando IMEDIATAMENTE antes de setLoading(false)');
+            
+            // ✅ NAVEGA ANTES de desativar o loading
+            navigation.push('ResetPassword', { email });
+            
+            console.log('[ForgotPassword] 5. Navigation.push executado');
+            
+            // Desativa loading só depois
+            setLocalLoading(false);
+            
+            console.log('[ForgotPassword] 6. Loading desativado');
+            
         } catch (error) {
-            setLoading(false);
-            Alert.alert('Erro', 'Não foi possível enviar o código. Tente novamente.');
+            console.error('[ForgotPassword] ERRO:', error);
+            setLocalLoading(false);
+            
+            // Extrai a mensagem de erro do backend
+            const backendMessage = error.response?.data?.message || 
+                                  error.response?.data?.error ||
+                                  error.message;
+            
+            setErrorMessage(backendMessage || 'Não foi possível enviar o código. Verifique o e-mail e tente novamente.');
         }
     };
 
@@ -67,11 +80,13 @@ export default function ForgotPasswordScreen({ navigation }) {
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.keyboardView}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
             >
                 <ScrollView
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
+                    bounces={false}
                 >
                     {/* Header */}
                     <View style={styles.header}>
@@ -101,6 +116,14 @@ export default function ForgotPasswordScreen({ navigation }) {
                         </Text>
                     </View>
 
+                    {/* Mensagem de Erro */}
+                    {errorMessage ? (
+                        <View style={styles.errorContainer}>
+                            <Ionicons name="alert-circle" size={20} color="#ef4444" />
+                            <Text style={styles.errorText}>{errorMessage}</Text>
+                        </View>
+                    ) : null}
+
                     {/* Formulário */}
                     <View style={styles.form}>
                         <View style={styles.inputContainer}>
@@ -120,15 +143,15 @@ export default function ForgotPasswordScreen({ navigation }) {
 
                         {/* Botão Enviar Código */}
                         <TouchableOpacity
-                            style={[styles.sendButton, loading && styles.sendButtonDisabled]}
+                            style={[styles.sendButton, localLoading && styles.sendButtonDisabled]}
                             onPress={handleSendCode}
-                            disabled={loading}
+                            disabled={localLoading}
                         >
                             <LinearGradient
                                 colors={['#667eea', '#764ba2']}
                                 style={styles.sendButtonGradient}
                             >
-                                {loading ? (
+                                {localLoading ? (
                                     <Text style={styles.sendButtonText}>Enviando...</Text>
                                 ) : (
                                     <>
@@ -165,6 +188,7 @@ const styles = StyleSheet.create({
     scrollContent: {
         flexGrow: 1,
         paddingHorizontal: moderateScale(30),
+        paddingBottom: Platform.OS === 'android' ? moderateScale(150) : moderateScale(80),
     },
     header: {
         paddingTop: moderateScale(20),
@@ -209,6 +233,25 @@ const styles = StyleSheet.create({
         color: '#666',
         textAlign: 'center',
         lineHeight: 22,
+    },
+    errorContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fee2e2',
+        borderLeftWidth: 4,
+        borderLeftColor: '#ef4444',
+        borderRadius: moderateScale(10),
+        padding: moderateScale(14),
+        marginBottom: moderateScale(20),
+        marginHorizontal: moderateScale(4),
+        gap: 10,
+    },
+    errorText: {
+        flex: 1,
+        color: '#991b1b',
+        fontSize: fontScale(14),
+        fontWeight: '500',
+        lineHeight: 20,
     },
     form: {
         flex: 1,
