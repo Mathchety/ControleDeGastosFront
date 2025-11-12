@@ -468,16 +468,13 @@ export const DataProvider = ({ children }) => {
     const createManualReceipt = async (receiptData) => {
         try {
             setLoading(true);
-            console.log('[Data] 📝 Criando nota fiscal manual:', receiptData);
             const response = await httpClient.post('/receipt', receiptData);
-            console.log('[Data] ✅ Nota fiscal criada:', response.data);
             
             // Recarrega a lista de notas
             await fetchReceiptsBasic();
             
             return response.data;
         } catch (error) {
-            console.error('[Data] ❌ Erro ao criar nota manual:', error);
             const errorMessage = getErrorMessage(error, 'Não foi possível criar a nota fiscal.');
             Alert.alert(getErrorTitle(error), errorMessage);
             throw error;

@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
     View,
     Text,
     StyleSheet,
-    TextInput,
     TouchableOpacity,
     KeyboardAvoidingView,
     Platform,
@@ -14,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
 import { moderateScale, fontScale } from '../utils/responsive';
+import { Input } from '../components/inputs';
 import { theme } from '../utils/theme';
 
 export default function ForgotPasswordScreen({ navigation }) {
@@ -21,6 +21,12 @@ export default function ForgotPasswordScreen({ navigation }) {
     const [email, setEmail] = useState('');
     const [localLoading, setLocalLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
+    const scrollRef = useRef(null);
+
+    const scrollToInput = (index) => {
+        const y = Math.max(0, index * moderateScale(120));
+        scrollRef.current?.scrollTo({ y, animated: true });
+    };
 
     const validateEmail = (email) => {
         const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -41,29 +47,22 @@ export default function ForgotPasswordScreen({ navigation }) {
         }
 
         try {
-            console.log('[ForgotPassword] 1. Iniciando envio de código...');
             setLocalLoading(true);
             
-            console.log('[ForgotPassword] 2. Chamando API forgotPassword...');
             // ✅ Integrado com API
             await forgotPassword(email);
             
-            console.log('[ForgotPassword] 3. API respondeu com sucesso');
             
-            console.log('[ForgotPassword] 4. Navegando IMEDIATAMENTE antes de setLoading(false)');
             
             // ✅ NAVEGA ANTES de desativar o loading
             navigation.push('ResetPassword', { email });
             
-            console.log('[ForgotPassword] 5. Navigation.push executado');
             
             // Desativa loading só depois
             setLocalLoading(false);
             
-            console.log('[ForgotPassword] 6. Loading desativado');
             
         } catch (error) {
-            console.error('[ForgotPassword] ERRO:', error);
             setLocalLoading(false);
             
             // Extrai a mensagem de erro do backend
@@ -83,6 +82,7 @@ export default function ForgotPasswordScreen({ navigation }) {
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
             >
                 <ScrollView
+                    ref={scrollRef}
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
@@ -126,20 +126,16 @@ export default function ForgotPasswordScreen({ navigation }) {
 
                     {/* Formulário */}
                     <View style={styles.form}>
-                        <View style={styles.inputContainer}>
-                            <Ionicons name="mail-outline" size={20} color="#999" style={styles.inputIcon} />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Seu e-mail"
-                                placeholderTextColor="#999"
-                                value={email}
-                                onChangeText={setEmail}
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                                maxLength={100}
-                            />
-                        </View>
+                        <Input
+                            icon="mail-outline"
+                            placeholder="Seu e-mail"
+                            value={email}
+                            onChangeText={setEmail}
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            maxLength={100}
+                            onFocus={() => scrollToInput(0)}
+                        />
 
                         {/* Botão Enviar Código */}
                         <TouchableOpacity

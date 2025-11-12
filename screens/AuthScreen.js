@@ -19,7 +19,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { PrimaryButton } from '../components/buttons';
 import { Input } from '../components/inputs';
 import { LoadingModal } from '../components/modals';
-import { FinansyncLogo, ErrorMessage, useErrorMessage } from '../components/common';
+import { FinansyncLogoSimple, ErrorMessage, useErrorMessage } from '../components/common';
 import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
 
@@ -34,15 +34,10 @@ const AnimatedForm = React.memo(({ isRegisterView, onSuccess, navigation }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState({ visible: false, message: '', type: 'error' });
     
-    console.log('[AnimatedForm] Renderizando - isRegisterView:', isRegisterView);
-    console.log('[AnimatedForm] Estado do erro:', error);
-    
     // Handler para esqueceu a senha
     const handleForgotPassword = () => {
         if (navigation) {
             navigation.navigate('ForgotPassword');
-        } else {
-            console.error('Navigation prop is undefined');
         }
     };
     
@@ -74,20 +69,9 @@ const AnimatedForm = React.memo(({ isRegisterView, onSuccess, navigation }) => {
             await login(emailLogin, passwordLogin);
             onSuccess && onSuccess();
         } catch (err) {
-            console.log('[AuthScreen] Erro capturado:', err);
-            console.log('[AuthScreen] Erro statusCode:', err?.statusCode);
-            console.log('[AuthScreen] Erro message:', err?.message);
-            
             const errorInfo = getErrorMessage(err);
-            console.log('[AuthScreen] ErrorInfo:', errorInfo);
             
             setError({
-                visible: true,
-                message: errorInfo.message,
-                type: errorInfo.type
-            });
-            
-            console.log('[AuthScreen] Estado do erro definido:', {
                 visible: true,
                 message: errorInfo.message,
                 type: errorInfo.type
@@ -253,11 +237,19 @@ const AuthScreen = ({ navigation }) => {
     const [isRegister, setIsRegister] = useState(false);
     const [keyboardVisible, setKeyboardVisible] = useState(false);
     const headerHeight = useRef(new Animated.Value(1)).current; // 1 = tamanho normal, 0 = pequeno
+    const scrollViewRef = useRef(null);
 
     const handleSuccess = useCallback(() => {
         // Não precisa navegar manualmente - o AppNavigator faz isso automaticamente
         // quando isAuthenticated muda para true
     }, []);
+
+    // Garante que a tela começa no topo
+    useEffect(() => {
+        if (scrollViewRef.current) {
+            scrollViewRef.current.scrollTo({ y: 0, animated: false });
+        }
+    }, [isRegister]);
 
     useEffect(() => {
         const keyboardDidShowListener = Keyboard.addListener(
@@ -267,7 +259,7 @@ const AuthScreen = ({ navigation }) => {
                 // Anima o header para tamanho pequeno
                 Animated.timing(headerHeight, {
                     toValue: 0,
-                    duration: 300,
+                    duration: 250,
                     useNativeDriver: false,
                 }).start();
             }
@@ -279,7 +271,7 @@ const AuthScreen = ({ navigation }) => {
                 // Anima o header para tamanho normal
                 Animated.timing(headerHeight, {
                     toValue: 1,
-                    duration: 300,
+                    duration: 250,
                     useNativeDriver: false,
                 }).start();
             }
@@ -291,25 +283,25 @@ const AuthScreen = ({ navigation }) => {
         };
     }, []);
 
-    // Interpolações para animar o header
+    // Interpolações para animar o header - OTIMIZADAS para ganhar máximo espaço
     const headerPaddingTop = headerHeight.interpolate({
         inputRange: [0, 1],
-        outputRange: [moderateScale(10), moderateScale(60)], // Reduzido de 20 para 10
+        outputRange: [moderateScale(5), moderateScale(60)], // Reduzido de 8 para 5
     });
 
     const headerPaddingBottom = headerHeight.interpolate({
         inputRange: [0, 1],
-        outputRange: [moderateScale(8), moderateScale(50)], // Reduzido de 15 para 8
+        outputRange: [moderateScale(5), moderateScale(30)], // Reduzido de 8 para 5
     });
 
-    const iconSize = headerHeight.interpolate({
+    const logoScale = headerHeight.interpolate({
         inputRange: [0, 1],
-        outputRange: [20, 60], // Reduzido de 30 para 20
+        outputRange: [0, 1], // Logo desaparece completamente
     });
 
     const titleFontSize = headerHeight.interpolate({
         inputRange: [0, 1],
-        outputRange: [14, theme.fonts.h1], // Reduzido de 18 para 14
+        outputRange: [moderateScale(16), moderateScale(28)], // Reduzido de 18 para 16
     });
 
     const subtitleOpacity = headerHeight.interpolate({
@@ -330,7 +322,7 @@ const AuthScreen = ({ navigation }) => {
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
                 enabled={true}
             >
-                {/* Header com gradiente - SEMPRE visível, apenas muda tamanho */}
+                {/* Header com gradiente - Estilo HomeHeader */}
                 <LinearGradient
                     colors={['#667eea', '#764ba2']}
                     style={styles.header}
@@ -346,9 +338,18 @@ const AuthScreen = ({ navigation }) => {
                             }
                         ]}
                     >
-                        <Animated.View style={{ transform: [{ scale: headerHeight }] }}>
-                            <FinansyncLogo size={80} showCircle={false} />
+                        {/* Logo - Escala suave */}
+                        <Animated.View 
+                            style={{ 
+                                transform: [{ scale: logoScale }],
+                                alignItems: 'center',
+                                marginBottom: moderateScale(12),
+                            }}
+                        >
+                            <FinansyncLogoSimple size={70} />
                         </Animated.View>
+                        
+                        {/* Título */}
                         <Animated.Text 
                             style={[
                                 styles.headerTitle,
@@ -357,7 +358,9 @@ const AuthScreen = ({ navigation }) => {
                         >
                             Finansync
                         </Animated.Text>
-                        <Animated.Text 
+                        
+                        {/* Subtítulo - Some quando teclado abre */}
+                        <Animated.Text
                             style={[
                                 styles.headerSubtitle,
                                 { opacity: subtitleOpacity }
@@ -370,6 +373,7 @@ const AuthScreen = ({ navigation }) => {
 
                 {/* Formulário */}
                 <ScrollView 
+                    ref={scrollViewRef}
                     style={styles.scrollView}
                     contentContainerStyle={styles.content}
                     keyboardShouldPersistTaps="handled"
@@ -377,6 +381,8 @@ const AuthScreen = ({ navigation }) => {
                     bounces={true}
                     scrollEnabled={true}
                     keyboardDismissMode="on-drag"
+                    automaticallyAdjustContentInsets={false}
+                    contentInsetAdjustmentBehavior="never"
                 >
                     <AnimatedForm 
                         key={isRegister ? 'register' : 'login'} 
@@ -417,56 +423,54 @@ const styles = StyleSheet.create({
         paddingHorizontal: theme.spacing.lg,
         borderBottomLeftRadius: moderateScale(30),
         borderBottomRightRadius: moderateScale(30),
-        ...theme.shadows.medium,
     },
     headerContent: {
         alignItems: 'center',
     },
     headerTitle: {
-        fontSize: theme.fonts.h1,
-        fontWeight: '700',
+        fontWeight: 'bold',
         color: '#fff',
-        marginTop: theme.spacing.md,
+        textAlign: 'center',
     },
     headerSubtitle: {
-        fontSize: theme.fonts.body,
-        color: '#fff',
-        opacity: 0.9,
-        marginTop: theme.spacing.xs,
+        fontSize: moderateScale(14),
+        color: 'rgba(255, 255, 255, 0.9)',
+        textAlign: 'center',
+        marginTop: moderateScale(6),
     },
     content: {
         flexGrow: 1,
-        justifyContent: 'center',
         paddingHorizontal: 20,
-        paddingTop: 20,
+        paddingTop: moderateScale(20), // Reduzido de 40 para 20
         paddingBottom: Platform.OS === 'android' ? 200 : 150,
     },
     formContainer: {
         backgroundColor: '#fff',
-        borderRadius: 25,
-        padding: 25,
+        borderRadius: moderateScale(20),
+        padding: moderateScale(20),
         elevation: 3,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
+        overflow: 'visible',
     },
     iconContainer: {
         alignSelf: 'center',
-        marginBottom: 20,
+        marginBottom: moderateScale(16),
     },
     formTitle: {
-        fontSize: 26,
+        fontSize: moderateScale(24),
         fontWeight: '700',
         color: '#333',
         textAlign: 'center',
-        marginBottom: 8,
+        marginBottom: moderateScale(6),
     },
     formSubtitle: {
-        fontSize: 16,
+        fontSize: moderateScale(14),
         color: '#666',
         textAlign: 'center',
-        marginBottom: 25,
+        marginBottom: moderateScale(20),
     },
     forgotPassword: {
         alignSelf: 'flex-end',

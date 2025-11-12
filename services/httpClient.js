@@ -19,7 +19,7 @@ class HttpClient {
         try {
             this.token = await AsyncStorage.getItem('token');
         } catch (error) {
-            console.error('Erro ao carregar token:', error);
+            // Silencioso
         }
     }
 
@@ -64,11 +64,6 @@ class HttpClient {
 
         // Monta a URL completa
         const url = `${this.baseURL}${endpoint}`;
-        
-        console.log(`[HTTP ${method}] ${url}`);
-        if (body) {
-            console.log('[HTTP Body]', JSON.stringify(body, null, 2).substring(0, 200));
-        }
 
         try {
             const response = await fetch(url, {
@@ -77,8 +72,6 @@ class HttpClient {
                 ...(body && { body: JSON.stringify(body) }),
                 ...otherOptions,
             });
-
-            console.log(`[HTTP Response] Status: ${response.status}`);
 
             // Lê a resposta como texto primeiro
             const textResponse = await response.text();
@@ -92,8 +85,6 @@ class HttpClient {
                 } catch {
                     errorData = { message: textResponse || `Erro HTTP ${response.status}` };
                 }
-
-                console.log('[HTTP Error Data]', JSON.stringify(errorData, null, 2));
 
                 // Se for 401, verifica se é erro de autenticação ou sessão expirada
                 if (response.status === 401) {
@@ -131,12 +122,10 @@ class HttpClient {
             try {
                 return JSON.parse(textResponse);
             } catch (parseError) {
-                console.error('[HTTP] Erro ao parsear JSON:', textResponse.substring(0, 200));
                 throw new Error('Resposta inválida do servidor');
             }
 
         } catch (error) {
-            console.error(`[HTTP Error] ${method} ${endpoint}:`, error.message);
             throw error;
         }
     }

@@ -13,25 +13,20 @@ const apiRequest = async (endpoint, options = {}) => {
 
     try {
         const url = `${API_BASE_URL}${endpoint}`;
-        console.log('API Request:', url, fetchOptions.method || 'GET');
         
         const response = await fetch(url, {
             ...fetchOptions,
             headers,
         });
-
-        console.log('API Response Status:', response.status);
         
-        // Tentar ler como texto primeiro para debug
+        // Tentar ler como texto primeiro
         const textResponse = await response.text();
-        console.log('API Response Text:', textResponse.substring(0, 200));
         
         // Tentar parsear como JSON
         let data;
         try {
             data = JSON.parse(textResponse);
         } catch (parseError) {
-            console.error('Erro ao parsear JSON:', textResponse);
             throw new Error('Servidor retornou resposta inválida. Verifique se a API está online.');
         }
 
@@ -41,7 +36,6 @@ const apiRequest = async (endpoint, options = {}) => {
 
         return data;
     } catch (error) {
-        console.error(`API Error [${endpoint}]:`, error);
         throw error;
     }
 };

@@ -48,14 +48,12 @@ export default function ManualReceiptScreen({ navigation }) {
             setLoadingCategories(true);
             await fetchCategories();
         } catch (error) {
-            console.error('[ManualReceipt] Erro ao carregar categorias:', error);
         } finally {
             setLoadingCategories(false);
         }
     };
 
     const validateItem = () => {
-        console.log('[ManualReceipt] 🔍 Validando item:', newItem);
         
         if (!newItem.productName.trim()) {
             Alert.alert('Atenção', 'Digite o nome do produto');
@@ -63,12 +61,10 @@ export default function ManualReceiptScreen({ navigation }) {
         }
         if (!newItem.quantity || parseFloat(newItem.quantity) <= 0 || isNaN(parseFloat(newItem.quantity))) {
             Alert.alert('Atenção', 'Digite uma quantidade válida');
-            console.log('[ManualReceipt] ⚠️ Quantidade inválida:', newItem.quantity);
             return false;
         }
         if (!newItem.total || parseFloat(newItem.total) <= 0 || isNaN(parseFloat(newItem.total))) {
             Alert.alert('Atenção', 'Digite um total válido');
-            console.log('[ManualReceipt] ⚠️ Total inválido:', newItem.total);
             return false;
         }
         if (!newItem.categoryId) {
@@ -76,7 +72,6 @@ export default function ManualReceiptScreen({ navigation }) {
             return false;
         }
         
-        console.log('[ManualReceipt] ✅ Item válido');
         return true;
     };
 
@@ -98,7 +93,6 @@ export default function ManualReceiptScreen({ navigation }) {
             unitPrice: unitPrice,
         };
 
-        console.log('[ManualReceipt] ➕ Adicionando item:', item);
         setItems([...items, item]);
         
         // Reseta o formulário completamente
@@ -157,7 +151,6 @@ export default function ManualReceiptScreen({ navigation }) {
             return;
         }
 
-        console.log('[ManualReceipt] 📋 Itens a enviar:', items);
         
         // Validação de itens
         const invalidItems = items.filter(item => 
@@ -186,7 +179,6 @@ export default function ManualReceiptScreen({ navigation }) {
                          !item.categoryId ? 'Sem categoria' : 'Desconhecido'
             }));
             
-            console.log('[ManualReceipt] ⚠️ Itens com problema:', problematicItems);
             
             Alert.alert(
                 'Atenção', 
@@ -200,7 +192,6 @@ export default function ManualReceiptScreen({ navigation }) {
             setSaving(true);
             const total = calculateTotal();
             
-            console.log('[ManualReceipt] 💰 Total calculado:', total);
             
             // Formato correto da API POST /receipt
             const receiptData = {
@@ -220,14 +211,11 @@ export default function ManualReceiptScreen({ navigation }) {
                         total: parseFloat(item.total),
                         categoryId: item.categoryId,
                     };
-                    console.log('[ManualReceipt] 🔄 Item mapeado:', mappedItem);
                     return mappedItem;
                 }),
             };
 
-            console.log('[ManualReceipt] 📝 Enviando dados:', receiptData);
             const result = await createManualReceipt(receiptData);
-            console.log('[ManualReceipt] ✅ Resultado:', result);
             
             Alert.alert(
                 'Sucesso',
@@ -240,9 +228,6 @@ export default function ManualReceiptScreen({ navigation }) {
                 ]
             );
         } catch (error) {
-            console.error('[ManualReceipt] ❌ Erro completo:', error);
-            console.error('[ManualReceipt] ❌ Erro message:', error.message);
-            console.error('[ManualReceipt] ❌ Erro response:', error.response?.data);
             
             // Não mostra alert aqui pois o DataContext já mostra
             // Alert.alert('Erro', 'Não foi possível salvar a nota fiscal');

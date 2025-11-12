@@ -126,9 +126,7 @@ export default function ScanScreen({ navigation }) {
 
     try {
       // Chama o preview
-      console.log('[Scan] QR Code lido:', data);
       const previewData = await previewQRCode(data);
-      console.log('[Scan] Preview recebido');
 
       // Mostra animação de sucesso
       setShowSuccess(true);
@@ -166,7 +164,6 @@ export default function ScanScreen({ navigation }) {
       // ✨ Usa o modal bonito de erro ao invés do Alert.alert simples
       showError(error, 'Não foi possível processar a nota fiscal');
       
-      console.error('[Scan] Erro:', error);
     }
   };
 

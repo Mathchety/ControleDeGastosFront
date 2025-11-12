@@ -66,14 +66,12 @@ export default function ProfileScreen({ navigation }) {
             
             return `${month} ${year}`;
         } catch (error) {
-            console.error('Erro ao formatar data:', error);
             return 'Data não disponível';
         }
     };
     
     // Log para debug - ver quais campos estão disponíveis
     useEffect(() => {
-        console.log('[ProfileScreen] authUser completo:', JSON.stringify(authUser, null, 2));
     }, []);
     
     const [user] = useState({

@@ -26,13 +26,9 @@ export const AuthProvider = ({ children }) => {
       
       if (token) {
         // Token existe, vamos validá-lo
-        console.log('[Auth] Token encontrado, validando...');
         await validateToken();
-      } else {
-        console.log('[Auth] Nenhum token encontrado');
       }
     } catch (error) {
-      console.error('[Auth] Erro na inicialização:', error);
       await logout(); // Se falhar, faz logout
     } finally {
       setLoading(false);
@@ -46,8 +42,6 @@ export const AuthProvider = ({ children }) => {
   const validateToken = async () => {
     try {
       const response = await httpClient.get('/me');
-      
-      console.log('[Auth] Resposta do /me:', JSON.stringify(response).substring(0, 400));
 
       // Suporta várias formas que a API pode retornar:
       //  - { user: {...} }
@@ -55,18 +49,14 @@ export const AuthProvider = ({ children }) => {
       //  - { id: ..., name: ... } (direto)
       const userData = response.user || response.data || response;
 
-      console.log('[Auth] userData extraído do /me:', JSON.stringify(userData).substring(0, 400));
-
       if (userData && userData.id) {
         setUser(userData);
         setIsAuthenticated(true);
         await AsyncStorage.setItem('user', JSON.stringify(userData));
-        console.log('[Auth] Token válido, usuário autenticado:', userData.name);
       } else {
         throw new Error('Resposta inválida do /me');
       }
     } catch (error) {
-      console.error('[Auth] Token inválido:', error.message);
       await logout();
       throw error;
     }
@@ -77,7 +67,8 @@ export const AuthProvider = ({ children }) => {
    */
   const login = async (email, password) => {
     try {
-      setLoading(true);
+      // ❌ NÃO usa setLoading(true) aqui - causa navegação prematura
+      // O loading local do LoginForm é suficiente
       
       // Faz login (não requer autenticação)
       const response = await httpClient.post('/login', { email, password }, false);
@@ -89,19 +80,15 @@ export const AuthProvider = ({ children }) => {
       // Salva o token no httpClient e AsyncStorage
       httpClient.setToken(response.token);
       
-      // Salva os dados do usuário
+      // ✅ Só seta isAuthenticated DEPOIS que tudo deu certo
       setUser(response.user);
-      setIsAuthenticated(true);
       await AsyncStorage.setItem('user', JSON.stringify(response.user));
+      setIsAuthenticated(true); // Navegação só acontece aqui
       
-      console.log('[Auth] Login bem-sucedido:', response.user.name);
       return response;
       
     } catch (error) {
-      console.error('[Auth] Erro no login:', error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -110,7 +97,8 @@ export const AuthProvider = ({ children }) => {
    */
   const register = async (name, email, password) => {
     try {
-      setLoading(true);
+      // ❌ NÃO usa setLoading(true) aqui - causa navegação prematura
+      // O loading local do RegisterForm é suficiente
       
       // Faz registro (não requer autenticação)
       const response = await httpClient.post('/register', { name, email, password }, false);
@@ -122,19 +110,15 @@ export const AuthProvider = ({ children }) => {
       // Salva o token no httpClient e AsyncStorage
       httpClient.setToken(response.token);
       
-      // Salva os dados do usuário
+      // ✅ Só seta isAuthenticated DEPOIS que tudo deu certo
       setUser(response.user);
-      setIsAuthenticated(true);
       await AsyncStorage.setItem('user', JSON.stringify(response.user));
+      setIsAuthenticated(true); // Navegação só acontece aqui
       
-      console.log('[Auth] Registro bem-sucedido:', response.user.name);
       return response;
       
     } catch (error) {
-      console.error('[Auth] Erro no registro:', error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -146,9 +130,7 @@ export const AuthProvider = ({ children }) => {
       // Chama a API para invalidar o token no backend
       try {
         await httpClient.post('/logout');
-        console.log('[Auth] Token invalidado no backend');
       } catch (apiError) {
-        console.warn('[Auth] Erro ao invalidar token na API:', apiError);
         // Continua com o logout local mesmo se a API falhar
       }
       
@@ -161,10 +143,8 @@ export const AuthProvider = ({ children }) => {
       // Limpa o estado
       setUser(null);
       setIsAuthenticated(false);
-      
-      console.log('[Auth] Logout realizado');
     } catch (error) {
-      console.error('[Auth] Erro no logout:', error);
+      // Silencioso
     }
   };
 
@@ -175,10 +155,8 @@ export const AuthProvider = ({ children }) => {
     try {
       // ❌ NÃO usa setLoading aqui (causa re-render do AppNavigator)
       const response = await httpClient.post('/auth/forgot-password', { email }, false);
-      console.log('[Auth] Código de recuperação enviado para:', email);
       return response;
     } catch (error) {
-      console.error('[Auth] Erro ao solicitar recuperação:', error);
       throw error;
     }
   };
@@ -194,10 +172,8 @@ export const AuthProvider = ({ children }) => {
         token, 
         newPassword 
       }, false);
-      console.log('[Auth] Senha resetada com sucesso para:', email);
       return response;
     } catch (error) {
-      console.error('[Auth] Erro ao resetar senha:', error);
       throw error;
     }
   };
@@ -207,21 +183,17 @@ export const AuthProvider = ({ children }) => {
    */
   const updateProfile = async (name) => {
     try {
-      setLoading(true);
+      // ❌ NÃO usa setLoading(true) aqui - deixa o componente gerenciar
       const response = await httpClient.patch('/user/profile', { name });
       
-      // Atualiza o usuário localmente
+      // ✅ Só atualiza localmente DEPOIS do sucesso da API
       const updatedUser = response.user || { ...user, name };
       setUser(updatedUser);
       await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
       
-      console.log('[Auth] Perfil atualizado:', name);
       return response;
     } catch (error) {
-      console.error('[Auth] Erro ao atualizar perfil:', error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -230,15 +202,11 @@ export const AuthProvider = ({ children }) => {
    */
   const requestEmailChange = async (newEmail) => {
     try {
-      setLoading(true);
+      // ❌ NÃO usa setLoading(true) aqui - deixa o componente gerenciar
       const response = await httpClient.post('/user/request-email-change', { newEmail });
-      console.log('[Auth] Código de verificação enviado para:', newEmail);
       return response;
     } catch (error) {
-      console.error('[Auth] Erro ao solicitar troca de email:', error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -247,24 +215,20 @@ export const AuthProvider = ({ children }) => {
    */
   const confirmEmailChange = async (newEmail, token) => {
     try {
-      setLoading(true);
+      // ❌ NÃO usa setLoading(true) aqui - deixa o componente gerenciar
       const response = await httpClient.post('/user/confirm-email-change', { 
         newEmail, 
         token 
       });
       
-      // Atualiza o email do usuário localmente
+      // ✅ Só atualiza localmente DEPOIS do sucesso da API
       const updatedUser = response.user || { ...user, email: newEmail };
       setUser(updatedUser);
       await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
       
-      console.log('[Auth] Email atualizado para:', newEmail);
       return response;
     } catch (error) {
-      console.error('[Auth] Erro ao confirmar troca de email:', error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -277,10 +241,8 @@ export const AuthProvider = ({ children }) => {
         currentPassword, 
         newPassword 
       });
-      console.log('[Auth] Senha alterada com sucesso');
       return response;
     } catch (error) {
-      console.error('[Auth] Erro ao alterar senha:', error);
       throw error;
     }
   };

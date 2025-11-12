@@ -40,7 +40,6 @@ export const useAndroidNavigationBar = () => {
       await NavigationBar.setBehaviorAsync('overlay-swipe');
       
     } catch (error) {
-      console.log('Erro ao configurar Navigation Bar:', error);
     }
   };
 };

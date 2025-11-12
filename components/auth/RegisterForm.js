@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { PrimaryButton } from '../buttons';
 import { Input } from '../inputs';
 import { LoadingModal } from '../modals';
+import { moderateScale } from '../../utils/responsive';
 
 /**
  * Formulário de Registro
@@ -17,6 +18,17 @@ export const RegisterForm = ({ onSuccess }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
+
+    const scrollRef = useRef(null);
+
+    const scrollToInput = (index) => {
+        // Offset maior para garantir que o input fique bem visível acima do teclado
+        // Aumentado para compensar o header menor
+        const baseOffset = moderateScale(150); // Aumentado de 120 para 150
+        const additionalOffset = Platform.OS === 'android' ? 80 : 60; // Aumentado
+        const y = Math.max(0, (index * baseOffset) - additionalOffset);
+        scrollRef.current?.scrollTo({ y, animated: true });
+    };
 
     const handleRegister = async () => {
         setErrorMessage(''); // Limpa mensagem de erro anterior
@@ -50,59 +62,77 @@ export const RegisterForm = ({ onSuccess }) => {
     return (
         <>
             <LoadingModal visible={loading} message="Criando conta..." />
-            <View style={styles.formContainer}>
-                <View style={styles.iconContainer}>
-                    <Ionicons name="person-add" size={50} color="#007bff" />
-                </View>
-                
-                <Text style={styles.formTitle}>Criar Conta</Text>
-                <Text style={styles.formSubtitle}>Junte-se a nós hoje!</Text>
-                
-                {/* Mensagem de Erro */}
-                {errorMessage ? (
-                    <View style={styles.errorContainer}>
-                        <Ionicons name="alert-circle" size={20} color="#ef4444" />
-                        <Text style={styles.errorText}>{errorMessage}</Text>
+
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+            >
+                <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+                    <View style={styles.formContainer}>
+                        <View style={styles.iconContainer}>
+                            <Ionicons name="person-add" size={50} color="#007bff" />
+                        </View>
+
+                        <Text style={styles.formTitle}>Criar Conta</Text>
+                        <Text style={styles.formSubtitle}>Junte-se a nós hoje!</Text>
+
+                        {/* Mensagem de Erro */}
+                        {errorMessage ? (
+                            <View style={styles.errorContainer}>
+                                <Ionicons name="alert-circle" size={20} color="#ef4444" />
+                                <Text style={styles.errorText}>{errorMessage}</Text>
+                            </View>
+                        ) : null}
+
+                        <Input
+                            icon="person-outline"
+                            placeholder="Nome completo"
+                            value={name}
+                            onChangeText={setName}
+                            onFocus={() => scrollToInput(0)}
+                        />
+
+                        <Input
+                            icon="mail-outline"
+                            placeholder="E-mail"
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            value={email}
+                            onChangeText={setEmail}
+                            onFocus={() => scrollToInput(1)}
+                        />
+
+                        <Input
+                            icon="lock-closed-outline"
+                            placeholder="Senha (mín. 6 caracteres)"
+                            secureTextEntry
+                            value={password}
+                            onChangeText={setPassword}
+                            onFocus={() => scrollToInput(2)}
+                        />
+
+                        <PrimaryButton
+                            title="Registrar"
+                            icon="arrow-forward"
+                            onPress={handleRegister}
+                            loading={loading}
+                            colors={['#007bff', '#0056b3']}
+                        />
                     </View>
-                ) : null}
-                
-                <Input
-                    icon="person-outline"
-                    placeholder="Nome completo"
-                    value={name}
-                    onChangeText={setName}
-                />
-
-                <Input
-                    icon="mail-outline"
-                    placeholder="E-mail"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    value={email}
-                    onChangeText={setEmail}
-                />
-
-                <Input
-                    icon="lock-closed-outline"
-                    placeholder="Senha (mín. 6 caracteres)"
-                    secureTextEntry
-                    value={password}
-                    onChangeText={setPassword}
-                />
-
-                <PrimaryButton
-                    title="Registrar"
-                    icon="arrow-forward"
-                    onPress={handleRegister}
-                    loading={loading}
-                    colors={['#007bff', '#0056b3']}
-                />
-            </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
         </>
     );
 };
 
 const styles = StyleSheet.create({
+    scrollContent: {
+        flexGrow: 1,
+        justifyContent: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 24,
+    },
     formContainer: {
         backgroundColor: '#fff',
         borderRadius: 25,

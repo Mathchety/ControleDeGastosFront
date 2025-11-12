@@ -48,7 +48,6 @@ const CategoriesSectionComponent = () => {
 
     // ⚡ Função para mudar filtro que atualiza tanto o estado local quanto o global
     const changeFilterPeriod = (newFilter) => {
-        console.log('[CategoriesSection] changeFilterPeriod chamado com:', newFilter);
         
         // ⚡ Só atualiza globalCurrentFilter, NÃO atualiza globalLastFilter ainda
         // O useEffect vai detectar a mudança e atualizar globalLastFilter
@@ -59,15 +58,12 @@ const CategoriesSectionComponent = () => {
     // ✅ Carrega dados APENAS na primeira montagem GLOBAL
     useEffect(() => {
         if (!globalHasLoaded) {
-            console.log('[CategoriesSection] Primeira montagem GLOBAL - carregando dados');
             globalHasLoaded = true;
             globalLastFilter = filterPeriod;
             loadGraphData();
         } else {
-            console.log('[CategoriesSection] Remontagem detectada - verificando filtro (global:', globalCurrentFilter, 'local:', filterPeriod, ')');
             // ⚡ Se na remontagem o filtro local for diferente do global, sincroniza
             if (filterPeriod !== globalCurrentFilter) {
-                console.log('[CategoriesSection] Sincronizando filtro na remontagem:', globalCurrentFilter);
                 setFilterPeriod(globalCurrentFilter);
             }
         }
@@ -76,12 +72,10 @@ const CategoriesSectionComponent = () => {
     // ✅ Recarrega quando trocar filtro (mas não na primeira vez)
     useEffect(() => {
         if (globalHasLoaded && globalLastFilter !== filterPeriod) {
-            console.log('[CategoriesSection] Filtro REALMENTE mudou de', globalLastFilter, 'para:', filterPeriod);
             globalLastFilter = filterPeriod;
             globalCurrentFilter = filterPeriod;
             loadGraphData();
         } else if (globalHasLoaded && globalLastFilter === filterPeriod) {
-            console.log('[CategoriesSection] Filtro', filterPeriod, 'já é o mesmo - IGNORANDO');
         }
     }, [filterPeriod]);
 
@@ -89,11 +83,9 @@ const CategoriesSectionComponent = () => {
     useEffect(() => {
         // ⚡ Só recarrega se o estado REALMENTE mudou de true para false
         if (globalLastProcessingState === true && isProcessingReceipt === false && globalHasLoaded) {
-            console.log('[CategoriesSection] Processamento FINALIZADO - recarregando dados');
             globalLastProcessingState = isProcessingReceipt;
             loadGraphData();
         } else {
-            console.log('[CategoriesSection] isProcessingReceipt:', isProcessingReceipt, '(anterior:', globalLastProcessingState, ') - IGNORANDO');
             globalLastProcessingState = isProcessingReceipt;
         }
     }, [isProcessingReceipt]);
@@ -102,7 +94,6 @@ const CategoriesSectionComponent = () => {
     useFocusEffect(
         useCallback(() => {
             if (globalHasLoaded) {
-                console.log('[CategoriesSection] Tela ganhou foco - recarregando dados');
                 loadGraphData();
             }
         }, [])
@@ -111,7 +102,6 @@ const CategoriesSectionComponent = () => {
     const loadGraphData = async () => {
         // ⚡ Previne múltiplas chamadas simultâneas GLOBALMENTE
         if (globalIsLoading) {
-            console.log('[CategoriesSection] Já está carregando GLOBALMENTE, ignorando chamada duplicada');
             return;
         }
 
