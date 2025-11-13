@@ -20,112 +20,96 @@ const COLORS = [
     '#f5af19', '#f12711', '#5f72bd', '#9921e8'
 ];
 
-// ⚡ Estado global para prevenir remontagens causarem loops
-let globalIsLoading = false;
-let globalHasLoaded = false;
-let globalLastFilter = 'month'; // ⚡ Rastreia último filtro usado
-let globalLastProcessingState = null; // ⚡ Rastreia último estado de processamento
-let globalCurrentFilter = 'month'; // ⚡ Filtro global que persiste entre remontagens
-
 const CategoriesSectionComponent = () => {
     const navigation = useNavigation();
     const { fetchCategoriesGraph, isProcessingReceipt } = useData();
-    const scrollViewRef = useRef(null); // ✨ Ref para ScrollView
-    const isLoadingRef = useRef(false); // ⚡ Ref para prevenir múltiplas chamadas simultâneas
+    const scrollViewRef = useRef(null);
+    const isLoadingRef = useRef(false);
+    const hasInitialLoadRef = useRef(false); // ⚡ Controla se já fez a primeira carga
+    const lastProcessingStateRef = useRef(null); // ⚡ Rastreia último estado de processamento
     const [graphData, setGraphData] = useState([]);
     const [allCategories, setAllCategories] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [filterLoading, setFilterLoading] = useState(false); // ⚡ Loading para trocar filtros
-    const [filterPeriod, setFilterPeriod] = useState(globalCurrentFilter); // ⚡ Inicializa com o filtro global
-    const [customDateModalVisible, setCustomDateModalVisible] = useState(false); // ✨ Modal para período customizado
-    const [showStartPicker, setShowStartPicker] = useState(false); // ✨ Controla picker de data inicial
-    const [showEndPicker, setShowEndPicker] = useState(false); // ✨ Controla picker de data final
-    const [tempStartDate, setTempStartDate] = useState(new Date()); // ✨ Data temporária
-    const [tempEndDate, setTempEndDate] = useState(new Date()); // ✨ Data temporária
+    const [filterLoading, setFilterLoading] = useState(false);
+    const [filterPeriod, setFilterPeriod] = useState('month'); // ⚡ Sempre começa com 'month'
+    const [customDateModalVisible, setCustomDateModalVisible] = useState(false);
+    const [showStartPicker, setShowStartPicker] = useState(false);
+    const [showEndPicker, setShowEndPicker] = useState(false);
+    const [tempStartDate, setTempStartDate] = useState(new Date());
+    const [tempEndDate, setTempEndDate] = useState(new Date());
     const [startDate, setStartDate] = useState(new Date());
     const [endDate, setEndDate] = useState(new Date());
 
-    // ⚡ Função para mudar filtro que atualiza tanto o estado local quanto o global
-    const changeFilterPeriod = (newFilter) => {
+    // ✅ Carrega dados na primeira montagem
+    useEffect(() => {
+        console.log('[CategoriesSection] useEffect inicial - hasInitialLoadRef:', hasInitialLoadRef.current);
         
-        // ⚡ Só atualiza globalCurrentFilter, NÃO atualiza globalLastFilter ainda
-        // O useEffect vai detectar a mudança e atualizar globalLastFilter
-        globalCurrentFilter = newFilter;
-        setFilterPeriod(newFilter);
-    };
-
-    // ✅ Carrega dados APENAS na primeira montagem GLOBAL
-    useEffect(() => {
-        if (!globalHasLoaded) {
-            globalHasLoaded = true;
-            globalLastFilter = filterPeriod;
+        if (!hasInitialLoadRef.current) {
+            hasInitialLoadRef.current = true;
+            console.log('[CategoriesSection] Primeira carga com filtro:', filterPeriod);
             loadGraphData();
-        } else {
-            // ⚡ Se na remontagem o filtro local for diferente do global, sincroniza
-            if (filterPeriod !== globalCurrentFilter) {
-                setFilterPeriod(globalCurrentFilter);
-            }
         }
-    }, []); // ⚡ Array vazio - só roda na montagem
+    }, []);
 
-    // ✅ Recarrega quando trocar filtro (mas não na primeira vez)
+    // ✅ Recarrega quando trocar filtro
     useEffect(() => {
-        if (globalHasLoaded && globalLastFilter !== filterPeriod) {
-            globalLastFilter = filterPeriod;
-            globalCurrentFilter = filterPeriod;
+        if (hasInitialLoadRef.current) {
+            console.log('[CategoriesSection] Filtro mudou para:', filterPeriod);
             loadGraphData();
-        } else if (globalHasLoaded && globalLastFilter === filterPeriod) {
         }
     }, [filterPeriod]);
 
     // ✅ Recarrega o gráfico quando a notificação de processamento desaparecer
     useEffect(() => {
+        console.log('[CategoriesSection] useEffect isProcessingReceipt - lastState:', lastProcessingStateRef.current, '-> current:', isProcessingReceipt);
+        
         // ⚡ Só recarrega se o estado REALMENTE mudou de true para false
-        if (globalLastProcessingState === true && isProcessingReceipt === false && globalHasLoaded) {
-            globalLastProcessingState = isProcessingReceipt;
+        if (lastProcessingStateRef.current === true && isProcessingReceipt === false && hasInitialLoadRef.current) {
+            console.log('[CategoriesSection] Processamento finalizado - recarregando gráfico');
             loadGraphData();
-        } else {
-            globalLastProcessingState = isProcessingReceipt;
         }
+        
+        lastProcessingStateRef.current = isProcessingReceipt;
     }, [isProcessingReceipt]);
 
     // ✅ Recarrega dados quando a tela ganhar foco (ex: voltar de adicionar nota manual)
     useFocusEffect(
         useCallback(() => {
-            if (globalHasLoaded) {
+            console.log('[CategoriesSection] useFocusEffect - tela ganhou foco, hasInitialLoad:', hasInitialLoadRef.current);
+            if (hasInitialLoadRef.current) {
+                console.log('[CategoriesSection] Recarregando por focus');
                 loadGraphData();
             }
         }, [])
     );
 
     const loadGraphData = async () => {
-        // ⚡ Previne múltiplas chamadas simultâneas GLOBALMENTE
-        if (globalIsLoading) {
+        // ⚡ Previne múltiplas chamadas simultâneas
+        if (isLoadingRef.current) {
+            console.log('[CategoriesSection] loadGraphData - JÁ ESTÁ CARREGANDO, ignorando');
             return;
         }
 
+        console.log('[CategoriesSection] loadGraphData - INICIANDO com filtro:', filterPeriod);
+
         try {
-            globalIsLoading = true;
             isLoadingRef.current = true;
-            setFilterLoading(true); // ⚡ Ativa loading ao trocar filtro
+            setFilterLoading(true);
             let start, end;
             const today = new Date();
 
             switch (filterPeriod) {
                 case 'week':
-                    // Semana atual (últimos 7 dias a partir de hoje)
                     end = new Date();
                     start = new Date();
                     start.setDate(today.getDate() - 7);
                     break;
                 case 'month':
-                    // Mês atual (do dia 1 até hoje)
                     end = new Date();
                     start = new Date(today.getFullYear(), today.getMonth(), 1);
                     break;
                 case 'all':
-                    // Pega data desde 1999 para incluir tudo
                     start = new Date(1999, 0, 1);
                     end = new Date();
                     break;
@@ -138,16 +122,19 @@ const CategoriesSectionComponent = () => {
                     start = new Date(today.getFullYear(), today.getMonth(), 1);
             }
 
+            console.log('[CategoriesSection] Buscando dados de', start.toLocaleDateString(), 'até', end.toLocaleDateString());
+            
             const graphResponse = await fetchCategoriesGraph(start, end);
+            console.log('[CategoriesSection] Dados recebidos:', graphResponse?.length || 0, 'categorias');
+            
             setGraphData(graphResponse || []);
-            // Atualiza também as categorias do modal com os mesmos dados
             setAllCategories(graphResponse || []);
         } catch (error) {
-            // Erro já tratado no DataContext
+            console.error('[CategoriesSection] Erro ao carregar gráfico:', error);
         } finally {
-            setFilterLoading(false); // ⚡ Desativa loading
+            setFilterLoading(false);
             isLoadingRef.current = false;
-            globalIsLoading = false;
+            console.log('[CategoriesSection] loadGraphData - FINALIZADO');
         }
     };
 
@@ -170,10 +157,8 @@ const CategoriesSectionComponent = () => {
     const handleApplyCustomPeriod = () => {
         setStartDate(tempStartDate);
         setEndDate(tempEndDate);
-        changeFilterPeriod('custom'); // ⚡ Usa função wrapper
+        setFilterPeriod('custom');
         setCustomDateModalVisible(false);
-        // ⚡ Força reload após aplicar período customizado
-        setTimeout(() => loadGraphData(), 100);
     };
 
     // ✨ Cancela seleção de período customizado
@@ -262,7 +247,7 @@ const CategoriesSectionComponent = () => {
                 <View style={styles.filtersRow}>
                     <TouchableOpacity
                         style={[styles.filterChip, filterPeriod === 'week' && styles.filterChipActive]}
-                        onPress={() => changeFilterPeriod('week')}
+                        onPress={() => setFilterPeriod('week')}
                     >
                         <Text style={[styles.filterChipText, filterPeriod === 'week' && styles.filterChipTextActive]}>
                             Semana
@@ -271,7 +256,7 @@ const CategoriesSectionComponent = () => {
                     
                     <TouchableOpacity
                         style={[styles.filterChip, filterPeriod === 'month' && styles.filterChipActive]}
-                        onPress={() => changeFilterPeriod('month')}
+                        onPress={() => setFilterPeriod('month')}
                     >
                         <Text style={[styles.filterChipText, filterPeriod === 'month' && styles.filterChipTextActive]}>
                             Mês
@@ -280,7 +265,7 @@ const CategoriesSectionComponent = () => {
                     
                     <TouchableOpacity
                         style={[styles.filterChip, filterPeriod === 'all' && styles.filterChipActive]}
-                        onPress={() => changeFilterPeriod('all')}
+                        onPress={() => setFilterPeriod('all')}
                     >
                         <Text style={[styles.filterChipText, filterPeriod === 'all' && styles.filterChipTextActive]}>
                             Tudo
