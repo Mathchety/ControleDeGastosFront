@@ -28,6 +28,8 @@ export default function PreViewScreen({ route, navigation }) {
     const [isReadOnly, setIsReadOnly] = useState(false);
     const [isOpening, setIsOpening] = useState(false); // ⚡ Previne múltiplos cliques
     const [isInitializing, setIsInitializing] = useState(!receivedData); // ✨ Mostra skeleton na inicialização
+    const [hasModifications, setHasModifications] = useState(false); // ✨ Controla se houve alterações
+    const [originalData, setOriginalData] = useState(null); // ✨ Dados originais para comparação
     
     // Animação do header ao rolar
     const scrollY = useRef(new Animated.Value(0)).current;
@@ -75,6 +77,8 @@ export default function PreViewScreen({ route, navigation }) {
             
             const data = await fetchReceiptById(receiptId);
             setPreviewData(data);
+            setOriginalData(JSON.parse(JSON.stringify(data))); // ✨ Salva cópia dos dados originais
+            setHasModifications(false); // ✨ Reseta modificações
         } catch (error) {
             Alert.alert(
                 'Erro',
@@ -138,6 +142,11 @@ export default function PreViewScreen({ route, navigation }) {
                 itemsCount: updatedItems.filter(i => !i.deleted).length,
             };
         });
+        
+        // ✨ Marca que houve modificação (só se for nota do histórico)
+        if (receiptId) {
+            setHasModifications(true);
+        }
     };
 
     const handleDeleteItem = (itemIndex) => {
@@ -173,6 +182,11 @@ export default function PreViewScreen({ route, navigation }) {
                                 itemsCount: updatedItems.filter(i => !i.deleted).length,
                             };
                         });
+                        
+                        // ✨ Marca que houve modificação (só se for nota do histórico)
+                        if (receiptId) {
+                            setHasModifications(true);
+                        }
                     }
                 }
             ]
@@ -337,8 +351,9 @@ export default function PreViewScreen({ route, navigation }) {
                     )}
                 </Animated.ScrollView>
 
-                {/* Botão confirmar - FIXO NA PARTE INFERIOR - Só mostra se NÃO for readonly */}
-                {!isReadOnly && (
+                {/* Botão confirmar - FIXO NA PARTE INFERIOR */}
+                {/* Mostra se for nova nota (sem receiptId) OU se houver modificações */}
+                {(!receiptId || hasModifications) && (
                     <View style={styles.fixedButtonContainer}>
                         <ConfirmButton 
                             onPress={handleConfirm}

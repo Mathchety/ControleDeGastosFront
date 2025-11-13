@@ -3,8 +3,7 @@ import {
     View, 
     Text, 
     StyleSheet, 
-    KeyboardAvoidingView, 
-    ScrollView,
+    KeyboardAvoidingView,
     Platform,
     Alert,
     Dimensions,
@@ -237,19 +236,11 @@ const AuthScreen = ({ navigation }) => {
     const [isRegister, setIsRegister] = useState(false);
     const [keyboardVisible, setKeyboardVisible] = useState(false);
     const headerHeight = useRef(new Animated.Value(1)).current; // 1 = tamanho normal, 0 = pequeno
-    const scrollViewRef = useRef(null);
 
     const handleSuccess = useCallback(() => {
         // Não precisa navegar manualmente - o AppNavigator faz isso automaticamente
         // quando isAuthenticated muda para true
     }, []);
-
-    // Garante que a tela começa no topo
-    useEffect(() => {
-        if (scrollViewRef.current) {
-            scrollViewRef.current.scrollTo({ y: 0, animated: false });
-        }
-    }, [isRegister]);
 
     useEffect(() => {
         const keyboardDidShowListener = Keyboard.addListener(
@@ -283,30 +274,35 @@ const AuthScreen = ({ navigation }) => {
         };
     }, []);
 
-    // Interpolações para animar o header - OTIMIZADAS para ganhar máximo espaço
+    // Interpolações para animar o header - Comprime ao máximo quando teclado abre
     const headerPaddingTop = headerHeight.interpolate({
         inputRange: [0, 1],
-        outputRange: [moderateScale(5), moderateScale(60)], // Reduzido de 8 para 5
+        outputRange: [moderateScale(0), moderateScale(60)], // 0 padding no teclado
     });
 
     const headerPaddingBottom = headerHeight.interpolate({
         inputRange: [0, 1],
-        outputRange: [moderateScale(5), moderateScale(30)], // Reduzido de 8 para 5
+        outputRange: [moderateScale(0), moderateScale(30)], // 0 padding no teclado
     });
 
-    const logoScale = headerHeight.interpolate({
+    const logoOpacity = headerHeight.interpolate({
         inputRange: [0, 1],
         outputRange: [0, 1], // Logo desaparece completamente
     });
 
-    const titleFontSize = headerHeight.interpolate({
+    const titleOpacity = headerHeight.interpolate({
         inputRange: [0, 1],
-        outputRange: [moderateScale(16), moderateScale(28)], // Reduzido de 18 para 16
+        outputRange: [0, 1], // Título desaparece
     });
 
     const subtitleOpacity = headerHeight.interpolate({
         inputRange: [0, 1],
         outputRange: [0, 1],
+    });
+
+    const headerMinHeight = headerHeight.interpolate({
+        inputRange: [0, 1],
+        outputRange: [moderateScale(30), moderateScale(200)], // Header comprime totalmente
     });
 
     return (
@@ -322,68 +318,59 @@ const AuthScreen = ({ navigation }) => {
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
                 enabled={true}
             >
-                {/* Header com gradiente - Estilo HomeHeader */}
-                <LinearGradient
-                    colors={['#667eea', '#764ba2']}
-                    style={styles.header}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                >
-                    <Animated.View
-                        style={[
-                            styles.headerContent,
-                            {
-                                paddingTop: headerPaddingTop,
-                                paddingBottom: headerPaddingBottom,
-                            }
-                        ]}
+                {/* Header com gradiente - Comprime quando teclado abre */}
+                <Animated.View style={{ minHeight: headerMinHeight }}>
+                    <LinearGradient
+                        colors={['#667eea', '#764ba2']}
+                        style={styles.header}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
                     >
-                        {/* Logo - Escala suave */}
-                        <Animated.View 
-                            style={{ 
-                                transform: [{ scale: logoScale }],
-                                alignItems: 'center',
-                                marginBottom: moderateScale(12),
-                            }}
+                        <Animated.View
+                            style={[
+                                styles.headerContent,
+                                {
+                                    paddingTop: headerPaddingTop,
+                                    paddingBottom: headerPaddingBottom,
+                                }
+                            ]}
                         >
-                            <FinansyncLogoSimple size={70} />
+                            {/* Logo - Some completamente */}
+                            <Animated.View 
+                                style={{ 
+                                    opacity: logoOpacity,
+                                    alignItems: 'center',
+                                    marginBottom: moderateScale(12),
+                                }}
+                            >
+                                <FinansyncLogoSimple size={70} />
+                            </Animated.View>
+                            
+                            {/* Título - Some completamente */}
+                            <Animated.Text 
+                                style={[
+                                    styles.headerTitle,
+                                    { opacity: titleOpacity }
+                                ]}
+                            >
+                                Finansync
+                            </Animated.Text>
+                            
+                            {/* Subtítulo - Some quando teclado abre */}
+                            <Animated.Text
+                                style={[
+                                    styles.headerSubtitle,
+                                    { opacity: subtitleOpacity }
+                                ]}
+                            >
+                                Sincronize suas finanças com inteligência
+                            </Animated.Text>
                         </Animated.View>
-                        
-                        {/* Título */}
-                        <Animated.Text 
-                            style={[
-                                styles.headerTitle,
-                                { fontSize: titleFontSize }
-                            ]}
-                        >
-                            Finansync
-                        </Animated.Text>
-                        
-                        {/* Subtítulo - Some quando teclado abre */}
-                        <Animated.Text
-                            style={[
-                                styles.headerSubtitle,
-                                { opacity: subtitleOpacity }
-                            ]}
-                        >
-                            Sincronize suas finanças com inteligência
-                        </Animated.Text>
-                    </Animated.View>
-                </LinearGradient>
+                    </LinearGradient>
+                </Animated.View>
 
-                {/* Formulário */}
-                <ScrollView 
-                    ref={scrollViewRef}
-                    style={styles.scrollView}
-                    contentContainerStyle={styles.content}
-                    keyboardShouldPersistTaps="handled"
-                    showsVerticalScrollIndicator={false}
-                    bounces={true}
-                    scrollEnabled={true}
-                    keyboardDismissMode="on-drag"
-                    automaticallyAdjustContentInsets={false}
-                    contentInsetAdjustmentBehavior="never"
-                >
+                {/* Formulário - View fixa ao invés de ScrollView */}
+                <View style={styles.formWrapper}>
                     <AnimatedForm 
                         key={isRegister ? 'register' : 'login'} 
                         isRegisterView={isRegister} 
@@ -402,7 +389,7 @@ const AuthScreen = ({ navigation }) => {
                             </Text>
                         </TouchableOpacity>
                     </View>
-                </ScrollView>
+                </View>
             </KeyboardAvoidingView>
         </View>
     );
@@ -416,8 +403,11 @@ const styles = StyleSheet.create({
     keyboardView: {
         flex: 1,
     },
-    scrollView: {
+    formWrapper: {
         flex: 1,
+        justifyContent: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: moderateScale(20),
     },
     header: {
         paddingHorizontal: theme.spacing.lg,
@@ -437,12 +427,6 @@ const styles = StyleSheet.create({
         color: 'rgba(255, 255, 255, 0.9)',
         textAlign: 'center',
         marginTop: moderateScale(6),
-    },
-    content: {
-        flexGrow: 1,
-        paddingHorizontal: 20,
-        paddingTop: moderateScale(20), // Reduzido de 40 para 20
-        paddingBottom: Platform.OS === 'android' ? 200 : 150,
     },
     formContainer: {
         backgroundColor: '#fff',

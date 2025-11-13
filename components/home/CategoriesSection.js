@@ -25,14 +25,14 @@ const CategoriesSectionComponent = () => {
     const { fetchCategoriesGraph, isProcessingReceipt } = useData();
     const scrollViewRef = useRef(null);
     const isLoadingRef = useRef(false);
-    const hasInitialLoadRef = useRef(false); // ⚡ Controla se já fez a primeira carga
-    const lastProcessingStateRef = useRef(null); // ⚡ Rastreia último estado de processamento
+    const hasInitialLoadRef = useRef(false);
+    const lastProcessingStateRef = useRef(null);
     const [graphData, setGraphData] = useState([]);
     const [allCategories, setAllCategories] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
     const [loading, setLoading] = useState(false);
     const [filterLoading, setFilterLoading] = useState(false);
-    const [filterPeriod, setFilterPeriod] = useState('month'); // ⚡ Sempre começa com 'month'
+    const [filterPeriod, setFilterPeriod] = useState('month');
     const [customDateModalVisible, setCustomDateModalVisible] = useState(false);
     const [showStartPicker, setShowStartPicker] = useState(false);
     const [showEndPicker, setShowEndPicker] = useState(false);
@@ -41,51 +41,8 @@ const CategoriesSectionComponent = () => {
     const [startDate, setStartDate] = useState(new Date());
     const [endDate, setEndDate] = useState(new Date());
 
-    // ✅ Carrega dados na primeira montagem
-    useEffect(() => {
-        console.log('[CategoriesSection] useEffect inicial - hasInitialLoadRef:', hasInitialLoadRef.current);
-        
-        if (!hasInitialLoadRef.current) {
-            hasInitialLoadRef.current = true;
-            console.log('[CategoriesSection] Primeira carga com filtro:', filterPeriod);
-            loadGraphData();
-        }
-    }, []);
-
-    // ✅ Recarrega quando trocar filtro
-    useEffect(() => {
-        if (hasInitialLoadRef.current) {
-            console.log('[CategoriesSection] Filtro mudou para:', filterPeriod);
-            loadGraphData();
-        }
-    }, [filterPeriod]);
-
-    // ✅ Recarrega o gráfico quando a notificação de processamento desaparecer
-    useEffect(() => {
-        console.log('[CategoriesSection] useEffect isProcessingReceipt - lastState:', lastProcessingStateRef.current, '-> current:', isProcessingReceipt);
-        
-        // ⚡ Só recarrega se o estado REALMENTE mudou de true para false
-        if (lastProcessingStateRef.current === true && isProcessingReceipt === false && hasInitialLoadRef.current) {
-            console.log('[CategoriesSection] Processamento finalizado - recarregando gráfico');
-            loadGraphData();
-        }
-        
-        lastProcessingStateRef.current = isProcessingReceipt;
-    }, [isProcessingReceipt]);
-
-    // ✅ Recarrega dados quando a tela ganhar foco (ex: voltar de adicionar nota manual)
-    useFocusEffect(
-        useCallback(() => {
-            console.log('[CategoriesSection] useFocusEffect - tela ganhou foco, hasInitialLoad:', hasInitialLoadRef.current);
-            if (hasInitialLoadRef.current) {
-                console.log('[CategoriesSection] Recarregando por focus');
-                loadGraphData();
-            }
-        }, [])
-    );
-
-    const loadGraphData = async () => {
-        // ⚡ Previne múltiplas chamadas simultâneas
+    // ✅ Função para carregar dados do gráfico
+    const loadGraphData = useCallback(async () => {
         if (isLoadingRef.current) {
             console.log('[CategoriesSection] loadGraphData - JÁ ESTÁ CARREGANDO, ignorando');
             return;
@@ -136,13 +93,52 @@ const CategoriesSectionComponent = () => {
             isLoadingRef.current = false;
             console.log('[CategoriesSection] loadGraphData - FINALIZADO');
         }
-    };
+    }, [filterPeriod, startDate, endDate]); // ⚡ Remove fetchCategoriesGraph das dependências
+
+    // ✅ Carrega dados na primeira montagem
+    useEffect(() => {
+        console.log('[CategoriesSection] useEffect inicial - hasInitialLoadRef:', hasInitialLoadRef.current);
+        
+        if (!hasInitialLoadRef.current) {
+            hasInitialLoadRef.current = true;
+            console.log('[CategoriesSection] Primeira carga com filtro:', filterPeriod);
+            loadGraphData();
+        }
+    }, []); // ⚡ Array vazio - só na montagem
+
+    // ✅ Recarrega quando trocar filtro
+    useEffect(() => {
+        if (hasInitialLoadRef.current) {
+            console.log('[CategoriesSection] Filtro mudou para:', filterPeriod);
+            loadGraphData();
+        }
+    }, [filterPeriod, startDate, endDate]); // ⚡ Não inclui loadGraphData
+
+    // ✅ Recarrega o gráfico quando a notificação de processamento desaparecer
+    useEffect(() => {
+        console.log('[CategoriesSection] useEffect isProcessingReceipt - lastState:', lastProcessingStateRef.current, '-> current:', isProcessingReceipt);
+        
+        if (lastProcessingStateRef.current === true && isProcessingReceipt === false && hasInitialLoadRef.current) {
+            console.log('[CategoriesSection] Processamento finalizado - recarregando gráfico');
+            loadGraphData();
+        }
+        
+        lastProcessingStateRef.current = isProcessingReceipt;
+    }, [isProcessingReceipt]); // ⚡ Não inclui loadGraphData
+
+    // ✅ Recarrega dados quando a tela ganhar foco (ex: voltar de adicionar nota manual)
+    useFocusEffect(
+        useCallback(() => {
+            console.log('[CategoriesSection] useFocusEffect - tela ganhou foco, hasInitialLoad:', hasInitialLoadRef.current);
+            if (hasInitialLoadRef.current) {
+                console.log('[CategoriesSection] Recarregando por focus');
+                loadGraphData();
+            }
+        }, [filterPeriod, startDate, endDate]) // ⚡ Não inclui loadGraphData
+    );
 
     const handleCategoryPress = (category) => {
-        // ⚡ Fecha o modal se estiver aberto
         setModalVisible(false);
-        
-        // ⚡ Navegação direta para CategoryDetails (mesmo componente usado na tela de categorias)
         navigation.navigate('CategoryDetails', { category });
     };
 
