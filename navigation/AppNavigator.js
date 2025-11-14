@@ -81,6 +81,20 @@ export default function AppNavigator() {
               cardStyle: { backgroundColor: '#f8f9fa' },
             }}
           />
+          <Stack.Screen 
+            name="ForgotPassword" 
+            component={ForgotPasswordScreen}
+            options={{
+              cardStyle: { backgroundColor: '#fff' },
+            }}
+          />
+          <Stack.Screen 
+            name="ResetPassword" 
+            component={ResetPasswordScreen}
+            options={{
+              cardStyle: { backgroundColor: '#fff' },
+            }}
+          />
         </>
       ) : (
         <>

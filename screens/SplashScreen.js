@@ -7,11 +7,17 @@ import { moderateScale } from '../utils/responsive';
 export default function SplashScreen({ onFinish }) {
     const scaleAnim = useRef(new Animated.Value(0)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
-    const spinValue = useRef(new Animated.Value(0)).current;
+    const pulseValue = useRef(new Animated.Value(1)).current;
+    const animationRef = useRef(null);
 
     useEffect(() => {
+        // Resetar valores de animação
+        scaleAnim.setValue(0);
+        fadeAnim.setValue(0);
+        pulseValue.setValue(1);
+
         // Animação em sequência
-        Animated.sequence([
+        const anim = Animated.sequence([
             // 1. Ícone aparece com escala
             Animated.parallel([
                 Animated.spring(scaleAnim, {
@@ -28,24 +34,39 @@ export default function SplashScreen({ onFinish }) {
             ]),
             // 2. Pequena pausa
             Animated.delay(300),
-            // 3. Rotação sutil
-            Animated.timing(spinValue, {
-                toValue: 1,
-                duration: 600,
-                useNativeDriver: true,
-            }),
-        ]).start(() => {
+            // 3. Pulse (pulsação) ao invés de rotação
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(pulseValue, {
+                        toValue: 1.1,
+                        duration: 600,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(pulseValue, {
+                        toValue: 1,
+                        duration: 600,
+                        useNativeDriver: true,
+                    }),
+                ])
+            ),
+        ]);
+
+        animationRef.current = anim;
+
+        anim.start(() => {
             // Aguarda mais um pouco antes de finalizar
             setTimeout(() => {
                 if (onFinish) onFinish();
             }, 500);
         });
-    }, []);
 
-    const spin = spinValue.interpolate({
-        inputRange: [0, 1],
-        outputRange: ['0deg', '360deg'],
-    });
+        // Cleanup ao desmontar
+        return () => {
+            if (animationRef.current) {
+                animationRef.current.stop();
+            }
+        };
+    }, [onFinish, scaleAnim, fadeAnim, pulseValue]);
 
     return (
         <View style={styles.container}>
@@ -61,12 +82,12 @@ export default function SplashScreen({ onFinish }) {
                             opacity: fadeAnim,
                             transform: [
                                 { scale: scaleAnim },
-                                { rotate: spin },
+                                { scale: pulseValue }, // Pulse ao invés de rotate
                             ],
                         },
                     ]}
                 >
-                    <FinansyncLogo size={120} showCircle={false} />
+                    <FinansyncLogo size={160} showCircle={false} />
                 </Animated.View>
 
                 <Animated.View style={{ opacity: fadeAnim }}>

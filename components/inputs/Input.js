@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
-import { View, TextInput, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import React, { useState, forwardRef } from 'react';
+import { View, TextInput, Text, StyleSheet, TouchableOpacity, Animated, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { moderateScale, fontScale } from '../../utils/responsive';
 import { theme } from '../../utils/theme';
 
-export const Input = ({ 
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const isSmallDevice = SCREEN_HEIGHT < 700;
+
+export const Input = forwardRef(({ 
     icon, 
     placeholder, 
     value, 
@@ -17,8 +20,11 @@ export const Input = ({
     error,
     maxLength = 255,
     autoCapitalize = 'none',
-    onFocus: externalOnFocus, // forwarded onFocus prop
-}) => {
+    onFocus: externalOnFocus,
+    returnKeyType,
+    onSubmitEditing,
+    blurOnSubmit = true,
+}, ref) => {
     const [isFocused, setIsFocused] = useState(false);
     const [animatedFocus] = useState(new Animated.Value(0));
 
@@ -88,6 +94,7 @@ export const Input = ({
                     />
                 )}
                 <TextInput
+                    ref={ref}
                     style={styles.input}
                     placeholder={placeholder}
                     placeholderTextColor={error ? '#fca5a5' : theme.colors.textLight}
@@ -99,6 +106,9 @@ export const Input = ({
                     maxLength={maxLength}
                     onFocus={handleFocus}
                     onBlur={handleBlur}
+                    returnKeyType={returnKeyType}
+                    onSubmitEditing={onSubmitEditing}
+                    blurOnSubmit={blurOnSubmit}
                 />
                 {showToggle && (
                     <TouchableOpacity onPress={onToggle}>
@@ -114,43 +124,43 @@ export const Input = ({
             {error && <Text style={styles.errorText}>{error}</Text>}
         </View>
     );
-};
+});
 
 const styles = StyleSheet.create({
     wrapper: {
-        marginBottom: theme.spacing.md,
+        marginBottom: isSmallDevice ? moderateScale(14) : moderateScale(10),
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#fff',
-        borderRadius: theme.radius.lg,
-        paddingHorizontal: theme.spacing.md,
-        borderWidth: 2,
+        borderRadius: 12,
+        paddingHorizontal: moderateScale(12),
+        borderWidth: 1.5,
         borderColor: '#e9ecef',
-        minHeight: moderateScale(56),
+        minHeight: moderateScale(48),
     },
     inputError: {
         backgroundColor: '#fef2f2',
     },
     inputIcon: {
-        marginRight: theme.spacing.sm,
+        marginRight: moderateScale(8),
     },
     input: {
         flex: 1,
-        paddingVertical: moderateScale(16),
-        fontSize: theme.fonts.body,
-        color: theme.colors.text,
+        paddingVertical: moderateScale(12),
+        fontSize: moderateScale(14),
+        color: '#333',
         fontWeight: '500',
     },
     eyeIcon: {
-        padding: theme.spacing.sm,
+        padding: moderateScale(8),
     },
     errorText: {
-        color: theme.colors.danger,
-        fontSize: theme.fonts.caption,
-        marginTop: moderateScale(4),
-        marginLeft: theme.spacing.md,
+        color: '#ef4444',
+        fontSize: moderateScale(12),
+        marginTop: moderateScale(3),
+        marginLeft: moderateScale(12),
         fontWeight: '500',
     },
 });

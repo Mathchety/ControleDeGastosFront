@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Dimensions } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Dimensions, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { PrimaryButton } from '../buttons';
@@ -24,13 +24,43 @@ export const RegisterForm = ({ onSuccess }) => {
 
     const scrollRef = useRef(null);
 
-    const scrollToInput = (index) => {
-        // Offset maior para garantir que o input fique bem visível acima do teclado
-        // Aumentado para compensar o header menor
-        const baseOffset = moderateScale(150); // Aumentado de 120 para 150
-        const additionalOffset = Platform.OS === 'android' ? 80 : 60; // Aumentado
-        const y = Math.max(0, (index * baseOffset) - additionalOffset);
-        scrollRef.current?.scrollTo({ y, animated: true });
+    // Detecta a altura do teclado - funciona melhor em iOS e Android
+    useEffect(() => {
+        const keyboardDidShow = (e) => {
+            // Apenas scroll automático quando teclado abre
+            scrollRef.current?.scrollToEnd({ animated: true });
+        };
+
+        // iOS: usar keyboardWillShow para melhor timing
+        const eventNames = Platform.OS === 'ios' 
+            ? ['keyboardWillShow', 'keyboardWillHide']
+            : ['keyboardDidShow', 'keyboardDidHide'];
+
+        const showSubscription = Keyboard.addListener(eventNames[0], keyboardDidShow);
+
+        return () => {
+            showSubscription.remove();
+        };
+    }, []);
+
+    const scrollToBottom = () => {
+        // Scroll para o final com cálculo baseado na altura do teclado
+        setTimeout(() => {
+            // Scroll animado
+            scrollRef.current?.scrollToEnd({ animated: true });
+            
+            // Força um segundo scroll instantâneo com margem extra acima do teclado
+            setTimeout(() => {
+                scrollRef.current?.scrollToEnd({ animated: false });
+                // Scroll adicional para garantir espaço acima do teclado
+                if (keyboardHeight > 0) {
+                    scrollRef.current?.scrollTo({ 
+                        y: keyboardHeight + moderateScale(80), 
+                        animated: false 
+                    });
+                }
+            }, 300);
+        }, 100);
     };
 
     const handleRegister = async () => {
@@ -100,7 +130,7 @@ export const RegisterForm = ({ onSuccess }) => {
                             placeholder="Nome completo"
                             value={name}
                             onChangeText={setName}
-                            onFocus={() => scrollToInput(0)}
+                            onFocus={scrollToBottom}
                         />
 
                         <Input
@@ -110,7 +140,7 @@ export const RegisterForm = ({ onSuccess }) => {
                             autoCapitalize="none"
                             value={email}
                             onChangeText={setEmail}
-                            onFocus={() => scrollToInput(1)}
+                            onFocus={scrollToBottom}
                         />
 
                         <Input
@@ -119,7 +149,7 @@ export const RegisterForm = ({ onSuccess }) => {
                             secureTextEntry
                             value={password}
                             onChangeText={setPassword}
-                            onFocus={() => scrollToInput(2)}
+                            onFocus={scrollToBottom}
                         />
 
                         <PrimaryButton
@@ -139,54 +169,54 @@ export const RegisterForm = ({ onSuccess }) => {
 const styles = StyleSheet.create({
     scrollContent: {
         flexGrow: 1,
-        paddingHorizontal: moderateScale(20),
-        paddingTop: isSmallDevice ? moderateScale(20) : moderateScale(40),
-        paddingBottom: isSmallDevice ? moderateScale(100) : moderateScale(200),
+        paddingHorizontal: moderateScale(16),
+        paddingTop: isSmallDevice ? moderateScale(8) : moderateScale(20),
+        paddingBottom: isSmallDevice ? moderateScale(250) : moderateScale(300),
     },
     formContainer: {
         backgroundColor: '#fff',
-        borderRadius: 25,
-        padding: isSmallDevice ? moderateScale(15) : moderateScale(25),
-        marginBottom: moderateScale(20),
-        elevation: 3,
+        borderRadius: 16,
+        padding: isSmallDevice ? moderateScale(10) : moderateScale(16),
+        marginBottom: moderateScale(10),
+        elevation: 2,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
     },
     iconContainer: {
         alignSelf: 'center',
-        marginBottom: isSmallDevice ? moderateScale(12) : moderateScale(20),
+        marginBottom: isSmallDevice ? moderateScale(5) : moderateScale(10),
     },
     formTitle: {
-        fontSize: isSmallDevice ? moderateScale(22) : moderateScale(26),
+        fontSize: isSmallDevice ? moderateScale(16) : moderateScale(22),
         fontWeight: '700',
         color: '#333',
         textAlign: 'center',
-        marginBottom: isSmallDevice ? moderateScale(6) : moderateScale(8),
+        marginBottom: isSmallDevice ? moderateScale(2) : moderateScale(4),
     },
     formSubtitle: {
-        fontSize: isSmallDevice ? moderateScale(14) : moderateScale(16),
+        fontSize: isSmallDevice ? moderateScale(11) : moderateScale(13),
         color: '#666',
         textAlign: 'center',
-        marginBottom: isSmallDevice ? moderateScale(18) : moderateScale(25),
+        marginBottom: isSmallDevice ? moderateScale(10) : moderateScale(15),
     },
     errorContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#fee2e2',
-        borderLeftWidth: 4,
+        borderLeftWidth: 3,
         borderLeftColor: '#ef4444',
-        borderRadius: 8,
-        padding: 12,
-        marginBottom: 20,
-        gap: 10,
+        borderRadius: 6,
+        padding: isSmallDevice ? moderateScale(9) : moderateScale(12),
+        marginBottom: isSmallDevice ? moderateScale(10) : moderateScale(15),
+        gap: isSmallDevice ? moderateScale(7) : moderateScale(10),
     },
     errorText: {
         flex: 1,
         color: '#991b1b',
-        fontSize: 14,
+        fontSize: isSmallDevice ? moderateScale(12) : moderateScale(13),
         fontWeight: '500',
-        lineHeight: 20,
+        lineHeight: isSmallDevice ? 18 : 20,
     },
 });

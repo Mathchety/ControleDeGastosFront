@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     View,
     Text,
@@ -7,6 +7,8 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
+    Dimensions,
+    Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +18,9 @@ import { moderateScale, fontScale } from '../utils/responsive';
 import { Input } from '../components/inputs';
 import { theme } from '../utils/theme';
 
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const isSmallDevice = SCREEN_HEIGHT < 700;
+
 export default function ForgotPasswordScreen({ navigation }) {
     const { forgotPassword } = useAuth();
     const [email, setEmail] = useState('');
@@ -23,9 +28,17 @@ export default function ForgotPasswordScreen({ navigation }) {
     const [errorMessage, setErrorMessage] = useState('');
     const scrollRef = useRef(null);
 
-    const scrollToInput = (index) => {
-        const y = Math.max(0, index * moderateScale(120));
-        scrollRef.current?.scrollTo({ y, animated: true });
+    // Detecta a altura do teclado - funciona melhor em iOS e Android
+    useEffect(() => {
+        // Não fazemos scroll automático aqui, deixamos o usuario controlar
+        // apenas o scroll manual quando clica no input via onFocus
+        return () => {};
+    }, []);
+
+    const scrollToBottom = () => {
+        // Scroll suave apenas quando o usuario clica no input
+        // Sem scroll excessivo
+        return;
     };
 
     const validateEmail = (email) => {
@@ -104,7 +117,7 @@ export default function ForgotPasswordScreen({ navigation }) {
                             colors={['#667eea', '#764ba2']}
                             style={styles.iconGradient}
                         >
-                            <Ionicons name="lock-closed" size={60} color="#fff" />
+                            <Ionicons name="lock-closed" size={isSmallDevice ? 40 : 50} color="#fff" />
                         </LinearGradient>
                     </View>
 
@@ -126,16 +139,18 @@ export default function ForgotPasswordScreen({ navigation }) {
 
                     {/* Formulário */}
                     <View style={styles.form}>
-                        <Input
-                            icon="mail-outline"
-                            placeholder="Seu e-mail"
-                            value={email}
-                            onChangeText={setEmail}
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                            maxLength={100}
-                            onFocus={() => scrollToInput(0)}
-                        />
+                        <View style={styles.inputWrapper}>
+                            <Input
+                                icon="mail-outline"
+                                placeholder="Seu e-mail"
+                                value={email}
+                                onChangeText={setEmail}
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                                maxLength={100}
+                                onFocus={scrollToBottom}
+                            />
+                        </View>
 
                         {/* Botão Enviar Código */}
                         <TouchableOpacity
@@ -183,103 +198,130 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         flexGrow: 1,
-        paddingHorizontal: moderateScale(30),
-        paddingBottom: Platform.OS === 'android' ? moderateScale(150) : moderateScale(80),
+        paddingHorizontal: moderateScale(isSmallDevice ? 14 : 20),
+        paddingTop: moderateScale(isSmallDevice ? 60 : 80),
+        paddingBottom: Platform.OS === 'android' ? moderateScale(200) : moderateScale(150),
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     header: {
-        paddingTop: moderateScale(20),
-        marginBottom: moderateScale(30),
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        paddingTop: moderateScale(isSmallDevice ? 8 : 12),
+        paddingLeft: moderateScale(isSmallDevice ? 14 : 20),
+        zIndex: 10,
     },
     backButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: moderateScale(isSmallDevice ? 36 : 40),
+        height: moderateScale(isSmallDevice ? 36 : 40),
+        borderRadius: moderateScale(18),
         backgroundColor: '#f8f9fa',
         alignItems: 'center',
         justifyContent: 'center',
     },
     iconContainer: {
         alignItems: 'center',
-        marginBottom: moderateScale(30),
+        marginBottom: moderateScale(isSmallDevice ? 14 : 20),
+        width: '100%',
+        maxWidth: 500,
     },
     iconGradient: {
-        width: moderateScale(120),
-        height: moderateScale(120),
-        borderRadius: moderateScale(60),
+        width: moderateScale(isSmallDevice ? 80 : 100),
+        height: moderateScale(isSmallDevice ? 80 : 100),
+        borderRadius: moderateScale(isSmallDevice ? 40 : 50),
         alignItems: 'center',
         justifyContent: 'center',
         shadowColor: '#667eea',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 8,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+        elevation: 5,
     },
     textContainer: {
-        marginBottom: moderateScale(40),
+        marginBottom: moderateScale(isSmallDevice ? 16 : 24),
+        width: '100%',
+        maxWidth: 500,
+        alignItems: 'center',
     },
     title: {
-        fontSize: fontScale(28),
+        fontSize: moderateScale(isSmallDevice ? 18 : 24),
         fontWeight: '700',
         color: '#333',
         textAlign: 'center',
-        marginBottom: moderateScale(12),
+        marginBottom: moderateScale(isSmallDevice ? 6 : 10),
     },
     description: {
-        fontSize: fontScale(15),
+        fontSize: moderateScale(isSmallDevice ? 12 : 14),
         color: '#666',
         textAlign: 'center',
-        lineHeight: 22,
+        lineHeight: isSmallDevice ? 18 : 22,
     },
     errorContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#fee2e2',
-        borderLeftWidth: 4,
+        borderLeftWidth: 3,
         borderLeftColor: '#ef4444',
-        borderRadius: moderateScale(10),
-        padding: moderateScale(14),
-        marginBottom: moderateScale(20),
-        marginHorizontal: moderateScale(4),
-        gap: 10,
+        borderRadius: moderateScale(8),
+        padding: moderateScale(isSmallDevice ? 9 : 12),
+        marginBottom: moderateScale(isSmallDevice ? 12 : 16),
+        marginHorizontal: moderateScale(2),
+        gap: moderateScale(isSmallDevice ? 7 : 10),
+        width: '100%',
+        maxWidth: 450,
     },
     errorText: {
         flex: 1,
         color: '#991b1b',
-        fontSize: fontScale(14),
+        fontSize: moderateScale(isSmallDevice ? 12 : 13),
         fontWeight: '500',
-        lineHeight: 20,
+        lineHeight: isSmallDevice ? 18 : 20,
     },
     form: {
         flex: 1,
+        width: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    inputWrapper: {
+        width: '100%',
+        maxWidth: 450,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#f8f9fa',
-        borderRadius: moderateScale(15),
-        paddingHorizontal: moderateScale(16),
-        marginBottom: moderateScale(20),
+        borderRadius: moderateScale(12),
+        paddingHorizontal: moderateScale(12),
+        marginBottom: moderateScale(isSmallDevice ? 12 : 16),
         borderWidth: 1,
         borderColor: '#e0e0e0',
+        width: '100%',
+        maxWidth: 450,
     },
     inputIcon: {
-        marginRight: moderateScale(12),
+        marginRight: moderateScale(10),
     },
     input: {
         flex: 1,
-        height: moderateScale(56),
-        fontSize: fontScale(16),
+        height: moderateScale(isSmallDevice ? 44 : 48),
+        fontSize: moderateScale(14),
         color: '#333',
     },
     sendButton: {
-        borderRadius: moderateScale(15),
+        borderRadius: moderateScale(12),
         overflow: 'hidden',
-        marginBottom: moderateScale(20),
+        marginBottom: moderateScale(isSmallDevice ? 12 : 14),
         shadowColor: '#667eea',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 5,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+        elevation: 3,
+        marginTop: moderateScale(isSmallDevice ? 12 : 8),
+        width: '100%',
+        maxWidth: 450,
     },
     sendButtonDisabled: {
         opacity: 0.6,
@@ -288,23 +330,25 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: moderateScale(16),
-        gap: moderateScale(8),
+        paddingVertical: moderateScale(isSmallDevice ? 12 : 14),
+        gap: moderateScale(isSmallDevice ? 6 : 8),
     },
     sendButtonText: {
         color: '#fff',
-        fontSize: fontScale(17),
+        fontSize: moderateScale(isSmallDevice ? 13 : 15),
         fontWeight: '700',
     },
     backToLogin: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: moderateScale(8),
-        paddingVertical: moderateScale(12),
+        gap: moderateScale(6),
+        paddingVertical: moderateScale(isSmallDevice ? 8 : 10),
+        width: '100%',
+        maxWidth: 450,
     },
     backToLoginText: {
-        fontSize: fontScale(15),
+        fontSize: moderateScale(isSmallDevice ? 12 : 13),
         color: '#667eea',
         fontWeight: '600',
     },

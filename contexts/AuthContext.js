@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import httpClient from '../services/httpClient';
 
 const AuthContext = createContext();
@@ -9,9 +10,14 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const refreshTimerRef = React.useRef(null); // 🔒 Timer para auto-refresh
+  const isInitializingRef = React.useRef(false); // 🚀 Previne múltiplas inicializações
 
   useEffect(() => {
-    initializeAuth();
+    // Previne múltiplas chamadas de initializeAuth
+    if (!isInitializingRef.current) {
+      isInitializingRef.current = true;
+      initializeAuth();
+    }
     
     // 🧹 Cleanup: limpa timer ao desmontar
     return () => {
@@ -57,6 +63,7 @@ export const AuthProvider = ({ children }) => {
   /**
    * Inicializa a autenticação verificando se há token salvo
    * Se houver, valida o token chamando GET /me
+   * Se tiver "Lembrar-me" ativo e credenciais salvas, faz login automático
    */
   const initializeAuth = async () => {
     try {
@@ -69,16 +76,61 @@ export const AuthProvider = ({ children }) => {
       
       if (token || refreshToken) {
         // Token existe, vamos validá-lo
-        await validateToken();
-        
-        // 🔒 Reativa auto-refresh se tinha rememberMe ativo
-        if (rememberMe === 'true') {
-          await setupAutoRefresh(true);
+        try {
+          await validateToken();
+          
+          // ✅ Token válido! Sai do loading
+          setLoading(false);
+          
+          // 🔒 Reativa auto-refresh se tinha rememberMe ativo
+          if (rememberMe === 'true') {
+            await setupAutoRefresh(true);
+          }
+        } catch (tokenError) {
+          // Token inválido/expirado, tenta login automático
+          if (rememberMe === 'true') {
+            await tryAutoLogin();
+          } else {
+            // Sem rememberMe, apenas sai do loading
+            setLoading(false);
+          }
         }
+      } else if (rememberMe === 'true') {
+        // Sem token mas com rememberMe, tenta login automático
+        await tryAutoLogin();
+      } else {
+        // Sem token e sem rememberMe, vai para login
+        setLoading(false);
       }
     } catch (error) {
+      console.error('Erro ao inicializar autenticação:', error);
       await logout(); // Se falhar, faz logout
-    } finally {
+      setLoading(false); // Sempre sai do loading em caso de erro
+    }
+  };
+
+  /**
+   * 🔐 Tenta fazer login automático com credenciais salvas
+   * Usado quando rememberMe está ativo mas token expirou
+   * ⚠️ NÃO chama setLoading aqui - mantém a tela de splash visível
+   */
+  const tryAutoLogin = async () => {
+    try {
+      const savedEmail = await AsyncStorage.getItem('saved_email');
+      const savedPassword = await SecureStore.getItemAsync('saved_password');
+      
+      if (savedEmail && savedPassword) {
+        // Credenciais salvas - faz login automático
+        await login(savedEmail, savedPassword, true);
+        // ✅ setIsAuthenticated já foi chamado em login(), sem piscar
+      } else {
+        // Sem credenciais salvas, vai para login
+        setLoading(false);
+      }
+    } catch (autoLoginError) {
+      // Se falhar, faz logout silencioso e vai para login
+      console.error('Auto-login falhou:', autoLoginError);
+      await logout();
       setLoading(false);
     }
   };

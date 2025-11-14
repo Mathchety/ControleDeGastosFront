@@ -168,7 +168,7 @@ const AnimatedForm = React.memo(({ isRegisterView, onSuccess, navigation }) => {
                 <LoadingModal visible={loading} message="Criando conta..." />
                 <View style={styles.formContainer}>
                     <View style={styles.iconContainer}>
-                        <Ionicons name="person-add" size={50} color="#007bff" />
+                        <Ionicons name="person-add" size={isSmallDevice ? 32 : 40} color="#007bff" />
                     </View>
                     
                     <Text style={styles.formTitle}>Criar Conta</Text>
@@ -224,9 +224,9 @@ const AnimatedForm = React.memo(({ isRegisterView, onSuccess, navigation }) => {
             <LoadingModal visible={loading} message="Entrando..." />
             <View style={styles.formContainer}>
                 <View style={styles.iconContainer}>
-                    <Ionicons name="log-in" size={50} color="#007bff" />
+                    <Ionicons name="log-in" size={isSmallDevice ? 32 : 40} color="#007bff" />
                 </View>
-                
+
                 <Text style={styles.formTitle}>Bem-vindo de Volta!</Text>
                 <Text style={styles.formSubtitle}>Faça login para continuar</Text>
                 
@@ -338,17 +338,23 @@ const AuthScreen = ({ navigation }) => {
     // Interpolações para animar o header - Ajustado para dispositivos pequenos
     const headerPaddingTop = headerHeight.interpolate({
         inputRange: [0, 1],
-        outputRange: [moderateScale(0), moderateScale(isSmallDevice ? 30 : 60)], // Reduzido em dispositivos pequenos
+        outputRange: [moderateScale(0), moderateScale(isSmallDevice ? 12 : 30)], // Muito reduzido em dispositivos pequenos
     });
 
     const headerPaddingBottom = headerHeight.interpolate({
         inputRange: [0, 1],
-        outputRange: [moderateScale(0), moderateScale(isSmallDevice ? 15 : 30)], // Reduzido em dispositivos pequenos
+        outputRange: [moderateScale(0), moderateScale(isSmallDevice ? 8 : 18)], // Muito reduzido em dispositivos pequenos
     });
 
     const logoOpacity = headerHeight.interpolate({
         inputRange: [0, 1],
         outputRange: [0, 1], // Logo desaparece completamente
+    });
+
+    // ✨ Animação de escala para o logo (cresce do centro)
+    const logoScale = headerHeight.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.5, 1], // Começa pequeno e cresce até tamanho normal
     });
 
     const titleOpacity = headerHeight.interpolate({
@@ -363,7 +369,7 @@ const AuthScreen = ({ navigation }) => {
 
     const headerMinHeight = headerHeight.interpolate({
         inputRange: [0, 1],
-        outputRange: [moderateScale(20), moderateScale(isSmallDevice ? 140 : 200)], // Header menor em dispositivos pequenos
+        outputRange: [moderateScale(15), moderateScale(isSmallDevice ? 100 : 140)], // Header muito mais compacto em dispositivos pequenos
     });
 
     return (
@@ -401,11 +407,12 @@ const AuthScreen = ({ navigation }) => {
                             <Animated.View 
                                 style={{ 
                                     opacity: logoOpacity,
+                                    transform: [{ scale: logoScale }], // ✨ Escala o logo do centro
                                     alignItems: 'center',
-                                    marginBottom: moderateScale(isSmallDevice ? 6 : 12),
+                                    marginBottom: moderateScale(isSmallDevice ? 2 : 6),
                                 }}
                             >
-                                <FinansyncLogoSimple size={isSmallDevice ? 50 : 70} />
+                                <FinansyncLogoSimple size={isSmallDevice ? 30 : 50} />
                             </Animated.View>
                             
                             {/* Título - Some completamente */}
@@ -414,7 +421,7 @@ const AuthScreen = ({ navigation }) => {
                                     styles.headerTitle,
                                     { 
                                         opacity: titleOpacity,
-                                        fontSize: moderateScale(isSmallDevice ? 24 : 32),
+                                        fontSize: moderateScale(isSmallDevice ? 18 : 28),
                                     }
                                 ]}
                             >
@@ -427,8 +434,8 @@ const AuthScreen = ({ navigation }) => {
                                     styles.headerSubtitle,
                                     { 
                                         opacity: subtitleOpacity,
-                                        fontSize: moderateScale(isSmallDevice ? 12 : 14),
-                                        marginTop: moderateScale(isSmallDevice ? 3 : 6),
+                                        fontSize: moderateScale(isSmallDevice ? 10 : 12),
+                                        marginTop: moderateScale(isSmallDevice ? 1 : 3),
                                     }
                                 ]}
                             >
@@ -493,11 +500,11 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         flexGrow: 1,
-        paddingHorizontal: 20,
-        paddingTop: moderateScale(20),
+        paddingHorizontal: moderateScale(isSmallDevice ? 14 : 20),
+        paddingTop: moderateScale(isSmallDevice ? 10 : 15),
         paddingBottom: Platform.OS === 'android' 
-            ? moderateScale(80) // Mais espaço no Android para evitar sobreposição
-            : moderateScale(isSmallDevice ? 40 : 60),
+            ? moderateScale(60) // Mais espaço no Android para evitar sobreposição
+            : moderateScale(isSmallDevice ? 30 : 40),
     },
     formWrapper: {
         // Removido flex: 1 e justifyContent para evitar espaço branco
@@ -510,10 +517,10 @@ const styles = StyleSheet.create({
         paddingBottom: moderateScale(100), // Espaço extra para os botões de toggle
     },
     header: {
-        paddingTop: Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 0, // Espaço para StatusBar translúcida
-        paddingHorizontal: theme.spacing.lg,
-        borderBottomLeftRadius: moderateScale(30),
-        borderBottomRightRadius: moderateScale(30),
+        paddingTop: Platform.OS === 'ios' ? 30 : (StatusBar.currentHeight || 0), // Espaço menor para StatusBar translúcida
+        paddingHorizontal: moderateScale(isSmallDevice ? 14 : 20),
+        borderBottomLeftRadius: moderateScale(isSmallDevice ? 20 : 30),
+        borderBottomRightRadius: moderateScale(isSmallDevice ? 20 : 30),
     },
     headerContent: {
         alignItems: 'center',
@@ -531,52 +538,52 @@ const styles = StyleSheet.create({
     },
     formContainer: {
         backgroundColor: '#fff',
-        borderRadius: moderateScale(20),
-        padding: moderateScale(20),
-        elevation: 3,
+        borderRadius: moderateScale(isSmallDevice ? 16 : 20),
+        padding: moderateScale(isSmallDevice ? 10 : 16),
+        elevation: 2,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
         overflow: 'visible',
     },
     iconContainer: {
         alignSelf: 'center',
-        marginBottom: moderateScale(16),
+        marginBottom: moderateScale(isSmallDevice ? 5 : 10),
     },
     formTitle: {
-        fontSize: moderateScale(24),
+        fontSize: moderateScale(isSmallDevice ? 16 : 22),
         fontWeight: '700',
         color: '#333',
         textAlign: 'center',
-        marginBottom: moderateScale(6),
+        marginBottom: moderateScale(isSmallDevice ? 2 : 4),
     },
     formSubtitle: {
-        fontSize: moderateScale(14),
+        fontSize: moderateScale(isSmallDevice ? 11 : 13),
         color: '#666',
         textAlign: 'center',
-        marginBottom: moderateScale(20),
+        marginBottom: moderateScale(isSmallDevice ? 10 : 15),
     },
     rememberMeContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#f0f4ff',
-        padding: moderateScale(14),
-        borderRadius: moderateScale(12),
-        marginTop: moderateScale(16),
-        marginBottom: moderateScale(12),
+        padding: moderateScale(isSmallDevice ? 9 : 12),
+        borderRadius: moderateScale(10),
+        marginTop: moderateScale(isSmallDevice ? 7 : 10),
+        marginBottom: moderateScale(isSmallDevice ? 7 : 10),
         borderWidth: 1,
         borderColor: '#d0dff9',
     },
     checkbox: {
-        width: moderateScale(24),
-        height: moderateScale(24),
-        borderRadius: moderateScale(6),
-        borderWidth: 2,
+        width: moderateScale(isSmallDevice ? 20 : 22),
+        height: moderateScale(isSmallDevice ? 20 : 22),
+        borderRadius: moderateScale(5),
+        borderWidth: 1.5,
         borderColor: '#007bff',
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: moderateScale(12),
+        marginRight: moderateScale(isSmallDevice ? 8 : 10),
         backgroundColor: '#fff',
     },
     checkboxActive: {
@@ -584,32 +591,32 @@ const styles = StyleSheet.create({
         borderColor: '#007bff',
     },
     rememberMeText: {
-        fontSize: moderateScale(15),
+        fontSize: moderateScale(isSmallDevice ? 12 : 14),
         color: '#333',
         fontWeight: '600',
     },
     forgotPassword: {
         alignSelf: 'flex-end',
-        marginBottom: 20,
+        marginBottom: moderateScale(isSmallDevice ? 8 : 12),
     },
     forgotPasswordText: {
         color: '#007bff',
-        fontSize: 14,
+        fontSize: moderateScale(isSmallDevice ? 12 : 13),
         fontWeight: '600',
     },
     toggleContainer: {
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        marginTop: 25,
-        gap: 5,
+        marginTop: moderateScale(isSmallDevice ? 12 : 18),
+        gap: moderateScale(3),
     },
     toggleText: {
-        fontSize: 15,
+        fontSize: moderateScale(isSmallDevice ? 12 : 14),
         color: '#666',
     },
     toggleButton: {
-        fontSize: 15,
+        fontSize: moderateScale(isSmallDevice ? 12 : 14),
         color: '#007bff',
         fontWeight: '700',
     },
