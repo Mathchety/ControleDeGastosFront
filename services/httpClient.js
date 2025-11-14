@@ -112,7 +112,8 @@ class HttpClient {
             const data = await response.json();
             
             if (data.accessToken) {
-                this.setToken(data.accessToken);
+                // Salva accessToken e refreshToken (one-time use)
+                this.setTokens(data.accessToken, data.refreshToken);
                 return data.accessToken;
             }
 

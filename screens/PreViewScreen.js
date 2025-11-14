@@ -261,7 +261,13 @@ export default function PreViewScreen({ route, navigation }) {
                 >
                     <PreviewHeader
                         title={receiptId ? 'Nota fiscal' : 'Preview da nota'}
-                        onBack={() => navigation.goBack()}
+                        onBack={() => {
+                            if (navigation.canGoBack()) {
+                                navigation.goBack();
+                            } else {
+                                navigation.navigate('Main', { screen: 'Home' });
+                            }
+                        }}
                     />
                 </LinearGradient>
                 <SkeletonPreviewScreen />
@@ -283,7 +289,13 @@ export default function PreViewScreen({ route, navigation }) {
                 >
                     <PreviewHeader
                         title={receiptId ? 'Nota fiscal' : 'Preview da nota'}
-                        onBack={() => navigation.goBack()}
+                        onBack={() => {
+                            if (navigation.canGoBack()) {
+                                navigation.goBack();
+                            } else {
+                                navigation.navigate('Main', { screen: 'Home' });
+                            }
+                        }}
                     />
                 </LinearGradient>
                 <View style={styles.container}>
@@ -330,7 +342,13 @@ export default function PreViewScreen({ route, navigation }) {
                 <Animated.View style={[styles.headerContent, { opacity: headerOpacity }]}>
                     <PreviewHeader
                         title={receiptId ? 'Nota fiscal' : 'Preview da nota'}
-                        onBack={() => navigation.goBack()}
+                        onBack={() => {
+                            if (navigation.canGoBack()) {
+                                navigation.goBack();
+                            } else {
+                                navigation.navigate('Main', { screen: 'Home' });
+                            }
+                        }}
                     />
                 </Animated.View>
             </Animated.View>

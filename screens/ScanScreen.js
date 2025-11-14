@@ -21,6 +21,7 @@ export default function ScanScreen({ navigation }) {
   const loading = contextLoading || localLoading;
   
   const scanTimeoutRef = useRef(null);
+  const isNavigatingRef = useRef(false); // Evita navegação duplicada
 
   // Animação da tela de scan (fecha a câmera)
   const screenAnim = useRef(new Animated.Value(1)).current; // 1 = aberto, 0 = fechado
@@ -52,7 +53,7 @@ export default function ScanScreen({ navigation }) {
 
   // Ao ler o QR: processa e navega para Preview
   const handleBarCodeScanned = async ({ data }) => {
-    if (scanned || loading || scanTimeout) return;
+    if (scanned || loading || scanTimeout || isNavigatingRef.current) return;
     
     // �️ Valida QR Code com suporte a todas as regiões do Brasil
     const validation = validateQRCode(data);
@@ -111,19 +112,22 @@ export default function ScanScreen({ navigation }) {
         }),
         Animated.delay(300), // ✨ Reduzido de 400ms para 300ms
       ]).start(() => {
-        // ✨ Navega DIRETAMENTE sem animação de fechadura
-        navigation.replace('Preview', { 
-          previewData,
-          qrLink: data 
-        });
-        
-        // Reset após navegar
-        setTimeout(() => {
-          setLocalLoading(false);
-          setShowSuccess(false);
-          successAnim.setValue(0);
-          screenAnim.setValue(1);
-        }, 100);
+        // Protege contra navegação duplicada
+        if (!isNavigatingRef.current) {
+          isNavigatingRef.current = true;
+          navigation.replace('Preview', { 
+            previewData,
+            qrLink: data 
+          });
+          // Reset flag após um pequeno delay (caso usuário volte)
+          setTimeout(() => {
+            isNavigatingRef.current = false;
+            setLocalLoading(false);
+            setShowSuccess(false);
+            successAnim.setValue(0);
+            screenAnim.setValue(1);
+          }, 500);
+        }
       });
 
     } catch (error) {

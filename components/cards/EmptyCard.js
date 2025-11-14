@@ -21,10 +21,14 @@ const styles = StyleSheet.create({
     emptyCard: {
         alignItems: 'center',
         justifyContent: 'center',
-        padding: moderateScale(40),
+        paddingHorizontal: moderateScale(16),
+        paddingVertical: moderateScale(24),
         backgroundColor: '#fff',
         borderRadius: theme.radius.xl,
         marginVertical: theme.spacing.lg,
+        minWidth: 220,
+        maxWidth: 340,
+        width: '100%',
     },
     emptyTitle: {
         fontSize: fontScale(20),

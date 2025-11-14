@@ -409,9 +409,12 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
-    padding: moderateScale(40),
+    paddingHorizontal: moderateScale(10),
+    paddingTop: moderateScale(40),
+    paddingBottom: moderateScale(10),
+    minHeight: 200,
   },
   receiptCard: {
     backgroundColor: '#fff',
