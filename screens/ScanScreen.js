@@ -33,48 +33,7 @@ export default function ScanScreen({ navigation }) {
     }
   }, [permission]);
 
-  // ⏱️ Timeout de 30 segundos para escanear
-  useEffect(() => {
-    // Inicia timeout quando a tela recebe foco
-    const unsubscribeFocus = navigation.addListener('focus', () => {
-      setScanTimeout(false);
-      
-      // Limpa timeout anterior se existir
-      if (scanTimeoutRef.current) {
-        clearTimeout(scanTimeoutRef.current);
-      }
-      
-      // Define novo timeout de 30 segundos
-      scanTimeoutRef.current = setTimeout(() => {
-        if (!scanned) {
-          setScanTimeout(true);
-          showError(
-            'Tempo Esgotado',
-            'Não foi possível escanear o QR Code.\nTente novamente.',
-            () => {
-              setScanTimeout(false);
-              setScanned(false);
-            }
-          );
-        }
-      }, 30000); // 30 segundos
-    });
-
-    // Limpa timeout quando sair da tela
-    const unsubscribeBlur = navigation.addListener('blur', () => {
-      if (scanTimeoutRef.current) {
-        clearTimeout(scanTimeoutRef.current);
-      }
-    });
-
-    return () => {
-      unsubscribeFocus();
-      unsubscribeBlur();
-      if (scanTimeoutRef.current) {
-        clearTimeout(scanTimeoutRef.current);
-      }
-    };
-  }, [navigation, scanned]);
+  // Timeout removido: não inicia mais automaticamente ao abrir a tela
 
   // Reset scanner quando a tela voltar a foco (permite escanear novamente)
   useEffect(() => {

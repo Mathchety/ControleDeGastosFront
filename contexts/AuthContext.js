@@ -67,45 +67,33 @@ export const AuthProvider = ({ children }) => {
    */
   const initializeAuth = async () => {
     try {
-      // Inicializa o httpClient (carrega os tokens do AsyncStorage)
       await httpClient.init();
-      
       const token = httpClient.getToken();
       const refreshToken = httpClient.getRefreshToken();
       const rememberMe = await AsyncStorage.getItem('rememberMe');
-      
       if (token || refreshToken) {
-        // Token existe, vamos validá-lo
         try {
           await validateToken();
-          
-          // ✅ Token válido! Sai do loading
           setLoading(false);
-          
-          // 🔒 Reativa auto-refresh se tinha rememberMe ativo
           if (rememberMe === 'true') {
             await setupAutoRefresh(true);
           }
         } catch (tokenError) {
-          // Token inválido/expirado, tenta login automático
           if (rememberMe === 'true') {
             await tryAutoLogin();
           } else {
-            // Sem rememberMe, apenas sai do loading
             setLoading(false);
           }
         }
       } else if (rememberMe === 'true') {
-        // Sem token mas com rememberMe, tenta login automático
         await tryAutoLogin();
       } else {
-        // Sem token e sem rememberMe, vai para login
         setLoading(false);
       }
     } catch (error) {
-      console.error('Erro ao inicializar autenticação:', error);
-      await logout(); // Se falhar, faz logout
-      setLoading(false); // Sempre sai do loading em caso de erro
+      // Silencioso: nunca mostra nada para o usuário
+      await logout();
+      setLoading(false);
     }
   };
 
@@ -118,18 +106,13 @@ export const AuthProvider = ({ children }) => {
     try {
       const savedEmail = await AsyncStorage.getItem('saved_email');
       const savedPassword = await SecureStore.getItemAsync('saved_password');
-      
       if (savedEmail && savedPassword) {
-        // Credenciais salvas - faz login automático
         await login(savedEmail, savedPassword, true);
-        // ✅ setIsAuthenticated já foi chamado em login(), sem piscar
       } else {
-        // Sem credenciais salvas, vai para login
         setLoading(false);
       }
     } catch (autoLoginError) {
-      // Se falhar, faz logout silencioso e vai para login
-      console.error('Auto-login falhou:', autoLoginError);
+      // Silencioso: nunca mostra nada para o usuário
       await logout();
       setLoading(false);
     }

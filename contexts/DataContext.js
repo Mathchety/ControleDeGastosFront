@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext } from 'react';
-import { Alert } from 'react-native';
+import useErrorModal from '../hooks/useErrorModal';
 import httpClient from '../services/httpClient';
 import { getErrorMessage, getErrorTitle } from '../utils/errorMessages';
 
@@ -15,6 +15,7 @@ export const DataProvider = ({ children }) => {
     const [isProcessingReceipt, setIsProcessingReceipt] = useState(false);
     const [categoriesCache, setCategoriesCache] = useState([]); // Cache para itemCount das categorias
     const [categories, setCategories] = useState([]); // Lista completa de categorias
+    const { showError } = useErrorModal();
 
     // Preview da Nota Fiscal - POST /scan-qrcode/preview
     const previewQRCode = async (qrCodeUrl) => {
@@ -32,7 +33,7 @@ export const DataProvider = ({ children }) => {
             }
         } catch (error) {
             const errorMessage = getErrorMessage(error, 'Não foi possível processar o QR Code. Verifique se o código é válido.');
-            Alert.alert(getErrorTitle(error), errorMessage);
+            showError(error, errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -64,7 +65,7 @@ export const DataProvider = ({ children }) => {
         } catch (error) {
             setIsProcessingReceipt(false);
             const errorMessage = getErrorMessage(error, 'Não foi possível salvar o recibo. Tente novamente.');
-            Alert.alert(getErrorTitle(error), errorMessage);
+            showError(error, errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -100,7 +101,7 @@ export const DataProvider = ({ children }) => {
             return receiptsData;
         } catch (error) {
             const errorMessage = getErrorMessage(error, 'Não foi possível carregar os recibos.');
-            Alert.alert(getErrorTitle(error), errorMessage);
+            showError(error, errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -118,7 +119,7 @@ export const DataProvider = ({ children }) => {
             }
         } catch (error) {
             const errorMessage = getErrorMessage(error, 'Não foi possível carregar os recibos completos.');
-            Alert.alert(getErrorTitle(error), errorMessage);
+            showError(error, errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -148,7 +149,7 @@ export const DataProvider = ({ children }) => {
             return receiptsData;
         } catch (error) {
             const errorMessage = getErrorMessage(error, 'Não foi possível carregar recibos desta data.');
-            Alert.alert(getErrorTitle(error), errorMessage);
+            showError(error, errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -178,7 +179,7 @@ export const DataProvider = ({ children }) => {
             return receiptsData;
         } catch (error) {
             const errorMessage = getErrorMessage(error, 'Não foi possível carregar recibos deste período.');
-            Alert.alert(getErrorTitle(error), errorMessage);
+            showError(error, errorMessage);
             return [];
         } finally {
             setLoading(false);
@@ -218,7 +219,7 @@ export const DataProvider = ({ children }) => {
             throw new Error('Receipt não encontrado');
         } catch (error) {
             const errorMessage = getErrorMessage(error, 'Não foi possível carregar os detalhes do recibo.');
-            Alert.alert(getErrorTitle(error), errorMessage);
+            showError(error, errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -231,10 +232,10 @@ export const DataProvider = ({ children }) => {
             setLoading(true);
             await httpClient.delete(`/receipt/${id}`);
             setReceipts(prev => prev.filter(r => r.id !== id));
-            Alert.alert('Sucesso', 'Recibo excluído com sucesso!');
+            // showError({ message: 'Recibo excluído com sucesso!', type: 'success' });
         } catch (error) {
             const errorMessage = getErrorMessage(error, 'Não foi possível excluir o recibo.');
-            Alert.alert(getErrorTitle(error), errorMessage);
+            showError(error, errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -253,7 +254,7 @@ export const DataProvider = ({ children }) => {
             return response;
         } catch (error) {
             const errorMessage = getErrorMessage(error, 'Não foi possível atualizar o recibo.');
-            Alert.alert(getErrorTitle(error), errorMessage);
+            showError(error, errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -369,7 +370,7 @@ export const DataProvider = ({ children }) => {
             return categoriesData;
         } catch (error) {
             const errorMessage = getErrorMessage(error, 'Não foi possível carregar as categorias.');
-            Alert.alert(getErrorTitle(error), errorMessage);
+            showError(error, errorMessage);
             return [];
         } finally {
             setLoading(false);
@@ -438,12 +439,12 @@ export const DataProvider = ({ children }) => {
             setLoading(true);
             const response = await httpClient.post('/category', categoryData);
             
-            Alert.alert('Sucesso', 'Categoria criada com sucesso!');
+            // showError({ message: 'Categoria criada com sucesso!', type: 'success' });
             // Resposta esperada: { data: { id, name, description, icon, color }, message }
             return response?.data || response;
         } catch (error) {
             const errorMessage = getErrorMessage(error, 'Não foi possível criar a categoria.');
-            Alert.alert(getErrorTitle(error), errorMessage);
+            showError(error, errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -456,11 +457,11 @@ export const DataProvider = ({ children }) => {
         try {
             setLoading(true);
             const response = await httpClient.delete(`/category/${id}`);
-            Alert.alert('Sucesso', 'Categoria excluída com sucesso!');
+            // showError({ message: 'Categoria excluída com sucesso!', type: 'success' });
             return response;
         } catch (error) {
             const errorMessage = getErrorMessage(error, 'Não foi possível excluir a categoria.');
-            Alert.alert(getErrorTitle(error), errorMessage);
+            showError(error, errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -508,7 +509,7 @@ export const DataProvider = ({ children }) => {
             return response.data;
         } catch (error) {
             const errorMessage = getErrorMessage(error, 'Não foi possível atualizar o item.');
-            Alert.alert(getErrorTitle(error), errorMessage);
+            showError(error, errorMessage);
             throw error;
         } finally {
             setLoading(false);
