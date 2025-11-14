@@ -27,9 +27,10 @@ export default function ScanScreen({ navigation }) {
   const successAnim = useRef(new Animated.Value(0)).current; // Animação do ícone de sucesso
 
   useEffect(() => {
-    if (!permission?.granted) {
-      // Mostra modal em vez de pedir diretamente
+    if (permission && permission.status !== 'granted') {
       setShowPermissionModal(true);
+    } else {
+      setShowPermissionModal(false);
     }
   }, [permission]);
 
@@ -111,7 +112,7 @@ export default function ScanScreen({ navigation }) {
         Animated.delay(300), // ✨ Reduzido de 400ms para 300ms
       ]).start(() => {
         // ✨ Navega DIRETAMENTE sem animação de fechadura
-        navigation.navigate('Preview', { 
+        navigation.replace('Preview', { 
           previewData,
           qrLink: data 
         });

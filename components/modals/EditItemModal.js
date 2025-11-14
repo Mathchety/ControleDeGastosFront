@@ -29,6 +29,8 @@ export default function EditItemModal({
     visible, 
     item, 
     categories = [], 
+    disableCategory = false,
+    hideCategory = false,
     onSave, 
     onClose 
 }) {
@@ -174,7 +176,7 @@ export default function EditItemModal({
                         )}
 
                         {/* Categoria */}
-                        {categories && categories.length > 0 && (
+                        {!hideCategory && categories && categories.length > 0 && (
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Categoria</Text>
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -183,9 +185,11 @@ export default function EditItemModal({
                                             key={cat.id}
                                             style={[
                                                 styles.categoryChip,
-                                                selectedCategoryId === cat.id && styles.categoryChipSelected
+                                                selectedCategoryId === cat.id && styles.categoryChipSelected,
+                                                disableCategory && { opacity: 0.5 }
                                             ]}
-                                            onPress={() => setSelectedCategoryId(cat.id)}
+                                            onPress={() => !disableCategory && setSelectedCategoryId(cat.id)}
+                                            disabled={disableCategory}
                                         >
                                             <View style={[styles.categoryChipColor, { backgroundColor: cat.color }]} />
                                             <Text style={[

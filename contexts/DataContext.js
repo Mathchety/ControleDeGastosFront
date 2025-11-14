@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext } from 'react';
+import { useAuth } from './AuthContext';
 import useErrorModal from '../hooks/useErrorModal';
 import httpClient from '../services/httpClient';
 import { getErrorMessage, getErrorTitle } from '../utils/errorMessages';
@@ -6,6 +7,20 @@ import { getErrorMessage, getErrorTitle } from '../utils/errorMessages';
 const DataContext = createContext();
 
 export const DataProvider = ({ children }) => {
+    const { isAuthenticated } = useAuth();
+    // Busca recibos ao iniciar o app para garantir que o loading finalize
+    React.useEffect(() => {
+        if (receipts.length === 0 && isAuthenticated) {
+            fetchReceiptsBasic().catch(() => {});
+        }
+    }, [isAuthenticated]);
+    // Busca dados completos da conta após login
+    React.useEffect(() => {
+        if (isAuthenticated) {
+            fetchReceiptsBasic().catch(() => {});
+            fetchCategories().catch(() => {});
+        }
+    }, [isAuthenticated]);
     const [receipts, setReceipts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [previewData, setPreviewData] = useState(null);

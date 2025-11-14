@@ -27,20 +27,13 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  // 🔒 Configura auto-refresh do refresh token (antes de expirar 7 dias)
-  const setupAutoRefresh = async (rememberMe) => {
+  // 🔒 Sempre configura auto-refresh do token enquanto o app está aberto
+  const setupAutoRefresh = async () => {
     // Limpa timer anterior
     if (refreshTimerRef.current) {
       clearInterval(refreshTimerRef.current);
     }
-    
-    if (!rememberMe) return; // Não configura se não quer lembrar
-    
-    // Salva flag de rememberMe
-    await AsyncStorage.setItem('rememberMe', 'true');
-    await AsyncStorage.setItem('loginTimestamp', Date.now().toString());
-    
-    // ⚡ Renova token automaticamente a cada 6 horas (INFINITO - sem limite de 7 dias)
+    // ⚡ Renova token automaticamente a cada 6 horas (INFINITO)
     refreshTimerRef.current = setInterval(async () => {
       try {
         const refreshToken = httpClient.getRefreshToken();
@@ -75,9 +68,7 @@ export const AuthProvider = ({ children }) => {
         try {
           await validateToken();
           setLoading(false);
-          if (rememberMe === 'true') {
-            await setupAutoRefresh(true);
-          }
+          await setupAutoRefresh();
         } catch (tokenError) {
           if (rememberMe === 'true') {
             await tryAutoLogin();
@@ -107,7 +98,13 @@ export const AuthProvider = ({ children }) => {
       const savedEmail = await AsyncStorage.getItem('saved_email');
       const savedPassword = await SecureStore.getItemAsync('saved_password');
       if (savedEmail && savedPassword) {
-        await login(savedEmail, savedPassword, true);
+        try {
+          await login(savedEmail, savedPassword, true);
+        } catch (loginError) {
+          // Falha no login automático: faz logout e finaliza loading
+          await logout();
+        }
+        setLoading(false);
       } else {
         setLoading(false);
       }
@@ -158,7 +155,7 @@ export const AuthProvider = ({ children }) => {
       
       // Faz login (não requer autenticação)
       const response = await httpClient.post('/login', { email, password }, false);
-      
+
       // Verifica se recebeu access token e refresh token
       if (!response || !response.accessToken) {
         // Fallback para token único (compatibilidade com backend antigo)
@@ -170,18 +167,27 @@ export const AuthProvider = ({ children }) => {
       } else {
         // Novo sistema com access + refresh tokens
         httpClient.setTokens(response.accessToken, response.refreshToken);
-        
-        // 🔒 Configura auto-refresh se "Lembrar-me" estiver ativo
-        if (rememberMe) {
-          await setupAutoRefresh(true);
-        }
       }
-      
+
+      // Salva email/senha se lembrarMe estiver ativo
+      if (rememberMe) {
+        await AsyncStorage.setItem('rememberMe', 'true');
+        await AsyncStorage.setItem('saved_email', email);
+        await SecureStore.setItemAsync('saved_password', password);
+      } else {
+        await AsyncStorage.removeItem('rememberMe');
+        await AsyncStorage.removeItem('saved_email');
+        await SecureStore.deleteItemAsync('saved_password');
+      }
+
+      // Sempre configura auto-refresh
+      await setupAutoRefresh();
+
       // ✅ Só seta isAuthenticated DEPOIS que tudo deu certo
       setUser(response.user);
       await AsyncStorage.setItem('user', JSON.stringify(response.user));
       setIsAuthenticated(true); // Navegação só acontece aqui
-      
+
       return response;
       
     } catch (error) {

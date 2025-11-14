@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { EditItemModal } from '../modals';
 import { moderateScale } from '../../utils/responsive';
 
-export default function EditableReceiptItemCard({ item, itemIndex, onUpdate, onDelete, readOnly, categories = [] }) {
+export default function EditableReceiptItemCard({ item, itemIndex, onUpdate, onDelete, readOnly, categories = [], disableCategory = false, hideCategory = false }) {
     const [modalVisible, setModalVisible] = useState(false);
     const productName = item.product?.name || item.name || item.description || '';
     const categoryName = item.category?.name || item.categoryName || '';
@@ -55,6 +55,8 @@ export default function EditableReceiptItemCard({ item, itemIndex, onUpdate, onD
                     visible={modalVisible}
                     item={item}
                     categories={categories}
+                    disableCategory={disableCategory}
+                    hideCategory={hideCategory}
                     onSave={async (updatedItem) => onUpdate && await onUpdate(updatedItem, itemIndex)}
                     onClose={() => setModalVisible(false)}
                 />

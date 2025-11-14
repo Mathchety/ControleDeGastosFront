@@ -220,9 +220,14 @@ export default function PreViewScreen({ route, navigation }) {
     const handleConfirmNewReceipt = async () => {
         try {
             // MODO SCAN: Confirma e salva nova nota
-            // Navega para Home IMEDIATAMENTE ao clicar em salvar
-            navigation.navigate('Main', { screen: 'Home' });
-            
+            // Limpa a stack e navega para Home
+            navigation.reset({
+                index: 0,
+                routes: [
+                    { name: 'Main', params: { screen: 'Home' } }
+                ],
+            });
+
             // Callback de timeout: ativa notificação se demorar mais de 5s
             const handleTimeout = () => {
                 // Notificação de processamento
@@ -230,7 +235,6 @@ export default function PreViewScreen({ route, navigation }) {
 
             // Inicia o salvamento em background
             await confirmQRCode(previewData, handleTimeout);
-            
             // Se completou rápido (< 5s), não faz nada (já está na Home)
             // Se demorou (> 5s), a notificação já está aparecendo
         } catch (error) {
@@ -255,9 +259,9 @@ export default function PreViewScreen({ route, navigation }) {
                     colors={['#667eea', '#764ba2']}
                     style={styles.headerGradient}
                 >
-                    <PreviewHeader 
-                        title="Nota Fiscal" 
-                        onBack={() => navigation.goBack()} 
+                    <PreviewHeader
+                        title={receiptId ? 'Nota fiscal' : 'Preview da nota'}
+                        onBack={() => navigation.goBack()}
                     />
                 </LinearGradient>
                 <SkeletonPreviewScreen />
@@ -277,7 +281,10 @@ export default function PreViewScreen({ route, navigation }) {
                     colors={['#667eea', '#764ba2']}
                     style={styles.headerGradient}
                 >
-                    <PreviewHeader onBack={() => navigation.goBack()} />
+                    <PreviewHeader
+                        title={receiptId ? 'Nota fiscal' : 'Preview da nota'}
+                        onBack={() => navigation.goBack()}
+                    />
                 </LinearGradient>
                 <View style={styles.container}>
                     <Text style={styles.errorText}>Nenhum dado disponível</Text>
@@ -321,7 +328,10 @@ export default function PreViewScreen({ route, navigation }) {
                     style={styles.headerGradient}
                 />
                 <Animated.View style={[styles.headerContent, { opacity: headerOpacity }]}>
-                    <PreviewHeader onBack={() => navigation.goBack()} />
+                    <PreviewHeader
+                        title={receiptId ? 'Nota fiscal' : 'Preview da nota'}
+                        onBack={() => navigation.goBack()}
+                    />
                 </Animated.View>
             </Animated.View>
             
@@ -362,6 +372,7 @@ export default function PreViewScreen({ route, navigation }) {
                                 onDelete={handleDeleteItem}
                                 readOnly={false}
                                 categories={categories || []}
+                                {...(!receiptId ? { hideCategory: true } : {})}
                             />
                         ))
                     ) : (
