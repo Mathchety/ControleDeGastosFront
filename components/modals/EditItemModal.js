@@ -8,6 +8,9 @@ import {
     TouchableOpacity,
     ScrollView,
     ActivityIndicator,
+    Keyboard,
+    KeyboardAvoidingView,
+    Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { moderateScale } from '../../utils/responsive';
@@ -43,16 +46,20 @@ export default function EditItemModal({
     // ✨ Extrai nome do produto com fallback
     const productName = item?.product?.name || item?.name || item?.description || 'Sem nome';
 
-    // ✨ Atualiza campos quando item muda
+    // ✨ Atualiza campos quando modal abre (visible muda)
     useEffect(() => {
-        if (item) {
+        if (item && visible) {
+            // Garante que sempre carrega os valores ao abrir
             setItemQuantity(String(item.quantity || ''));
             setItemTotal(String(item.total || ''));
             setSelectedCategoryId(item.categoryId || item.category?.id);
         }
-    }, [item]);
+    }, [item, visible]);
 
     const handleSave = async () => {
+        // Fecha o teclado imediatamente
+        Keyboard.dismiss();
+        
         try {
             // Validações
             if (!itemQuantity || parseFloat(itemQuantity) <= 0) {
@@ -103,6 +110,8 @@ export default function EditItemModal({
     };
 
     const handleClose = () => {
+        // Fecha o teclado
+        Keyboard.dismiss();
         // Reseta estados
         setItemQuantity('');
         setItemTotal('');
@@ -121,7 +130,11 @@ export default function EditItemModal({
             onRequestClose={handleClose}
         >
             <View style={styles.modalOverlay}>
-                <View style={styles.modalContent}>
+                <KeyboardAvoidingView 
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={styles.keyboardView}
+                >
+                    <View style={styles.modalContent}>
                     {/* Header */}
                     <View style={styles.modalHeader}>
                         <Text style={styles.modalTitle}>Editar Item</Text>
@@ -226,9 +239,10 @@ export default function EditItemModal({
                             )}
                         </TouchableOpacity>
                     </View>
-                </View>
+                    </View>
+                </KeyboardAvoidingView>
             </View>
-
+            
             {/* Modal de Erro/Sucesso */}
             <ErrorMessage
                 visible={errorState.visible}
@@ -245,6 +259,10 @@ const styles = StyleSheet.create({
     modalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'flex-end',
+    },
+    keyboardView: {
+        flex: 1,
         justifyContent: 'flex-end',
     },
     modalContent: {
