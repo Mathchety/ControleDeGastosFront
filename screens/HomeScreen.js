@@ -26,9 +26,13 @@ import { SkeletonStatCard, SkeletonReceiptCard } from '../components/common';
 import ProcessingNotification from '../components/ProcessingNotification';
 import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
+import { useStatusBarColor } from '../hooks/useStatusBarColor';
 
 export default function HomeScreen({ navigation }) {
     const { user } = useAuth();
+    
+    // Hook para definir a cor da StatusBar
+    useStatusBarColor('#667eea', 'light-content');
     const { receipts, loading, fetchReceiptsBasic, dateList, itemCountList, storeNameList, isProcessingReceipt } = useData();
     const [refreshing, setRefreshing] = useState(false);
     const [monthSpent, setMonthSpent] = useState(0);
@@ -43,6 +47,13 @@ export default function HomeScreen({ navigation }) {
     useEffect(() => {
         loadData();
     }, []);
+
+    // Observa mudanças nos receipts do contexto (ex: após deletar uma nota)
+    useEffect(() => {
+        if (receipts && receipts.length >= 0) {
+            setAllReceipts(receipts);
+        }
+    }, [receipts]);
 
     // Recarrega dados toda vez que a tela ganhar foco (ex: voltar de deletar uma nota)
     useFocusEffect(
@@ -60,9 +71,7 @@ export default function HomeScreen({ navigation }) {
 
     // Recalcula o total do mês sempre que allReceipts mudar
     useEffect(() => {
-        if (allReceipts.length > 0) {
-            calculateMonthlyTotal();
-        }
+        calculateMonthlyTotal();
     }, [allReceipts]);
 
     const loadData = async () => {
@@ -87,6 +96,11 @@ export default function HomeScreen({ navigation }) {
 
     const calculateMonthlyTotal = () => {
         try {
+            if (!allReceipts || allReceipts.length === 0) {
+                setMonthSpent(0);
+                return;
+            }
+
             const now = new Date();
             const currentMonth = now.getMonth();
             const currentYear = now.getFullYear();
@@ -209,7 +223,7 @@ export default function HomeScreen({ navigation }) {
                         <CategoriesSection />
 
                         <ScanButton 
-                            title="Adicionar Nota Manual"
+                            title="Adicionar Nota Manualmente"
                             iconName="add-circle"
                             onPress={() => navigation.navigate('ManualReceipt')}
                             style={styles.addButton}

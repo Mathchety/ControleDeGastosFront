@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Text, View, StyleSheet, Button, ActivityIndicator, Alert, Animated, Easing, Platform, StatusBar } from 'react-native';
+import { Text, View, StyleSheet, Button, ActivityIndicator, Animated, Easing, Platform, StatusBar } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../contexts/DataContext';
 import useErrorModal from '../hooks/useErrorModal';
 import { ErrorModal } from '../components/modals';
+import { validateQRCode } from '../utils/qrCodeValidator'; // 🗺️ Validador de QR Code
 
 export default function ScanScreen({ navigation }) {
   const [permission, requestPermission] = useCameraPermissions();
@@ -45,18 +46,13 @@ export default function ScanScreen({ navigation }) {
       scanTimeoutRef.current = setTimeout(() => {
         if (!scanned) {
           setScanTimeout(true);
-          Alert.alert(
+          showError(
             'Tempo Esgotado',
             'Não foi possível escanear o QR Code.\nTente novamente.',
-            [
-              {
-                text: 'OK',
-                onPress: () => {
-                  setScanTimeout(false);
-                  setScanned(false);
-                }
-              }
-            ]
+            () => {
+              setScanTimeout(false);
+              setScanned(false);
+            }
           );
         }
       }, 30000); // 30 segundos
@@ -96,28 +92,42 @@ export default function ScanScreen({ navigation }) {
   const handleBarCodeScanned = async ({ data }) => {
     if (scanned || loading || scanTimeout) return;
     
-    // 🔍 Validar se é uma nota fiscal do Paraná (.pr)
-    const qrLink = data.toLowerCase();
-    if (!qrLink.includes('.pr')) {
-      Alert.alert(
-        'Nota Fiscal Inválida',
-        'Este aplicativo só aceita notas fiscais eletrônicas do Paraná.\n\nProcure por links contendo ".pr" no QR Code.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Permite escanear novamente
-              setScanned(false);
-            }
-          }
-        ]
-      );
+    // �️ Valida QR Code com suporte a todas as regiões do Brasil
+    const validation = validateQRCode(data);
+    
+    if (!validation.valid) {
+      // Limpa o timeout pois não é mais necessário (QR inválido não envia pro backend)
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current);
+        scanTimeoutRef.current = null;
+      }
+      
+      let title, message;
+      
+      if (validation.state) {
+        // Estado brasileiro não suportado ainda
+        title = 'Estado Não Suportado';
+        message = `Em breve adicionaremos suporte para ${validation.state}!`;
+      } else {
+        // Não é um QR Code de Nota Fiscal Eletrônica
+        title = 'QR Code Inválido';
+        message = 'Este não é um QR Code de Nota Fiscal Eletrônica.\n\nPor favor, escaneie o QR Code de uma nota fiscal válida.';
+      }
+      
+      // Mostra erro usando nosso componente personalizado
+      showError(title, message, () => {
+        // Permite escanear novamente após fechar o modal
+        setScanned(false);
+      });
+      
       return;
     }
     
+    // QR Code válido (Paraná)
     // Limpa o timeout ao escanear com sucesso
     if (scanTimeoutRef.current) {
       clearTimeout(scanTimeoutRef.current);
+      scanTimeoutRef.current = null;
     }
     
     setScanned(true);
@@ -155,13 +165,19 @@ export default function ScanScreen({ navigation }) {
       });
 
     } catch (error) {
+      // Limpa o timeout em caso de erro
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current);
+        scanTimeoutRef.current = null;
+      }
+      
       setLocalLoading(false);
       setScanned(false);
       setShowSuccess(false);
       screenAnim.setValue(1);
       successAnim.setValue(0);
       
-      // ✨ Usa o modal bonito de erro ao invés do Alert.alert simples
+      // Usa o modal de erro personalizado
       showError(error, 'Não foi possível processar a nota fiscal');
       
     }
@@ -272,6 +288,14 @@ export default function ScanScreen({ navigation }) {
           </View>
         </View>
       </Animated.View>
+
+      {/* Modal de Erro Personalizado */}
+      <ErrorModal
+        visible={errorState.visible}
+        title={errorState.title}
+        message={errorState.message}
+        onClose={hideError}
+      />
     </View>
   );
 }

@@ -84,4 +84,18 @@ export const ReceiptService = {
             }),
         });
     },
+
+    /**
+     * PATCH /receipts/{id} - Atualizar recibo existente
+     * @param {string} token - Token de autenticação
+     * @param {number} id - ID do recibo
+     * @param {object} receiptData - Dados atualizados do recibo
+     */
+    updateReceipt: async (token, id, receiptData) => {
+        return await api.apiRequest(`/receipts/${id}`, {
+            method: 'PATCH',
+            token,
+            body: JSON.stringify(receiptData),
+        });
+    },
 };

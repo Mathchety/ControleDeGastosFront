@@ -4,7 +4,6 @@ import {
     Text, 
     StyleSheet, 
     ActivityIndicator, 
-    Alert, 
     ScrollView, 
     Platform,
     StatusBar,
@@ -16,20 +15,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../contexts/DataContext';
 import { ConfirmButton } from '../components/buttons';
 import { PreviewHeader, ReceiptSummaryCard, EditableReceiptItemCard } from '../components/cards';
-import { SkeletonPreviewScreen } from '../components/common';
+import { SkeletonPreviewScreen, ErrorMessage } from '../components/common';
 import { useRequestThrottle } from '../hooks/useScreenFade';
 import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
 
 export default function PreViewScreen({ route, navigation }) {
     const { qrLink, previewData: receivedData, receiptId } = route.params || {};
-    const { previewQRCode, confirmQRCode, fetchReceiptById, loading } = useData();
+    const { previewQRCode, confirmQRCode, fetchReceiptById, updateReceipt, updateItem, categories, loading, fetchCategories } = useData();
+    const [errorState, setErrorState] = useState({ visible: false, title: '', message: '' });
     const [previewData, setPreviewData] = useState(receivedData || null);
     const [isReadOnly, setIsReadOnly] = useState(false);
     const [isOpening, setIsOpening] = useState(false); // ⚡ Previne múltiplos cliques
     const [isInitializing, setIsInitializing] = useState(!receivedData); // ✨ Mostra skeleton na inicialização
-    const [hasModifications, setHasModifications] = useState(false); // ✨ Controla se houve alterações
-    const [originalData, setOriginalData] = useState(null); // ✨ Dados originais para comparação
     
     // Animação do header ao rolar
     const scrollY = useRef(new Animated.Value(0)).current;
@@ -38,6 +36,20 @@ export default function PreViewScreen({ route, navigation }) {
     
     // ✨ Throttle para prevenir sobrecarga de requisições
     const { getDelay } = useRequestThrottle('PreViewScreen');
+
+    // ✅ Carrega categorias assim que a tela abre (se não tiver carregado ainda)
+    useEffect(() => {
+        const loadCategoriesIfNeeded = async () => {
+            if (!categories || categories.length === 0) {
+                try {
+                    await fetchCategories(); // ✅ Usa fetchCategories que atualiza o estado
+                } catch (error) {
+                    console.error('Erro ao carregar categorias:', error);
+                }
+            }
+        };
+        loadCategoriesIfNeeded();
+    }, []);
 
     useEffect(() => {
         // MODO 1: Se recebeu ID de uma nota já salva, busca pelo endpoint
@@ -77,19 +89,13 @@ export default function PreViewScreen({ route, navigation }) {
             
             const data = await fetchReceiptById(receiptId);
             setPreviewData(data);
-            setOriginalData(JSON.parse(JSON.stringify(data))); // ✨ Salva cópia dos dados originais
-            setHasModifications(false); // ✨ Reseta modificações
         } catch (error) {
-            Alert.alert(
-                'Erro',
-                `Não foi possível carregar os dados da nota fiscal.\n\nDetalhes: ${error.message}`,
-                [
-                    {
-                        text: 'OK',
-                        onPress: () => navigation.goBack()
-                    }
-                ]
-            );
+            setErrorState({
+                visible: true,
+                title: 'Erro ao Carregar',
+                message: error.message || 'Não foi possível carregar os dados da nota fiscal.'
+            });
+            navigation.goBack();
         } finally {
             setIsOpening(false);
             setIsInitializing(false); // ✨ Finaliza inicialização
@@ -101,52 +107,75 @@ export default function PreViewScreen({ route, navigation }) {
             const data = await previewQRCode(qrLink);
             setPreviewData(data);
         } catch (error) {
-            Alert.alert(
-                'Erro',
-                'Não foi possível carregar os dados da nota fiscal.',
-                [
-                    {
-                        text: 'OK',
-                        onPress: () => navigation.goBack()
-                    }
-                ]
-            );
+            setErrorState({
+                visible: true,
+                title: 'Erro ao Carregar',
+                message: error.message || 'Não foi possível carregar os dados da nota fiscal.'
+            });
+            navigation.goBack();
         } finally {
             setIsInitializing(false); // ✨ Finaliza inicialização
         }
     };
 
-    const handleUpdateItem = (updatedItem, itemIndex) => {
-        setPreviewData(prev => {
-            if (!prev || !prev.items) {
-                return prev;
+    const handleUpdateItem = async (updatedItem, itemIndex) => {
+        // 🔄 Se o item tem ID (já existe no backend), atualiza via API
+        if (updatedItem.id) {
+            try {
+                // Prepara apenas os campos que podem ser atualizados
+                const itemData = {};
+                if (updatedItem.categoryId !== undefined) itemData.categoryId = updatedItem.categoryId;
+                if (updatedItem.quantity !== undefined) itemData.quantity = parseFloat(updatedItem.quantity);
+                if (updatedItem.total !== undefined) itemData.total = parseFloat(updatedItem.total);
+                if (updatedItem.unitPrice !== undefined) itemData.unitPrice = parseFloat(updatedItem.unitPrice);
+                
+                // ⚡ Atualiza no backend e AGUARDA resposta 200
+                await updateItem(updatedItem.id, itemData);
+                
+                // ✅ API confirmou (200) - Recarrega nota fiscal completa
+                if (receiptId) {
+                    const updatedReceipt = await fetchReceiptById(receiptId);
+                    setPreviewData(updatedReceipt);
+                } else {
+                    // MODO SCAN: Atualiza estado local (nota ainda não foi salva)
+                    setPreviewData(prev => {
+                        if (!prev || !prev.items) return prev;
+                        
+                        const updatedItems = prev.items.map((item, index) => 
+                            index === itemIndex ? { ...item, ...updatedItem } : item
+                        );
+                        
+                        // Recalcula totais localmente
+                        const newSubtotal = updatedItems.reduce((sum, item) => 
+                            sum + (item.deleted ? 0 : parseFloat(item.total || 0)), 0
+                        );
+                        const newTotal = newSubtotal - parseFloat(prev.discount || 0);
+                        
+                        return {
+                            ...prev,
+                            items: updatedItems,
+                            subtotal: newSubtotal,
+                            total: newTotal,
+                            itemsCount: updatedItems.filter(i => !i.deleted).length,
+                        };
+                    });
+                }
+                
+                return; // ✅ Sucesso - não continua
+                
+            } catch (error) {
+                // ❌ API falhou - NÃO atualiza interface
+                setErrorState({
+                    visible: true,
+                    title: 'Erro ao Atualizar',
+                    message: error.message || 'Não foi possível atualizar o item.'
+                });
+                return;
             }
-            
-            const updatedItems = prev.items.map((item, index) => 
-                index === itemIndex ? updatedItem : item
-            );
-            
-            // Recalcula o subtotal
-            const newSubtotal = updatedItems.reduce((sum, item) => 
-                sum + (item.deleted ? 0 : parseFloat(item.total || 0)), 0
-            );
-            
-            // Recalcula o total
-            const newTotal = newSubtotal - parseFloat(prev.discount || 0);
-            
-            return {
-                ...prev,
-                items: updatedItems,
-                subtotal: newSubtotal,
-                total: newTotal,
-                itemsCount: updatedItems.filter(i => !i.deleted).length,
-            };
-        });
-        
-        // ✨ Marca que houve modificação (só se for nota do histórico)
-        if (receiptId) {
-            setHasModifications(true);
         }
+        
+        // ❌ Item sem ID - não deveria acontecer no histórico
+        console.warn('Item sem ID - não pode atualizar via API');
     };
 
     const handleDeleteItem = (itemIndex) => {
@@ -182,49 +211,34 @@ export default function PreViewScreen({ route, navigation }) {
                                 itemsCount: updatedItems.filter(i => !i.deleted).length,
                             };
                         });
-                        
-                        // ✨ Marca que houve modificação (só se for nota do histórico)
-                        if (receiptId) {
-                            setHasModifications(true);
-                        }
                     }
                 }
             ]
         );
     };
 
-    const handleConfirm = async () => {
+    const handleConfirmNewReceipt = async () => {
         try {
-            if (receiptId) {
-                // MODO HISTÓRICO: Salva as alterações da nota existente
-                Alert.alert(
-                    'Sucesso',
-                    'Alterações salvas com sucesso!',
-                    [
-                        {
-                            text: 'OK',
-                            onPress: () => navigation.goBack()
-                        }
-                    ]
-                );
-            } else {
-                // MODO SCAN: Confirma e salva nova nota
-                // Navega para Home IMEDIATAMENTE ao clicar em salvar
-                navigation.navigate('Main', { screen: 'Home' });
-                
-                // Callback de timeout: ativa notificação se demorar mais de 5s
-                const handleTimeout = () => {
-                    // Notificação de processamento
-                };
+            // MODO SCAN: Confirma e salva nova nota
+            // Navega para Home IMEDIATAMENTE ao clicar em salvar
+            navigation.navigate('Main', { screen: 'Home' });
+            
+            // Callback de timeout: ativa notificação se demorar mais de 5s
+            const handleTimeout = () => {
+                // Notificação de processamento
+            };
 
-                // Inicia o salvamento em background
-                const result = await confirmQRCode(previewData, handleTimeout);
-                
-                // Se completou rápido (< 5s), não faz nada (já está na Home)
-                // Se demorou (> 5s), a notificação já está aparecendo
-            }
+            // Inicia o salvamento em background
+            await confirmQRCode(previewData, handleTimeout);
+            
+            // Se completou rápido (< 5s), não faz nada (já está na Home)
+            // Se demorou (> 5s), a notificação já está aparecendo
         } catch (error) {
-            Alert.alert('Erro', 'Não foi possível salvar a nota fiscal.');
+            setErrorState({
+                visible: true,
+                title: 'Erro ao Salvar',
+                message: error.message || 'Não foi possível salvar a nota fiscal.'
+            });
         }
     };
 
@@ -241,7 +255,10 @@ export default function PreViewScreen({ route, navigation }) {
                     colors={['#667eea', '#764ba2']}
                     style={styles.headerGradient}
                 >
-                    <PreviewHeader onBack={() => navigation.goBack()} />
+                    <PreviewHeader 
+                        title="Nota Fiscal" 
+                        onBack={() => navigation.goBack()} 
+                    />
                 </LinearGradient>
                 <SkeletonPreviewScreen />
             </View>
@@ -344,6 +361,7 @@ export default function PreViewScreen({ route, navigation }) {
                                 onUpdate={handleUpdateItem}
                                 onDelete={handleDeleteItem}
                                 readOnly={false}
+                                categories={categories || []}
                             />
                         ))
                     ) : (
@@ -351,16 +369,24 @@ export default function PreViewScreen({ route, navigation }) {
                     )}
                 </Animated.ScrollView>
 
-                {/* Botão confirmar - FIXO NA PARTE INFERIOR */}
-                {/* Mostra se for nova nota (sem receiptId) OU se houver modificações */}
-                {(!receiptId || hasModifications) && (
+                {/* Botão confirmar - Só mostra para novas notas (modo scan) */}
+                {!receiptId && (
                     <View style={styles.fixedButtonContainer}>
                         <ConfirmButton 
-                            onPress={handleConfirm}
+                            onPress={handleConfirmNewReceipt}
                         />
                     </View>
                 )}
             </View>
+
+            {/* Modal de Erro/Sucesso */}
+            <ErrorMessage
+                visible={errorState.visible}
+                title={errorState.title}
+                message={errorState.message}
+                type={errorState.type}
+                onClose={() => setErrorState({ ...errorState, visible: false })}
+            />
         </View>
     );
 }

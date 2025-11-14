@@ -10,21 +10,26 @@ import {
     Platform,
     StatusBar,
     Alert,
-    Modal,
-    TextInput,
+    SafeAreaView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../contexts/DataContext';
 import { useFilters } from '../contexts/FilterContext';
 import { SkeletonCategoryCard } from '../components/common';
+import { EditItemModal } from '../components/modals';
 import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
 import { useRequestThrottle } from '../hooks/useScreenFade';
+import { useStatusBarColor } from '../hooks/useStatusBarColor';
 
 export default function CategoryDetailsScreen({ route, navigation }) {
     const { category } = route.params || {};
     const { fetchCategoryById, updateItem, fetchCategories } = useData();
+    
+    // Hook para definir a cor da StatusBar baseado na cor da categoria
+    const categoryColor = category?.color || '#667eea';
+    useStatusBarColor(categoryColor, 'light-content');
     
     // ✅ Obtém os filtros da tela de Categorias para aplicar aqui
     const { categoriesFilter } = useFilters();
@@ -35,7 +40,6 @@ export default function CategoryDetailsScreen({ route, navigation }) {
     const [loadingMore, setLoadingMore] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
-    const [saving, setSaving] = useState(false);
     
     // Estados de paginação
     const [currentPage, setCurrentPage] = useState(1);
@@ -43,10 +47,7 @@ export default function CategoryDetailsScreen({ route, navigation }) {
     const [hasMore, setHasMore] = useState(false);
     const [summary, setSummary] = useState(null);
     
-    // Estados do formulário de edição
-    const [itemQuantity, setItemQuantity] = useState('');
-    const [itemTotal, setItemTotal] = useState('');
-    const [selectedCategoryId, setSelectedCategoryId] = useState(null);
+    // ✨ Lista de categorias para o modal de edição
     const [categories, setCategories] = useState([]);
     
     // ✨ Throttle para prevenir sobrecarga de requisições
@@ -159,63 +160,40 @@ export default function CategoryDetailsScreen({ route, navigation }) {
 
     const handleEditItem = (item) => {
         setEditingItem(item);
-        setItemQuantity(String(item.quantity || ''));
-        setItemTotal(String(item.total || ''));
-        setSelectedCategoryId(item.categoryId);
         setModalVisible(true);
     };
 
-    const handleSaveItem = async () => {
+    const handleSaveItem = async (updatedItem) => {
         try {
-            // Validações
-            if (!itemQuantity || parseFloat(itemQuantity) <= 0) {
-                Alert.alert('Erro', 'Quantidade deve ser maior que zero');
-                return;
-            }
-            if (!itemTotal || parseFloat(itemTotal) <= 0) {
-                Alert.alert('Erro', 'Total deve ser maior que zero');
-                return;
-            }
-
-            setSaving(true);
-
-            const quantity = parseFloat(itemQuantity);
-            const total = parseFloat(itemTotal);
-            const unitPrice = total / quantity;
-
-            const updateData = {
-                quantity: quantity,
-                total: total,
-                unitPrice: unitPrice,
-                categoryId: selectedCategoryId
-            };
-
-            await updateItem(editingItem.id, updateData);
+            await updateItem(updatedItem.id, {
+                quantity: updatedItem.quantity,
+                total: updatedItem.total,
+                unitPrice: updatedItem.unitPrice,
+                categoryId: updatedItem.categoryId
+            });
 
             Alert.alert('Sucesso', 'Item atualizado com sucesso!');
-            setModalVisible(false);
             
             // Se mudou de categoria, volta para a lista
-            if (selectedCategoryId !== category.id) {
+            if (updatedItem.categoryId !== category.id) {
                 navigation.goBack();
             } else {
                 // Se não mudou, só recarrega
                 loadCategoryDetails();
             }
         } catch (error) {
-            Alert.alert('Erro', 'Não foi possível salvar o item. Tente novamente.');
-        } finally {
-            setSaving(false);
+            throw error; // EditItemModal vai mostrar o erro
         }
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: categoryColor }]}>
             <StatusBar
                 barStyle="light-content"
-                backgroundColor="transparent"
-                translucent={true}
+                backgroundColor={categoryColor}
+                translucent={false}
             />
+            <View style={styles.container}>
 
             {/* Header com gradiente */}
             <LinearGradient
@@ -371,121 +349,23 @@ export default function CategoryDetailsScreen({ route, navigation }) {
                 />
             )}
 
-            {/* Modal de Edição de Item */}
-            <Modal
+            {/* 🎨 Modal Bonito de Edição de Item */}
+            <EditItemModal
                 visible={modalVisible}
-                transparent={true}
-                animationType="slide"
-                onRequestClose={() => setModalVisible(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Editar Item</Text>
-                            <TouchableOpacity onPress={() => setModalVisible(false)}>
-                                <Ionicons name="close" size={28} color="#666" />
-                            </TouchableOpacity>
-                        </View>
-
-                        <ScrollView showsVerticalScrollIndicator={false}>
-                            {/* Nome do Produto (readonly) */}
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>Produto</Text>
-                                <View style={styles.readOnlyField}>
-                                    <Text style={styles.readOnlyText}>{editingItem?.name}</Text>
-                                </View>
-                            </View>
-
-                            {/* Quantidade */}
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>Quantidade *</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={itemQuantity}
-                                    onChangeText={setItemQuantity}
-                                    placeholder="Ex: 2"
-                                    keyboardType="decimal-pad"
-                                    maxLength={10}
-                                />
-                            </View>
-
-                            {/* Total */}
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>Total (R$) *</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={itemTotal}
-                                    onChangeText={setItemTotal}
-                                    placeholder="Ex: 10.50"
-                                    keyboardType="decimal-pad"
-                                    maxLength={10}
-                                />
-                            </View>
-
-                            {/* Preço Unitário Calculado */}
-                            {itemQuantity && itemTotal && parseFloat(itemQuantity) > 0 && (
-                                <View style={styles.calculatedField}>
-                                    <Text style={styles.calculatedLabel}>Preço Unitário:</Text>
-                                    <Text style={styles.calculatedValue}>
-                                        R$ {(parseFloat(itemTotal) / parseFloat(itemQuantity)).toFixed(2)}
-                                    </Text>
-                                </View>
-                            )}
-
-                            {/* Categoria */}
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>Categoria</Text>
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                                    {categories.map((cat) => (
-                                        <TouchableOpacity
-                                            key={cat.id}
-                                            style={[
-                                                styles.categoryChip,
-                                                selectedCategoryId === cat.id && styles.categoryChipSelected
-                                            ]}
-                                            onPress={() => setSelectedCategoryId(cat.id)}
-                                        >
-                                            <View style={[styles.categoryChipColor, { backgroundColor: cat.color }]} />
-                                            <Text style={[
-                                                styles.categoryChipText,
-                                                selectedCategoryId === cat.id && styles.categoryChipTextSelected
-                                            ]}>
-                                                {cat.name}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </ScrollView>
-                            </View>
-                        </ScrollView>
-
-                        {/* Botões */}
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity
-                                style={[styles.modalButton, styles.cancelButton]}
-                                onPress={() => setModalVisible(false)}
-                            >
-                                <Text style={styles.cancelButtonText}>Cancelar</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.modalButton, styles.saveButton, saving && styles.saveButtonDisabled]}
-                                onPress={handleSaveItem}
-                                disabled={saving}
-                            >
-                                {saving ? (
-                                    <ActivityIndicator color="#fff" />
-                                ) : (
-                                    <Text style={styles.saveButtonText}>Salvar</Text>
-                                )}
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
-        </View>
+                item={editingItem}
+                categories={categories}
+                onSave={handleSaveItem}
+                onClose={() => setModalVisible(false)}
+            />
+            </View>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+    },
     container: {
         flex: 1,
         backgroundColor: '#f8f9fa',
@@ -669,137 +549,6 @@ const styles = StyleSheet.create({
     itemTotalValue: {
         fontSize: moderateScale(20),
         fontWeight: '700',
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'flex-end',
-    },
-    modalContent: {
-        backgroundColor: '#fff',
-        borderTopLeftRadius: moderateScale(25),
-        borderTopRightRadius: moderateScale(25),
-        padding: moderateScale(20),
-        maxHeight: '90%',
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: moderateScale(20),
-    },
-    modalTitle: {
-        fontSize: moderateScale(24),
-        fontWeight: '700',
-        color: '#333',
-    },
-    formGroup: {
-        marginBottom: moderateScale(20),
-    },
-    label: {
-        fontSize: moderateScale(14),
-        fontWeight: '600',
-        color: '#333',
-        marginBottom: moderateScale(8),
-    },
-    input: {
-        backgroundColor: '#f8f9fa',
-        borderRadius: moderateScale(12),
-        padding: moderateScale(15),
-        fontSize: moderateScale(16),
-        color: '#333',
-        borderWidth: 1,
-        borderColor: '#e5e7eb',
-    },
-    readOnlyField: {
-        backgroundColor: '#f0f0f0',
-        borderRadius: moderateScale(12),
-        padding: moderateScale(15),
-        borderWidth: 1,
-        borderColor: '#e5e7eb',
-    },
-    readOnlyText: {
-        fontSize: moderateScale(16),
-        color: '#666',
-    },
-    calculatedField: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        backgroundColor: '#f0f4ff',
-        borderRadius: moderateScale(12),
-        padding: moderateScale(15),
-        marginBottom: moderateScale(20),
-    },
-    calculatedLabel: {
-        fontSize: moderateScale(14),
-        fontWeight: '600',
-        color: '#667eea',
-    },
-    calculatedValue: {
-        fontSize: moderateScale(18),
-        fontWeight: '700',
-        color: '#667eea',
-    },
-    categoryChip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#f8f9fa',
-        borderRadius: moderateScale(20),
-        paddingVertical: moderateScale(8),
-        paddingHorizontal: moderateScale(15),
-        marginRight: moderateScale(10),
-        borderWidth: 2,
-        borderColor: 'transparent',
-    },
-    categoryChipSelected: {
-        backgroundColor: '#f0f4ff',
-        borderColor: '#667eea',
-    },
-    categoryChipColor: {
-        width: moderateScale(16),
-        height: moderateScale(16),
-        borderRadius: moderateScale(8),
-        marginRight: moderateScale(8),
-    },
-    categoryChipText: {
-        fontSize: moderateScale(14),
-        fontWeight: '600',
-        color: '#666',
-    },
-    categoryChipTextSelected: {
-        color: '#667eea',
-    },
-    modalButtons: {
-        flexDirection: 'row',
-        gap: moderateScale(12),
-        marginTop: moderateScale(20),
-    },
-    modalButton: {
-        flex: 1,
-        paddingVertical: moderateScale(15),
-        borderRadius: moderateScale(12),
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    cancelButton: {
-        backgroundColor: '#f8f9fa',
-    },
-    cancelButtonText: {
-        fontSize: moderateScale(16),
-        fontWeight: '600',
-        color: '#666',
-    },
-    saveButton: {
-        backgroundColor: '#667eea',
-    },
-    saveButtonDisabled: {
-        opacity: 0.6,
-    },
-    saveButtonText: {
-        fontSize: moderateScale(16),
-        fontWeight: '600',
-        color: '#fff',
     },
     // Estilos de Filtros
     filtersContainer: {

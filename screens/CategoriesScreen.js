@@ -12,6 +12,7 @@ import {
     TextInput,
     KeyboardAvoidingView,
     Alert,
+    SafeAreaView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +23,7 @@ import { DatePeriodModal } from '../components/modals';
 import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
 import { getValidIcon } from '../utils/iconHelper';
+import { useStatusBarColor } from '../hooks/useStatusBarColor';
 
 // Paleta de cores disponíveis
 const COLOR_PALETTE = [
@@ -36,6 +38,9 @@ const COLOR_PALETTE = [
 export default function CategoriesScreen({ navigation }) {
     const { fetchCategories, createCategory, deleteCategory } = useData();
     const { categoriesFilter, updateCategoriesFilter } = useFilters();
+    
+    // Hook para definir a cor da StatusBar
+    useStatusBarColor('#667eea', 'light-content');
     
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -256,12 +261,13 @@ export default function CategoriesScreen({ navigation }) {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.safeArea}>
             <StatusBar
                 barStyle="light-content"
-                backgroundColor="transparent"
-                translucent={true}
+                backgroundColor="#667eea"
+                translucent={false}
             />
+            <View style={styles.container}>
 
             {/* Header com gradiente */}
             <LinearGradient
@@ -589,11 +595,16 @@ export default function CategoriesScreen({ navigation }) {
                     </View>
                 </KeyboardAvoidingView>
             </Modal>
-        </View>
+            </View>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+        backgroundColor: '#667eea',
+    },
     container: {
         flex: 1,
         backgroundColor: '#f8f9fa',

@@ -88,4 +88,30 @@ export const ItemService = {
             token,
         });
     },
+
+    /**
+     * 🔄 PATCH /item/:id - Atualizar item individual
+     * @param {string} token - JWT token
+     * @param {number} itemId - ID do item a ser atualizado
+     * @param {object} itemData - Dados a atualizar { categoryId?, quantity?, unitPrice? }
+     * @returns {Promise} Item atualizado
+     * 
+     * ⚡ Atualização parcial: Envia apenas os campos que mudaram
+     * 🔒 Requer autenticação: Token JWT (renovado automaticamente se expirado)
+     * 
+     * Exemplo:
+     * ```js
+     * await updateItem(token, 123, { 
+     *   categoryId: 5, 
+     *   quantity: 3.0 
+     * });
+     * ```
+     */
+    updateItem: async (token, itemId, itemData) => {
+        return await api.apiRequest(`/item/${itemId}`, {
+            method: 'PATCH',
+            token,
+            body: JSON.stringify(itemData),
+        });
+    },
 };

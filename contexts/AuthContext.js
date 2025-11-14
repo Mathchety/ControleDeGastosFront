@@ -8,10 +8,51 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const refreshTimerRef = React.useRef(null); // 🔒 Timer para auto-refresh
 
   useEffect(() => {
     initializeAuth();
+    
+    // 🧹 Cleanup: limpa timer ao desmontar
+    return () => {
+      if (refreshTimerRef.current) {
+        clearInterval(refreshTimerRef.current);
+      }
+    };
   }, []);
+
+  // 🔒 Configura auto-refresh do refresh token (antes de expirar 7 dias)
+  const setupAutoRefresh = async (rememberMe) => {
+    // Limpa timer anterior
+    if (refreshTimerRef.current) {
+      clearInterval(refreshTimerRef.current);
+    }
+    
+    if (!rememberMe) return; // Não configura se não quer lembrar
+    
+    // Salva flag de rememberMe
+    await AsyncStorage.setItem('rememberMe', 'true');
+    await AsyncStorage.setItem('loginTimestamp', Date.now().toString());
+    
+    // ⚡ Renova token automaticamente a cada 6 horas (INFINITO - sem limite de 7 dias)
+    refreshTimerRef.current = setInterval(async () => {
+      try {
+        const refreshToken = httpClient.getRefreshToken();
+        if (refreshToken) {
+          // 🔄 Renova silenciosamente
+          const newToken = await httpClient.refreshAccessToken();
+          if (newToken) {
+            // Atualiza timestamp do login
+            await AsyncStorage.setItem('loginTimestamp', Date.now().toString());
+          }
+        }
+      } catch (error) {
+        // Se falhar, limpa tudo e desloga
+        clearInterval(refreshTimerRef.current);
+        await logout();
+      }
+    }, 6 * 60 * 60 * 1000); // A cada 6 horas
+  };
 
   /**
    * Inicializa a autenticação verificando se há token salvo
@@ -19,14 +60,21 @@ export const AuthProvider = ({ children }) => {
    */
   const initializeAuth = async () => {
     try {
-      // Inicializa o httpClient (carrega o token do AsyncStorage)
+      // Inicializa o httpClient (carrega os tokens do AsyncStorage)
       await httpClient.init();
       
       const token = httpClient.getToken();
+      const refreshToken = httpClient.getRefreshToken();
+      const rememberMe = await AsyncStorage.getItem('rememberMe');
       
-      if (token) {
+      if (token || refreshToken) {
         // Token existe, vamos validá-lo
         await validateToken();
+        
+        // 🔒 Reativa auto-refresh se tinha rememberMe ativo
+        if (rememberMe === 'true') {
+          await setupAutoRefresh(true);
+        }
       }
     } catch (error) {
       await logout(); // Se falhar, faz logout
@@ -63,9 +111,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
-   * Login do usuário
+   * 🔒 Login do usuário com opção de "Lembrar-me"
+   * @param {string} email - Email do usuário
+   * @param {string} password - Senha do usuário
+   * @param {boolean} rememberMe - Se true, renova token automaticamente por 7 dias
    */
-  const login = async (email, password) => {
+  const login = async (email, password, rememberMe = false) => {
     try {
       // ❌ NÃO usa setLoading(true) aqui - causa navegação prematura
       // O loading local do LoginForm é suficiente
@@ -73,12 +124,23 @@ export const AuthProvider = ({ children }) => {
       // Faz login (não requer autenticação)
       const response = await httpClient.post('/login', { email, password }, false);
       
-      if (!response || !response.token) {
-        throw new Error('Token não recebido do servidor');
+      // Verifica se recebeu access token e refresh token
+      if (!response || !response.accessToken) {
+        // Fallback para token único (compatibilidade com backend antigo)
+        if (response.token) {
+          httpClient.setToken(response.token);
+        } else {
+          throw new Error('Token não recebido do servidor');
+        }
+      } else {
+        // Novo sistema com access + refresh tokens
+        httpClient.setTokens(response.accessToken, response.refreshToken);
+        
+        // 🔒 Configura auto-refresh se "Lembrar-me" estiver ativo
+        if (rememberMe) {
+          await setupAutoRefresh(true);
+        }
       }
-
-      // Salva o token no httpClient e AsyncStorage
-      httpClient.setToken(response.token);
       
       // ✅ Só seta isAuthenticated DEPOIS que tudo deu certo
       setUser(response.user);
@@ -103,12 +165,18 @@ export const AuthProvider = ({ children }) => {
       // Faz registro (não requer autenticação)
       const response = await httpClient.post('/register', { name, email, password }, false);
       
-      if (!response || !response.token) {
-        throw new Error('Token não recebido do servidor');
+      // Verifica se recebeu access token e refresh token
+      if (!response || !response.accessToken) {
+        // Fallback para token único (compatibilidade com backend antigo)
+        if (response.token) {
+          httpClient.setToken(response.token);
+        } else {
+          throw new Error('Token não recebido do servidor');
+        }
+      } else {
+        // Novo sistema com access + refresh tokens
+        httpClient.setTokens(response.accessToken, response.refreshToken);
       }
-
-      // Salva o token no httpClient e AsyncStorage
-      httpClient.setToken(response.token);
       
       // ✅ Só seta isAuthenticated DEPOIS que tudo deu certo
       setUser(response.user);
@@ -127,6 +195,12 @@ export const AuthProvider = ({ children }) => {
    */
   const logout = async () => {
     try {
+      // 🔒 Limpa timer de auto-refresh
+      if (refreshTimerRef.current) {
+        clearInterval(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+      
       // Chama a API para invalidar o token no backend
       try {
         await httpClient.post('/logout');
@@ -134,11 +208,13 @@ export const AuthProvider = ({ children }) => {
         // Continua com o logout local mesmo se a API falhar
       }
       
-      // Limpa o token
-      httpClient.setToken(null);
+      // Limpa ambos os tokens
+      httpClient.setTokens(null, null);
       
       // Limpa o AsyncStorage
       await AsyncStorage.removeItem('user');
+      await AsyncStorage.removeItem('rememberMe');
+      await AsyncStorage.removeItem('loginTimestamp');
       
       // Limpa o estado
       setUser(null);
@@ -211,18 +287,34 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
-   * Confirmar troca de email com código
+   * 🔒 Confirmar troca de email com validação dupla (2FA)
+   * @param {string} newEmail - Novo endereço de email
+   * @param {string} tokenOldEmail - Código de verificação enviado para o email ATUAL
+   * @param {string} tokenNewEmail - Código de verificação enviado para o NOVO email
+   * @returns {Promise} Response da API com user atualizado
+   * 
+   * SEGURANÇA: Requer confirmação de AMBOS emails para prevenir account takeover
+   * - Token 1: Prova que o usuário possui acesso ao email atual (é o dono da conta)
+   * - Token 2: Prova que o usuário possui acesso ao novo email
    */
-  const confirmEmailChange = async (newEmail, token) => {
+  const confirmEmailChange = async (newEmail, tokenOldEmail, tokenNewEmail) => {
     try {
       // ❌ NÃO usa setLoading(true) aqui - deixa o componente gerenciar
       const response = await httpClient.post('/user/confirm-email-change', { 
-        newEmail, 
-        token 
+        newEmail,
+        tokenOldEmail, // 🔒 Código do email ATUAL
+        tokenNewEmail  // 🔒 Código do NOVO email
       });
       
-      // ✅ Só atualiza localmente DEPOIS do sucesso da API
+      // ✅ Atualiza localmente DEPOIS do sucesso da API
       const updatedUser = response.user || { ...user, email: newEmail };
+      
+      console.log('🔄 Email alterado:', {
+        emailAntigo: user?.email,
+        emailNovo: newEmail,
+        userAtualizado: updatedUser
+      });
+      
       setUser(updatedUser);
       await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
       

@@ -241,6 +241,25 @@ export const DataProvider = ({ children }) => {
         }
     };
 
+    // Atualiza um receipt existente - PATCH /receipts/:id
+    const updateReceipt = async (id, receiptData) => {
+        try {
+            setLoading(true);
+            const response = await httpClient.patch(`/receipts/${id}`, receiptData);
+            
+            // Atualiza a lista local se necessário
+            setReceipts(prev => prev.map(r => r.id === id ? { ...r, ...receiptData } : r));
+            
+            return response;
+        } catch (error) {
+            const errorMessage = getErrorMessage(error, 'Não foi possível atualizar o recibo.');
+            Alert.alert(getErrorTitle(error), errorMessage);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // Busca dados de categorias para gráfico - GET /categories/graph
     const fetchCategoriesGraph = async (startDate, endDate) => {
         try {
@@ -448,12 +467,44 @@ export const DataProvider = ({ children }) => {
         }
     };
 
-    // Atualiza um item - PATCH /item/{id}
+    // 🔄 Atualiza um item individual - PATCH /item/{id}
+    // ⚡ SILENCIOSO: Não mostra alert, apenas atualiza no backend e estado local
     const updateItem = async (itemId, itemData) => {
         try {
             setLoading(true);
             const response = await httpClient.patch(`/item/${itemId}`, itemData);
-            Alert.alert('Sucesso', 'Item atualizado com sucesso!');
+            
+            // ✅ Atualiza o item no estado local dos receipts E recalcula o total do receipt
+            setReceipts(prev => prev.map(receipt => {
+                const hasItem = receipt.items?.some(item => item.id === itemId);
+                
+                if (!hasItem) return receipt;
+                
+                // Atualiza o item
+                const updatedItems = receipt.items.map(item => 
+                    item.id === itemId 
+                        ? { ...item, ...response.data, ...itemData } 
+                        : item
+                );
+                
+                // Recalcula o subtotal somando todos os itens não deletados
+                const newSubtotal = updatedItems.reduce((sum, item) => 
+                    sum + (item.deleted ? 0 : parseFloat(item.total || 0)), 0
+                );
+                
+                // Calcula o total aplicando o desconto
+                const discount = parseFloat(receipt.discount || 0);
+                const newTotal = newSubtotal - discount;
+                
+                return {
+                    ...receipt,
+                    items: updatedItems,
+                    subtotal: newSubtotal,
+                    total: newTotal,
+                    itemsCount: updatedItems.filter(i => !i.deleted).length,
+                };
+            }));
+            
             return response.data;
         } catch (error) {
             const errorMessage = getErrorMessage(error, 'Não foi possível atualizar o item.');
@@ -500,11 +551,13 @@ export const DataProvider = ({ children }) => {
                 fetchReceiptById,
                 fetchCategoriesGraph,
                 fetchCategories,
+                fetchCategoriesComplete,
                 fetchCategoryById,
                 createCategory,
                 deleteCategory,
                 updateItem,
                 deleteReceipt,
+                updateReceipt,
                 createManualReceipt,
                 clearPreview,
                 dateList,

@@ -23,6 +23,7 @@
     "expo-image-picker": "~17.0.8",
     "expo-linear-gradient": "^15.0.7",
     "expo-navigation-bar": "~5.0.9",
+    "expo-secure-store": "~15.0.7",
     "expo-status-bar": "~3.0.8",
     "moti": "^0.30.0",
     "react": "19.1.0",

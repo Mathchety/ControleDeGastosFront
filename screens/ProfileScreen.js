@@ -12,10 +12,13 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../contexts/AuthContext';
-import { ChangePasswordModal } from '../components/modals';
+import { ChangeNameModal, ChangeEmailModal } from '../components/modals';
+import { UserAvatar, AvatarSelectorModal } from '../components/profile';
 import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
+import { useStatusBarColor } from '../hooks/useStatusBarColor';
 
 // Componente de Card Animado
 const AnimatedCard = ({ children, delay = 0 }) => (
@@ -46,9 +49,30 @@ const InfoItem = ({ icon, label, value, onPress, delay }) => (
 );
 
 export default function ProfileScreen({ navigation }) {
-    const { user: authUser, logout, changePassword } = useAuth();
+    const { user: authUser, logout, changePassword, updateProfile, requestEmailChange, confirmEmailChange } = useAuth();
     const insets = useSafeAreaInsets();
-    const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+    const [showChangeNameModal, setShowChangeNameModal] = useState(false);
+    const [showChangeEmailModal, setShowChangeEmailModal] = useState(false);
+    const [showAvatarSelector, setShowAvatarSelector] = useState(false); // 🎨 Modal de avatar
+    const [selectedAvatar, setSelectedAvatar] = useState('user-1'); // 🎨 Avatar padrão
+    
+    // Hook para definir a cor da StatusBar
+    useStatusBarColor('#667eea', 'light-content');
+    
+    // 🎨 Carrega avatar salvo ao montar componente
+    useEffect(() => {
+        const loadAvatar = async () => {
+            try {
+                const savedAvatar = await AsyncStorage.getItem('user_avatar');
+                if (savedAvatar) {
+                    setSelectedAvatar(savedAvatar);
+                }
+            } catch (error) {
+                console.log('Erro ao carregar avatar:', error);
+            }
+        };
+        loadAvatar();
+    }, []);
     
     // Função para formatar a data de criação
     const formatMemberSince = (dateString) => {
@@ -72,25 +96,66 @@ export default function ProfileScreen({ navigation }) {
     
     // Log para debug - ver quais campos estão disponíveis
     useEffect(() => {
-    }, []);
+        console.log('👤 ProfileScreen - authUser:', {
+            nome: authUser?.name,
+            email: authUser?.email,
+            criadoEm: authUser?.createdAt || authUser?.created_at
+        });
+    }, [authUser]); // ✅ Re-executa quando authUser muda
     
-    const [user] = useState({
-        name: authUser?.name || 'João Silva',
-        email: authUser?.email || 'joao.silva@email.com',
+    // ✅ Usa authUser diretamente (reativo) ao invés de useState
+    const user = {
+        name: authUser?.name || 'Usuário',
+        email: authUser?.email || 'email@example.com',
         memberSince: formatMemberSince(authUser?.createdAt || authUser?.created_at),
-        avatar: null, // URL da imagem ou null para placeholder
-    });
+        avatar: selectedAvatar, // 🎨 ID do avatar selecionado
+    };
 
-    const handleEditProfile = () => {
-        Alert.alert('Editar Perfil', 'Função em desenvolvimento');
+    // 🎨 Handler para trocar avatar
+    const handleSelectAvatar = async (avatarId) => {
+        try {
+            await AsyncStorage.setItem('user_avatar', avatarId);
+            setSelectedAvatar(avatarId);
+        } catch (error) {
+            console.log('Erro ao salvar avatar:', error);
+        }
+    };
+
+    const handleChangeName = () => {
+        setShowChangeNameModal(true);
+    };
+
+    const handleChangeNameSubmit = async (newName) => {
+        try {
+            await updateProfile(newName);
+            // ✅ Nome já foi atualizado no AuthContext (setUser)
+            // Não precisa fazer nada - o componente re-renderiza automaticamente
+        } catch (error) {
+            // Erro já tratado pelo modal
+        }
+    };
+
+    const handleChangeEmail = () => {
+        setShowChangeEmailModal(true);
+    };
+
+    const handleRequestEmailChange = async (newEmail) => {
+        await requestEmailChange(newEmail);
+    };
+
+    const handleConfirmEmailChange = async (newEmail, tokenOldEmail, tokenNewEmail) => {
+        try {
+            await confirmEmailChange(newEmail, tokenOldEmail, tokenNewEmail);
+            // ✅ Email já foi atualizado no AuthContext (setUser)
+            // Não precisa fazer nada - o componente re-renderiza automaticamente
+        } catch (error) {
+            // Erro já tratado pelo modal
+        }
     };
 
     const handleChangePassword = () => {
-        setShowChangePasswordModal(true);
-    };
-
-    const handleChangePasswordSubmit = async ({ currentPassword, newPassword }) => {
-        await changePassword(currentPassword, newPassword);
+        // Navega para o fluxo de recuperação de senha (mesmo componente do login)
+        navigation.navigate('ForgotPassword');
     };
 
     const handleLogout = () => {
@@ -117,19 +182,16 @@ export default function ProfileScreen({ navigation }) {
                 colors={['#667eea', '#764ba2']}
                 style={styles.header}
             >
-                <View style={styles.avatarContainer}>
-                    {user.avatar ? (
-                        <Image source={{ uri: user.avatar }} style={styles.avatar} />
-                    ) : (
-                        <View style={styles.avatarPlaceholder}>
-                            <Ionicons name="person" size={moderateScale(50)} color="#667eea" />
-                        </View>
-                    )}
+                <View style={styles.avatarContainerWrapper}>
+                    {/* 🎨 Avatar customizável */}
+                    <UserAvatar avatarId={user.avatar} size={moderateScale(100)} />
+                    
+                    {/* Botão para trocar avatar */}
                     <TouchableOpacity 
                         style={styles.editAvatarButton}
-                        onPress={() => Alert.alert('Foto', 'Função em desenvolvimento')}
+                        onPress={() => setShowAvatarSelector(true)}
                     >
-                        <Ionicons name="camera" size={moderateScale(18)} color="#fff" />
+                        <Ionicons name="create" size={moderateScale(18)} color="#fff" />
                     </TouchableOpacity>
                 </View>
 
@@ -167,7 +229,7 @@ export default function ProfileScreen({ navigation }) {
                         icon="person-outline"
                         label="Nome Completo"
                         value={user.name}
-                        onPress={handleEditProfile}
+                        onPress={handleChangeName}
                         delay={100}
                     />
                     
@@ -175,7 +237,7 @@ export default function ProfileScreen({ navigation }) {
                         icon="mail-outline"
                         label="E-mail"
                         value={user.email}
-                        onPress={handleEditProfile}
+                        onPress={handleChangeEmail}
                         delay={150}
                     />
                     
@@ -237,11 +299,29 @@ export default function ProfileScreen({ navigation }) {
                 }} />
             </ScrollView>
 
-            {/* Modal de Trocar Senha */}
-            <ChangePasswordModal
-                visible={showChangePasswordModal}
-                onClose={() => setShowChangePasswordModal(false)}
-                onSuccess={handleChangePasswordSubmit}
+            {/* Modal de Trocar Nome */}
+            <ChangeNameModal
+                visible={showChangeNameModal}
+                onClose={() => setShowChangeNameModal(false)}
+                onSubmit={handleChangeNameSubmit}
+                currentName={authUser?.name}
+            />
+
+            {/* Modal de Trocar Email */}
+            <ChangeEmailModal
+                visible={showChangeEmailModal}
+                onClose={() => setShowChangeEmailModal(false)}
+                onRequestChange={handleRequestEmailChange}
+                onConfirmChange={handleConfirmEmailChange}
+                currentEmail={authUser?.email}
+            />
+
+            {/* 🎨 Modal de Seleção de Avatar */}
+            <AvatarSelectorModal
+                visible={showAvatarSelector}
+                onClose={() => setShowAvatarSelector(false)}
+                onSelect={handleSelectAvatar}
+                currentAvatarId={selectedAvatar}
             />
         </View>
     );
@@ -259,39 +339,27 @@ const styles = StyleSheet.create({
         borderBottomLeftRadius: moderateScale(30),
         borderBottomRightRadius: moderateScale(30),
     },
-    avatarContainer: {
+    avatarContainerWrapper: {
         position: 'relative',
         marginBottom: theme.spacing.md,
-    },
-    avatar: {
-        width: moderateScale(100),
-        height: moderateScale(100),
-        borderRadius: moderateScale(50),
-        borderWidth: 4,
-        borderColor: '#fff',
-    },
-    avatarPlaceholder: {
-        width: moderateScale(100),
-        height: moderateScale(100),
-        borderRadius: moderateScale(50),
-        backgroundColor: '#fff',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 4,
-        borderColor: '#fff',
     },
     editAvatarButton: {
         position: 'absolute',
         bottom: 0,
         right: 0,
-        backgroundColor: theme.colors.primary,
-        width: moderateScale(35),
-        height: moderateScale(35),
-        borderRadius: moderateScale(17.5),
+        backgroundColor: '#667eea',
+        borderRadius: moderateScale(20),
+        width: moderateScale(36),
+        height: moderateScale(36),
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 3,
         borderColor: '#fff',
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
     },
     userInfoContainer: {
         alignItems: 'center',

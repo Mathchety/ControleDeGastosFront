@@ -10,8 +10,12 @@ import {
     TouchableOpacity,
     StatusBar,
     Keyboard,
-    Animated
+    Animated,
+    ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store'; // 🔐 Armazenamento seguro
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
@@ -22,7 +26,8 @@ import { FinansyncLogoSimple, ErrorMessage, useErrorMessage } from '../component
 import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
 
-const { width } = Dimensions.get('window');
+const { width, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const isSmallDevice = SCREEN_HEIGHT < 700;
 
 // Componente de formulário reutilizável
 const AnimatedForm = React.memo(({ isRegisterView, onSuccess, navigation }) => {
@@ -43,11 +48,36 @@ const AnimatedForm = React.memo(({ isRegisterView, onSuccess, navigation }) => {
     // Estado para os campos de Login
     const [emailLogin, setEmailLogin] = useState('');
     const [passwordLogin, setPasswordLogin] = useState('');
+    const [rememberMe, setRememberMe] = useState(true); // 🔒 Lembrar-me
 
     // Estado para os campos de Registro
     const [nameRegister, setNameRegister] = useState('');
     const [emailRegister, setEmailRegister] = useState('');
     const [passwordRegister, setPasswordRegister] = useState('');
+
+    // 🔐 Carrega credenciais salvas de forma segura
+    useEffect(() => {
+        const loadSavedCredentials = async () => {
+            try {
+                // Email no AsyncStorage (não é sensível)
+                const savedEmail = await AsyncStorage.getItem('saved_email');
+                
+                // 🔐 Senha no SecureStore (criptografado com hardware)
+                const savedPassword = await SecureStore.getItemAsync('saved_password');
+                
+                if (savedEmail && !isRegisterView) {
+                    setEmailLogin(savedEmail);
+                }
+                
+                if (savedPassword && !isRegisterView) {
+                    setPasswordLogin(savedPassword);
+                }
+            } catch (error) {
+                console.log('Erro ao carregar credenciais:', error);
+            }
+        };
+        loadSavedCredentials();
+    }, [isRegisterView]);
 
     /**
      * handleLogin - Função integrada com API
@@ -65,7 +95,19 @@ const AnimatedForm = React.memo(({ isRegisterView, onSuccess, navigation }) => {
         try {
             setLoading(true);
             setError({ visible: false, message: '', type: 'error' });
-            await login(emailLogin, passwordLogin);
+            await login(emailLogin, passwordLogin, rememberMe); // 🔒 Passa rememberMe
+            
+            // 🔐 Salva credenciais de forma segura
+            if (rememberMe) {
+                // Email no AsyncStorage (não é sensível)
+                await AsyncStorage.setItem('saved_email', emailLogin);
+                // 🔐 Senha no SecureStore (criptografado com hardware)
+                await SecureStore.setItemAsync('saved_password', passwordLogin);
+            } else {
+                await AsyncStorage.removeItem('saved_email');
+                await SecureStore.deleteItemAsync('saved_password');
+            }
+            
             onSuccess && onSuccess();
         } catch (err) {
             const errorInfo = getErrorMessage(err);
@@ -213,6 +255,20 @@ const AnimatedForm = React.memo(({ isRegisterView, onSuccess, navigation }) => {
                     onChangeText={setPasswordLogin}
                 />
 
+                {/* 🔒 Checkbox Lembrar-me */}
+                <TouchableOpacity 
+                    style={styles.rememberMeContainer}
+                    onPress={() => setRememberMe(!rememberMe)}
+                    activeOpacity={0.7}
+                >
+                    <View style={[styles.checkbox, rememberMe && styles.checkboxActive]}>
+                        {rememberMe && (
+                            <Ionicons name="checkmark" size={16} color="#fff" />
+                        )}
+                    </View>
+                    <Text style={styles.rememberMeText}>Lembrar-me</Text>
+                </TouchableOpacity>
+
                 <TouchableOpacity 
                     style={styles.forgotPassword}
                     onPress={handleForgotPassword}
@@ -236,6 +292,7 @@ const AuthScreen = ({ navigation }) => {
     const [isRegister, setIsRegister] = useState(false);
     const [keyboardVisible, setKeyboardVisible] = useState(false);
     const headerHeight = useRef(new Animated.Value(1)).current; // 1 = tamanho normal, 0 = pequeno
+    const scrollViewRef = useRef(null);
 
     const handleSuccess = useCallback(() => {
         // Não precisa navegar manualmente - o AppNavigator faz isso automaticamente
@@ -265,6 +322,10 @@ const AuthScreen = ({ navigation }) => {
                     duration: 250,
                     useNativeDriver: false,
                 }).start();
+                // Apenas no iOS volta para o topo
+                if (Platform.OS === 'ios') {
+                    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+                }
             }
         );
 
@@ -274,15 +335,15 @@ const AuthScreen = ({ navigation }) => {
         };
     }, []);
 
-    // Interpolações para animar o header - Comprime ao máximo quando teclado abre
+    // Interpolações para animar o header - Ajustado para dispositivos pequenos
     const headerPaddingTop = headerHeight.interpolate({
         inputRange: [0, 1],
-        outputRange: [moderateScale(0), moderateScale(60)], // 0 padding no teclado
+        outputRange: [moderateScale(0), moderateScale(isSmallDevice ? 30 : 60)], // Reduzido em dispositivos pequenos
     });
 
     const headerPaddingBottom = headerHeight.interpolate({
         inputRange: [0, 1],
-        outputRange: [moderateScale(0), moderateScale(30)], // 0 padding no teclado
+        outputRange: [moderateScale(0), moderateScale(isSmallDevice ? 15 : 30)], // Reduzido em dispositivos pequenos
     });
 
     const logoOpacity = headerHeight.interpolate({
@@ -292,7 +353,7 @@ const AuthScreen = ({ navigation }) => {
 
     const titleOpacity = headerHeight.interpolate({
         inputRange: [0, 1],
-        outputRange: [0, 1], // Título desaparece
+        outputRange: [1, 1], // ✨ Título SEMPRE visível
     });
 
     const subtitleOpacity = headerHeight.interpolate({
@@ -302,21 +363,22 @@ const AuthScreen = ({ navigation }) => {
 
     const headerMinHeight = headerHeight.interpolate({
         inputRange: [0, 1],
-        outputRange: [moderateScale(30), moderateScale(200)], // Header comprime totalmente
+        outputRange: [moderateScale(20), moderateScale(isSmallDevice ? 140 : 200)], // Header menor em dispositivos pequenos
     });
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
             <StatusBar 
                 barStyle="light-content" 
-                backgroundColor="transparent" 
+                backgroundColor="transparent"
                 translucent={true}
             />
+            <View style={styles.container}>
             <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={styles.keyboardView}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-                enabled={true}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+                enabled={Platform.OS === 'ios'}
             >
                 {/* Header com gradiente - Comprime quando teclado abre */}
                 <Animated.View style={{ minHeight: headerMinHeight }}>
@@ -340,17 +402,20 @@ const AuthScreen = ({ navigation }) => {
                                 style={{ 
                                     opacity: logoOpacity,
                                     alignItems: 'center',
-                                    marginBottom: moderateScale(12),
+                                    marginBottom: moderateScale(isSmallDevice ? 6 : 12),
                                 }}
                             >
-                                <FinansyncLogoSimple size={70} />
+                                <FinansyncLogoSimple size={isSmallDevice ? 50 : 70} />
                             </Animated.View>
                             
                             {/* Título - Some completamente */}
                             <Animated.Text 
                                 style={[
                                     styles.headerTitle,
-                                    { opacity: titleOpacity }
+                                    { 
+                                        opacity: titleOpacity,
+                                        fontSize: moderateScale(isSmallDevice ? 24 : 32),
+                                    }
                                 ]}
                             >
                                 Finansync
@@ -360,7 +425,11 @@ const AuthScreen = ({ navigation }) => {
                             <Animated.Text
                                 style={[
                                     styles.headerSubtitle,
-                                    { opacity: subtitleOpacity }
+                                    { 
+                                        opacity: subtitleOpacity,
+                                        fontSize: moderateScale(isSmallDevice ? 12 : 14),
+                                        marginTop: moderateScale(isSmallDevice ? 3 : 6),
+                                    }
                                 ]}
                             >
                                 Sincronize suas finanças com inteligência
@@ -369,33 +438,49 @@ const AuthScreen = ({ navigation }) => {
                     </LinearGradient>
                 </Animated.View>
 
-                {/* Formulário - View fixa ao invés de ScrollView */}
-                <View style={styles.formWrapper}>
-                    <AnimatedForm 
-                        key={isRegister ? 'register' : 'login'} 
-                        isRegisterView={isRegister} 
-                        onSuccess={handleSuccess} 
-                        navigation={navigation} 
-                    />
+                {/* Formulário - Agora com ScrollView */}
+                <ScrollView
+                    ref={scrollViewRef}
+                    style={styles.scrollView}
+                    contentContainerStyle={styles.scrollContent}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                    bounces={Platform.OS === 'ios'}
+                    overScrollMode={Platform.OS === 'android' ? 'never' : 'auto'}
+                    nestedScrollEnabled={true}
+                >
+                    <View style={styles.formWrapper}>
+                        <AnimatedForm 
+                            key={isRegister ? 'register' : 'login'} 
+                            isRegisterView={isRegister} 
+                            onSuccess={handleSuccess} 
+                            navigation={navigation} 
+                        />
 
-                    {/* Toggle entre Login e Registro */}
-                    <View style={styles.toggleContainer}>
-                        <Text style={styles.toggleText}>
-                            {isRegister ? "Já tem uma conta?" : "Não tem uma conta?"}
-                        </Text>
-                        <TouchableOpacity onPress={() => setIsRegister(!isRegister)}>
-                            <Text style={styles.toggleButton}>
-                                {isRegister ? "Entrar" : "Registrar-se"}
+                        {/* Toggle entre Login e Registro */}
+                        <View style={styles.toggleContainer}>
+                            <Text style={styles.toggleText}>
+                                {isRegister ? "Já tem uma conta?" : "Não tem uma conta?"}
                             </Text>
-                        </TouchableOpacity>
+                            <TouchableOpacity onPress={() => setIsRegister(!isRegister)}>
+                                <Text style={styles.toggleButton}>
+                                    {isRegister ? "Entrar" : "Registrar-se"}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                </View>
+                </ScrollView>
             </KeyboardAvoidingView>
-        </View>
+            </View>
+        </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+        backgroundColor: '#667eea', // Cor roxa do gradiente para a barra de status
+    },
     container: {
         flex: 1,
         backgroundColor: '#f8f9fa',
@@ -403,13 +488,29 @@ const styles = StyleSheet.create({
     keyboardView: {
         flex: 1,
     },
-    formWrapper: {
+    scrollView: {
         flex: 1,
+    },
+    scrollContent: {
+        flexGrow: 1,
+        paddingHorizontal: 20,
+        paddingTop: moderateScale(20),
+        paddingBottom: Platform.OS === 'android' 
+            ? moderateScale(80) // Mais espaço no Android para evitar sobreposição
+            : moderateScale(isSmallDevice ? 40 : 60),
+    },
+    formWrapper: {
+        // Removido flex: 1 e justifyContent para evitar espaço branco
+    },
+    formContent: {
+        flexGrow: 1,
         justifyContent: 'center',
         paddingHorizontal: 20,
         paddingVertical: moderateScale(20),
+        paddingBottom: moderateScale(100), // Espaço extra para os botões de toggle
     },
     header: {
+        paddingTop: Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 0, // Espaço para StatusBar translúcida
         paddingHorizontal: theme.spacing.lg,
         borderBottomLeftRadius: moderateScale(30),
         borderBottomRightRadius: moderateScale(30),
@@ -455,6 +556,37 @@ const styles = StyleSheet.create({
         color: '#666',
         textAlign: 'center',
         marginBottom: moderateScale(20),
+    },
+    rememberMeContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f0f4ff',
+        padding: moderateScale(14),
+        borderRadius: moderateScale(12),
+        marginTop: moderateScale(16),
+        marginBottom: moderateScale(12),
+        borderWidth: 1,
+        borderColor: '#d0dff9',
+    },
+    checkbox: {
+        width: moderateScale(24),
+        height: moderateScale(24),
+        borderRadius: moderateScale(6),
+        borderWidth: 2,
+        borderColor: '#007bff',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: moderateScale(12),
+        backgroundColor: '#fff',
+    },
+    checkboxActive: {
+        backgroundColor: '#007bff',
+        borderColor: '#007bff',
+    },
+    rememberMeText: {
+        fontSize: moderateScale(15),
+        color: '#333',
+        fontWeight: '600',
     },
     forgotPassword: {
         alignSelf: 'flex-end',

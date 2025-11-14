@@ -25,15 +25,15 @@
         "visible": "immersive"
       }
     },
-    "web": {
-    },
+    "web": {},
     "plugins": [
       [
         "expo-barcode-scanner",
         {
           "cameraPermission": "Permitir $(PRODUCT_NAME) acessar sua câmera para escanear QR Codes de notas fiscais."
         }
-      ]
+      ],
+      "expo-secure-store"
     ]
   }
 }

@@ -1,11 +1,14 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { PrimaryButton } from '../buttons';
 import { Input } from '../inputs';
 import { LoadingModal } from '../modals';
 import { moderateScale } from '../../utils/responsive';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const isSmallDevice = SCREEN_HEIGHT < 700; // iPhone SE, iPhone 8, etc.
 
 /**
  * Formulário de Registro
@@ -68,10 +71,17 @@ export const RegisterForm = ({ onSuccess }) => {
                 style={{ flex: 1 }}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
             >
-                <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+                <ScrollView 
+                    ref={scrollRef} 
+                    contentContainerStyle={styles.scrollContent} 
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                    scrollEnabled={true}
+                    nestedScrollEnabled={true}
+                >
                     <View style={styles.formContainer}>
                         <View style={styles.iconContainer}>
-                            <Ionicons name="person-add" size={50} color="#007bff" />
+                            <Ionicons name="person-add" size={isSmallDevice ? 40 : 50} color="#007bff" />
                         </View>
 
                         <Text style={styles.formTitle}>Criar Conta</Text>
@@ -129,14 +139,15 @@ export const RegisterForm = ({ onSuccess }) => {
 const styles = StyleSheet.create({
     scrollContent: {
         flexGrow: 1,
-        justifyContent: 'center',
-        paddingHorizontal: 20,
-        paddingVertical: 24,
+        paddingHorizontal: moderateScale(20),
+        paddingTop: isSmallDevice ? moderateScale(20) : moderateScale(40),
+        paddingBottom: isSmallDevice ? moderateScale(100) : moderateScale(200),
     },
     formContainer: {
         backgroundColor: '#fff',
         borderRadius: 25,
-        padding: 25,
+        padding: isSmallDevice ? moderateScale(15) : moderateScale(25),
+        marginBottom: moderateScale(20),
         elevation: 3,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
@@ -145,20 +156,20 @@ const styles = StyleSheet.create({
     },
     iconContainer: {
         alignSelf: 'center',
-        marginBottom: 20,
+        marginBottom: isSmallDevice ? moderateScale(12) : moderateScale(20),
     },
     formTitle: {
-        fontSize: 26,
+        fontSize: isSmallDevice ? moderateScale(22) : moderateScale(26),
         fontWeight: '700',
         color: '#333',
         textAlign: 'center',
-        marginBottom: 8,
+        marginBottom: isSmallDevice ? moderateScale(6) : moderateScale(8),
     },
     formSubtitle: {
-        fontSize: 16,
+        fontSize: isSmallDevice ? moderateScale(14) : moderateScale(16),
         color: '#666',
         textAlign: 'center',
-        marginBottom: 25,
+        marginBottom: isSmallDevice ? moderateScale(18) : moderateScale(25),
     },
     errorContainer: {
         flexDirection: 'row',

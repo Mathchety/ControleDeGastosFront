@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 /**
@@ -28,23 +28,36 @@ const formatItemDescription = (item) => {
  * Card de item da nota fiscal
  * @param {object} item - Dados do item
  * @param {boolean} deleted - Se o item foi deletado
+ * @param {function} onEdit - Callback ao clicar no botão editar
  */
-export const ReceiptItemCard = ({ item, deleted = false }) => (
+export const ReceiptItemCard = ({ item, deleted = false, onEdit }) => (
     <View 
         style={[
             styles.itemCard,
             deleted && styles.itemCardDeleted
         ]}
     >
-        <Text 
-            style={[
-                styles.itemDescription,
-                deleted && styles.itemTextDeleted
-            ]}
-            numberOfLines={2}
-        >
-            {item.description}
-        </Text>
+        <View style={styles.itemHeader}>
+            <Text 
+                style={[
+                    styles.itemDescription,
+                    deleted && styles.itemTextDeleted
+                ]}
+                numberOfLines={2}
+            >
+                {item.description || item.name}
+            </Text>
+            
+            {/* Botão Editar */}
+            {onEdit && !deleted && (
+                <TouchableOpacity 
+                    style={styles.editButton}
+                    onPress={onEdit}
+                >
+                    <Ionicons name="create-outline" size={20} color="#667eea" />
+                </TouchableOpacity>
+            )}
+        </View>
         
         <View style={styles.itemFooter}>
             <Text style={[styles.itemQuantity, deleted && styles.itemTextDeleted]}>
@@ -80,11 +93,21 @@ const styles = StyleSheet.create({
         opacity: 0.5,
         backgroundColor: '#f3f4f6',
     },
+    itemHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: 10,
+    },
     itemDescription: {
+        flex: 1,
         fontSize: 16,
         fontWeight: '600',
         color: '#333',
-        marginBottom: 10,
+    },
+    editButton: {
+        marginLeft: 8,
+        padding: 4,
     },
     itemTextDeleted: {
         textDecorationLine: 'line-through',

@@ -9,3 +9,6 @@ export { BottomSheetModal } from './BottomSheetModal';
 export { DatePeriodModal } from './DatePeriodModal';
 export { default as ErrorModal } from './ErrorModal';
 export { ChangePasswordModal } from './ChangePasswordModal';
+export { ChangeNameModal } from './ChangeNameModal';
+export { ChangeEmailModal } from './ChangeEmailModal';
+export { default as EditItemModal } from './EditItemModal';
