@@ -12,3 +12,4 @@ export { ChangePasswordModal } from './ChangePasswordModal';
 export { ChangeNameModal } from './ChangeNameModal';
 export { ChangeEmailModal } from './ChangeEmailModal';
 export { default as EditItemModal } from './EditItemModal';
+export { CameraPermissionModal } from './CameraPermissionModal';

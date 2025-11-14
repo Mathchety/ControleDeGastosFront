@@ -4,7 +4,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../contexts/DataContext';
 import useErrorModal from '../hooks/useErrorModal';
-import { ErrorModal } from '../components/modals';
+import { ErrorModal, CameraPermissionModal } from '../components/modals';
 import { validateQRCode } from '../utils/qrCodeValidator'; // 🗺️ Validador de QR Code
 
 export default function ScanScreen({ navigation }) {
@@ -14,6 +14,7 @@ export default function ScanScreen({ navigation }) {
   const [localLoading, setLocalLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [scanTimeout, setScanTimeout] = useState(false);
+  const [showPermissionModal, setShowPermissionModal] = useState(false); // 🔒 Modal de permissão
 
   const { loading: contextLoading, previewQRCode } = useData();
   const { errorState, showError, hideError } = useErrorModal();
@@ -27,7 +28,8 @@ export default function ScanScreen({ navigation }) {
 
   useEffect(() => {
     if (!permission?.granted) {
-      requestPermission();
+      // Mostra modal em vez de pedir diretamente
+      setShowPermissionModal(true);
     }
   }, [permission]);
 
@@ -191,16 +193,6 @@ export default function ScanScreen({ navigation }) {
     );
   }
 
-  if (!permission.granted) {
-    return (
-      <View style={styles.container}>
-        <Ionicons name="camera-off" size={80} color="#ccc" />
-        <Text style={styles.message}>Permissão de câmera necessária</Text>
-        <Button onPress={requestPermission} title="Permitir Câmera" />
-      </View>
-    );
-  }
-
   // Interpolations para animar a tela inteira de camera/overlay
   const interpolatedStyle = {
     opacity: screenAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
@@ -295,6 +287,21 @@ export default function ScanScreen({ navigation }) {
         title={errorState.title}
         message={errorState.message}
         onClose={hideError}
+      />
+
+      {/* 🔒 Modal de Permissão de Câmera */}
+      <CameraPermissionModal
+        visible={showPermissionModal}
+        onAllow={async () => {
+          const result = await requestPermission();
+          if (result?.granted) {
+            setShowPermissionModal(false);
+          }
+        }}
+        onCancel={() => {
+          setShowPermissionModal(false);
+          navigation.goBack();
+        }}
       />
     </View>
   );
