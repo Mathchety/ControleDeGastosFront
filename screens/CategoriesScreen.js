@@ -17,6 +17,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../contexts/DataContext';
+import httpClient from '../services/httpClient';
 import { useFilters } from '../contexts/FilterContext';
 import { SkeletonCategoryCard } from '../components/common';
 import { DatePeriodModal } from '../components/modals';
@@ -229,34 +230,91 @@ export default function CategoriesScreen({ navigation }) {
             return;
         }
 
-        // Verifica se já existe categoria com mesmo nome
-        const categoryExists = categories.some(
-            cat => cat.name.toLowerCase().trim() === categoryName.toLowerCase().trim()
-        );
-
-        if (categoryExists) {
-            Alert.alert('Erro', 'Já existe uma categoria com este nome.');
-            return;
-        }
-
-        try {
-            setSaving(true);
+        // Se está editando
+        if (editingCategory) {
+            // Verifica se o nome foi alterado
+            const nameChanged = categoryName.trim().toLowerCase() !== editingCategory.name.toLowerCase();
             
-            const newCategory = {
-                name: categoryName.trim(),
-                description: categoryDescription.trim() || undefined,
-                color: selectedColor,
-            };
+            // Se o nome mudou, verifica se já existe outra categoria com esse nome
+            if (nameChanged) {
+                const categoryExists = categories.some(
+                    cat => cat.id !== editingCategory.id && 
+                           cat.name.toLowerCase().trim() === categoryName.toLowerCase().trim()
+                );
 
-            await createCategory(newCategory);
-            
-            Alert.alert('Sucesso', 'Categoria criada com sucesso!');
-            setModalVisible(false);
-            loadCategories(); // Recarrega a lista
-        } catch (error) {
-            // Erro já tratado no DataContext com Alert
-        } finally {
-            setSaving(false);
+                if (categoryExists) {
+                    Alert.alert('Erro', 'Já existe uma categoria com este nome.');
+                    return;
+                }
+            }
+
+            try {
+                setSaving(true);
+                
+                // Monta objeto apenas com campos que mudaram
+                const updateData = {};
+                
+                if (nameChanged) {
+                    updateData.name = categoryName.trim();
+                }
+                
+                if (categoryDescription.trim() !== (editingCategory.description || '')) {
+                    updateData.description = categoryDescription.trim() || undefined;
+                }
+                
+                if (selectedColor !== editingCategory.color) {
+                    updateData.color = selectedColor;
+                }
+
+                // Se nada mudou, apenas fecha o modal
+                if (Object.keys(updateData).length === 0) {
+                    setModalVisible(false);
+                    return;
+                }
+
+                // Chama API de atualização (precisa implementar no DataContext)
+                await httpClient.patch(`/category/${editingCategory.id}`, updateData);
+                
+                Alert.alert('Sucesso', 'Categoria atualizada com sucesso!');
+                setModalVisible(false);
+                loadCategories(); // Recarrega a lista
+            } catch (error) {
+                const errorMessage = error.response?.data?.message || error.message || 'Não foi possível atualizar a categoria.';
+                Alert.alert('Erro', errorMessage);
+            } finally {
+                setSaving(false);
+            }
+        } else {
+            // Criando nova categoria
+            // Verifica se já existe categoria com mesmo nome
+            const categoryExists = categories.some(
+                cat => cat.name.toLowerCase().trim() === categoryName.toLowerCase().trim()
+            );
+
+            if (categoryExists) {
+                Alert.alert('Erro', 'Já existe uma categoria com este nome.');
+                return;
+            }
+
+            try {
+                setSaving(true);
+                
+                const newCategory = {
+                    name: categoryName.trim(),
+                    description: categoryDescription.trim() || undefined,
+                    color: selectedColor,
+                };
+
+                await createCategory(newCategory);
+                
+                Alert.alert('Sucesso', 'Categoria criada com sucesso!');
+                setModalVisible(false);
+                loadCategories(); // Recarrega a lista
+            } catch (error) {
+                // Erro já tratado no DataContext com Alert
+            } finally {
+                setSaving(false);
+            }
         }
     };
 

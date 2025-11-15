@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
     View,
     Text,
@@ -8,7 +8,6 @@ import {
     Platform,
     ScrollView,
     Dimensions,
-    Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,26 +20,12 @@ import { theme } from '../utils/theme';
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const isSmallDevice = SCREEN_HEIGHT < 700;
 
-export default function ForgotPasswordScreen({ navigation, route }) {
-    const { forgotPassword, isAuthenticated, user } = useAuth();
-    const userEmail = route?.params?.email || user?.email || '';
-    const [email, setEmail] = useState(userEmail);
+export default function ForgotPasswordLoggedScreen({ navigation }) {
+    const { forgotPassword, user } = useAuth();
+    const [email] = useState(user?.email || '');
     const [localLoading, setLocalLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const scrollRef = useRef(null);
-
-    // Detecta a altura do teclado - funciona melhor em iOS e Android
-    useEffect(() => {
-        // Não fazemos scroll automático aqui, deixamos o usuario controlar
-        // apenas o scroll manual quando clica no input via onFocus
-        return () => {};
-    }, []);
-
-    const scrollToBottom = () => {
-        // Scroll suave apenas quando o usuario clica no input
-        // Sem scroll excessivo
-        return;
-    };
 
     const validateEmail = (email) => {
         const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -48,43 +33,34 @@ export default function ForgotPasswordScreen({ navigation, route }) {
     };
 
     const handleSendCode = async () => {
-        setErrorMessage(''); // Limpa mensagem de erro anterior
+        setErrorMessage('');
         
         if (!email.trim()) {
-            setErrorMessage('Digite seu e-mail');
+            setErrorMessage('E-mail não disponível');
             return;
         }
 
         if (!validateEmail(email)) {
-            setErrorMessage('Digite um e-mail válido');
+            setErrorMessage('E-mail inválido');
             return;
         }
 
         try {
             setLocalLoading(true);
             
-            // ✅ Integrado com API
             await forgotPassword(email);
             
+            navigation.push('ResetPasswordLogged', { email });
             
-            
-            // ✅ NAVEGA ANTES de desativar o loading
-            navigation.push('ResetPassword', { email });
-            
-            
-            // Desativa loading só depois
             setLocalLoading(false);
-            
-            
         } catch (error) {
             setLocalLoading(false);
             
-            // Extrai a mensagem de erro do backend
             const backendMessage = error.response?.data?.message || 
                                   error.response?.data?.error ||
                                   error.message;
             
-            setErrorMessage(backendMessage || 'Não foi possível enviar o código. Verifique o e-mail e tente novamente.');
+            setErrorMessage(backendMessage || 'Não foi possível enviar o código. Tente novamente.');
         }
     };
 
@@ -124,9 +100,9 @@ export default function ForgotPasswordScreen({ navigation, route }) {
 
                     {/* Título e Descrição */}
                     <View style={styles.textContainer}>
-                        <Text style={styles.title}>Esqueceu sua senha?</Text>
+                        <Text style={styles.title}>Alterar Senha</Text>
                         <Text style={styles.description}>
-                            Não se preocupe! Digite seu e-mail e enviaremos um código de verificação para redefinir sua senha.
+                            Enviaremos um código de verificação para o e-mail cadastrado na sua conta para você redefinir sua senha.
                         </Text>
                     </View>
 
@@ -140,17 +116,10 @@ export default function ForgotPasswordScreen({ navigation, route }) {
 
                     {/* Formulário */}
                     <View style={styles.form}>
-                        <View style={styles.inputWrapper}>
-                            <Input
-                                icon="mail-outline"
-                                placeholder="Seu e-mail"
-                                value={email}
-                                onChangeText={setEmail}
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                                maxLength={100}
-                                onFocus={scrollToBottom}
-                            />
+                        {/* Email (Read-only) */}
+                        <View style={styles.emailDisplayContainer}>
+                            <Ionicons name="mail" size={20} color="#667eea" />
+                            <Text style={styles.emailDisplayText}>{email}</Text>
                         </View>
 
                         {/* Botão Enviar Código */}
@@ -178,31 +147,12 @@ export default function ForgotPasswordScreen({ navigation, route }) {
                         <TouchableOpacity
                             style={styles.alreadyHaveCodeButton}
                             onPress={() => {
-                                if (!email.trim()) {
-                                    setErrorMessage('Digite seu e-mail primeiro');
-                                    return;
-                                }
-                                if (!validateEmail(email)) {
-                                    setErrorMessage('Digite um e-mail válido');
-                                    return;
-                                }
-                                navigation.push('ResetPassword', { email });
+                                navigation.push('ResetPasswordLogged', { email });
                             }}
                         >
                             <Ionicons name="key-outline" size={18} color="#667eea" />
                             <Text style={styles.alreadyHaveCodeText}>Já possuo o código</Text>
                         </TouchableOpacity>
-
-                        {/* Link Voltar - Só mostra se não estiver autenticado */}
-                        {!isAuthenticated && (
-                            <TouchableOpacity
-                                style={styles.backToLogin}
-                                onPress={() => navigation.goBack()}
-                            >
-                                <Ionicons name="arrow-back-circle-outline" size={18} color="#667eea" />
-                                <Text style={styles.backToLoginText}>Voltar para o login</Text>
-                            </TouchableOpacity>
-                        )}
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
@@ -307,30 +257,25 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    inputWrapper: {
-        width: '100%',
-        maxWidth: 450,
-    },
-    inputContainer: {
+    emailDisplayContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f8f9fa',
+        backgroundColor: '#f0f4ff',
         borderRadius: moderateScale(12),
-        paddingHorizontal: moderateScale(12),
+        paddingHorizontal: moderateScale(16),
+        paddingVertical: moderateScale(16),
         marginBottom: moderateScale(isSmallDevice ? 12 : 16),
         borderWidth: 1,
-        borderColor: '#e0e0e0',
+        borderColor: '#667eea',
         width: '100%',
         maxWidth: 450,
+        gap: moderateScale(12),
     },
-    inputIcon: {
-        marginRight: moderateScale(10),
-    },
-    input: {
+    emailDisplayText: {
         flex: 1,
-        height: moderateScale(isSmallDevice ? 44 : 48),
-        fontSize: moderateScale(14),
+        fontSize: moderateScale(15),
         color: '#333',
+        fontWeight: '600',
     },
     sendButton: {
         borderRadius: moderateScale(12),
@@ -375,20 +320,6 @@ const styles = StyleSheet.create({
         marginBottom: moderateScale(isSmallDevice ? 12 : 14),
     },
     alreadyHaveCodeText: {
-        fontSize: moderateScale(isSmallDevice ? 12 : 13),
-        color: '#667eea',
-        fontWeight: '600',
-    },
-    backToLogin: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: moderateScale(6),
-        paddingVertical: moderateScale(isSmallDevice ? 8 : 10),
-        width: '100%',
-        maxWidth: 450,
-    },
-    backToLoginText: {
         fontSize: moderateScale(isSmallDevice ? 12 : 13),
         color: '#667eea',
         fontWeight: '600',

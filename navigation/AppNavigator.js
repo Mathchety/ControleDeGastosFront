@@ -10,6 +10,8 @@ import ManualReceiptScreen from '../screens/ManualReceiptScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
+import ForgotPasswordLoggedScreen from '../screens/ForgotPasswordLoggedScreen';
+import ResetPasswordLoggedScreen from '../screens/ResetPasswordLoggedScreen';
 
 const Stack = createStackNavigator();
 
@@ -82,15 +84,15 @@ export default function AppNavigator() {
             }}
           />
           <Stack.Screen 
-            name="ForgotPassword" 
-            component={ForgotPasswordScreen}
+            name="ForgotPasswordLogged" 
+            component={ForgotPasswordLoggedScreen}
             options={{
               cardStyle: { backgroundColor: '#fff' },
             }}
           />
           <Stack.Screen 
-            name="ResetPassword" 
-            component={ResetPasswordScreen}
+            name="ResetPasswordLogged" 
+            component={ResetPasswordLoggedScreen}
             options={{
               cardStyle: { backgroundColor: '#fff' },
             }}

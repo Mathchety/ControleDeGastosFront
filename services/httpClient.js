@@ -99,24 +99,35 @@ class HttpClient {
 
         try {
             console.log('[HttpClient] 🔄 Tentando renovar token...');
+            console.log('[HttpClient] 📝 Refresh token (primeiros 20 chars):', this.refreshToken.substring(0, 20) + '...');
+            
+            // ✅ Envia refresh token no BODY (não no header)
             const response = await fetch(`${this.baseURL}/auth/refresh`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.refreshToken}`,
                 },
+                body: JSON.stringify({
+                    refreshToken: this.refreshToken,
+                }),
             });
 
+            console.log('[HttpClient] 📡 Response status:', response.status);
+
             if (!response.ok) {
+                // Lê a resposta de erro
+                const errorText = await response.text();
+                console.log('[HttpClient] ❌ Erro do servidor:', errorText);
                 console.log('[HttpClient] ❌ Falha ao renovar token - Status:', response.status);
-                throw new Error('Falha ao renovar token');
+                throw new Error(`Falha ao renovar token: ${response.status} - ${errorText}`);
             }
 
             const data = await response.json();
             
             if (data.accessToken) {
                 console.log('[HttpClient] ✅ Token renovado com sucesso');
-                // Salva accessToken e refreshToken (one-time use)
+                console.log('[HttpClient] 📝 Novo refresh token recebido:', !!data.refreshToken);
+                // Salva accessToken e refreshToken (API retorna ambos)
                 this.setTokens(data.accessToken, data.refreshToken);
                 return data.accessToken;
             }

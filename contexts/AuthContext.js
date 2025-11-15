@@ -157,15 +157,23 @@ export const AuthProvider = ({ children }) => {
       const response = await httpClient.post('/login', { email, password }, false);
 
       // Verifica se recebeu access token e refresh token
+      console.log('[AuthContext] 📝 Login response:', {
+        hasAccessToken: !!response?.accessToken,
+        hasRefreshToken: !!response?.refreshToken,
+        hasToken: !!response?.token,
+      });
+
       if (!response || !response.accessToken) {
         // Fallback para token único (compatibilidade com backend antigo)
         if (response.token) {
+          console.log('[AuthContext] ⚠️ Usando sistema antigo (token único)');
           httpClient.setToken(response.token);
         } else {
           throw new Error('Token não recebido do servidor');
         }
       } else {
         // Novo sistema com access + refresh tokens
+        console.log('[AuthContext] ✅ Salvando access token e refresh token');
         httpClient.setTokens(response.accessToken, response.refreshToken);
       }
 

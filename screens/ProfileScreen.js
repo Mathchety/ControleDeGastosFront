@@ -154,8 +154,8 @@ export default function ProfileScreen({ navigation }) {
     };
 
     const handleChangePassword = () => {
-        // Navega para o fluxo de recuperação de senha (mesmo componente do login)
-        navigation.navigate('ForgotPassword');
+        // Navega para o fluxo de recuperação de senha específico para usuários logados
+        navigation.navigate('ForgotPasswordLogged');
     };
 
     const handleLogout = () => {
