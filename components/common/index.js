@@ -6,4 +6,4 @@ export { default as FadeInView, StaggeredList } from './FadeInView';
 export { default as FinansyncLogo } from './FinansyncLogo';
 export { default as FinansyncLogoSimple } from './FinansyncLogoSimple';
 export { ErrorMessage, useErrorMessage } from './ErrorMessage';
-
+export { default as OfflineNotice } from './OfflineNotice';

@@ -1,26 +1,18 @@
 import React, { createContext, useState, useContext } from 'react';
+import { View } from 'react-native';
 import { useAuth } from './AuthContext';
 import useErrorModal from '../hooks/useErrorModal';
 import httpClient from '../services/httpClient';
 import { getErrorMessage, getErrorTitle } from '../utils/errorMessages';
+import { useConnectivity } from '../hooks/useConnectivity';
+import OfflineNotice from '../components/common/OfflineNotice';
 
 const DataContext = createContext();
 
 export const DataProvider = ({ children }) => {
     const { isAuthenticated } = useAuth();
-    // Busca recibos ao iniciar o app para garantir que o loading finalize
-    React.useEffect(() => {
-        if (receipts.length === 0 && isAuthenticated) {
-            fetchReceiptsBasic().catch(() => {});
-        }
-    }, [isAuthenticated]);
-    // Busca dados completos da conta após login
-    React.useEffect(() => {
-        if (isAuthenticated) {
-            fetchReceiptsBasic().catch(() => {});
-            fetchCategories().catch(() => {});
-        }
-    }, [isAuthenticated]);
+    const { isConnected, isLoading: connectivityLoading } = useConnectivity();
+    
     const [receipts, setReceipts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [previewData, setPreviewData] = useState(null);
@@ -531,6 +523,49 @@ export const DataProvider = ({ children }) => {
         }
     };
 
+    // 🗑️ Deleta um item - DELETE /item/{id}
+    const deleteItem = async (itemId) => {
+        try {
+            setLoading(true);
+            const response = await httpClient.delete(`/item/${itemId}`);
+            
+            // ✅ Remove o item do estado local dos receipts E recalcula totais
+            setReceipts(prev => prev.map(receipt => {
+                const hasItem = receipt.items?.some(item => item.id === itemId);
+                
+                if (!hasItem) return receipt;
+                
+                // Remove o item
+                const updatedItems = receipt.items.filter(item => item.id !== itemId);
+                
+                // Recalcula o subtotal
+                const newSubtotal = updatedItems.reduce((sum, item) => 
+                    sum + parseFloat(item.total || 0), 0
+                );
+                
+                // Calcula o total aplicando o desconto
+                const discount = parseFloat(receipt.discount || 0);
+                const newTotal = newSubtotal - discount;
+                
+                return {
+                    ...receipt,
+                    items: updatedItems,
+                    subtotal: newSubtotal,
+                    total: newTotal,
+                    itemsCount: updatedItems.length,
+                };
+            }));
+            
+            return response.data;
+        } catch (error) {
+            const errorMessage = getErrorMessage(error, 'Não foi possível deletar o item.');
+            showError(error, errorMessage);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // Criar Nota Fiscal Manual - POST /receipt
     const createManualReceipt = async (receiptData) => {
         try {
@@ -552,41 +587,76 @@ export const DataProvider = ({ children }) => {
 
     const clearPreview = () => setPreviewData(null);
 
+    // Busca recibos ao iniciar o app para garantir que o loading finalize
+    React.useEffect(() => {
+        if (receipts.length === 0 && isAuthenticated) {
+            fetchReceiptsBasic().catch(() => {});
+        }
+    }, [isAuthenticated]);
+    
+    // Busca dados completos da conta após login
+    React.useEffect(() => {
+        if (isAuthenticated) {
+            fetchReceiptsBasic().catch(() => {});
+            fetchCategories().catch(() => {});
+        }
+    }, [isAuthenticated]);
+
+    // Recarrega dados quando a conexão volta
+    React.useEffect(() => {
+        if (isConnected && !connectivityLoading && isAuthenticated) {
+            fetchReceiptsBasic().catch(() => {});
+            fetchCategories().catch(() => {});
+        }
+    }, [isConnected, connectivityLoading]);
+
     return (
-        <DataContext.Provider
-            value={{
-                receipts,
-                loading,
-                previewData,
-                previewQRCode,
-                confirmQRCode,
-                fetchReceiptsBasic,
-                fetchReceiptsFull,
-                fetchReceiptsByDate,
-                fetchReceiptsByPeriod,
-                fetchReceiptById,
-                fetchCategoriesGraph,
-                fetchCategories,
-                fetchCategoriesComplete,
-                fetchCategoryById,
-                createCategory,
-                deleteCategory,
-                updateItem,
-                deleteReceipt,
-                updateReceipt,
-                createManualReceipt,
-                clearPreview,
-                dateList,
-                itemCountList,
-                storeNameList,
-                isProcessingReceipt,
-                setIsProcessingReceipt,
-                categoriesCache,
-                categories,
-            }}
-        >
-            {children}
-        </DataContext.Provider>
+        <View style={{ flex: 1 }}>
+            <DataContext.Provider
+                value={{
+                    receipts,
+                    loading,
+                    previewData,
+                    previewQRCode,
+                    confirmQRCode,
+                    fetchReceiptsBasic,
+                    fetchReceiptsFull,
+                    fetchReceiptsByDate,
+                    fetchReceiptsByPeriod,
+                    fetchReceiptById,
+                    fetchCategoriesGraph,
+                    fetchCategories,
+                    fetchCategoriesComplete,
+                    fetchCategoryById,
+                    createCategory,
+                    deleteCategory,
+                    updateItem,
+                    deleteItem,
+                    deleteReceipt,
+                    updateReceipt,
+                    createManualReceipt,
+                    clearPreview,
+                    dateList,
+                    itemCountList,
+                    storeNameList,
+                    isProcessingReceipt,
+                    setIsProcessingReceipt,
+                    categoriesCache,
+                    categories,
+                }}
+            >
+                {children}
+            </DataContext.Provider>
+            
+            {/* 🌐 Mostra aviso offline se não tiver internet */}
+            <OfflineNotice 
+                visible={!isConnected && !connectivityLoading}
+                onRetry={() => {
+                    fetchReceiptsBasic().catch(() => {});
+                    fetchCategories().catch(() => {});
+                }}
+            />
+        </View>
     );
 };
 
