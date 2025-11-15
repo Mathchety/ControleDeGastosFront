@@ -69,10 +69,10 @@ export default function ChangePasswordScreen({ navigation }) {
                         text: 'OK',
                         onPress: async () => {
                             await logout();
-                            // Não precisa navigation.navigate pois o logout já redireciona para Auth
                         },
                     },
-                ]
+                ],
+                { cancelable: false }
             );
         } catch (error) {
             setLoading(false);
