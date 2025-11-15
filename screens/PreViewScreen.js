@@ -119,9 +119,9 @@ export default function PreViewScreen({ route, navigation }) {
     };
 
     const handleUpdateItem = async (updatedItem, itemIndex) => {
-        // 🔄 Se o item tem ID (já existe no backend), atualiza via API
-        if (updatedItem.id) {
-            try {
+        try {
+            // 🔍 MODO 1: Item tem ID (já existe no backend) → Atualiza via API
+            if (updatedItem.id && receiptId) {
                 // Prepara apenas os campos que podem ser atualizados
                 const itemData = {};
                 if (updatedItem.categoryId !== undefined) itemData.categoryId = updatedItem.categoryId;
@@ -129,53 +129,48 @@ export default function PreViewScreen({ route, navigation }) {
                 if (updatedItem.total !== undefined) itemData.total = parseFloat(updatedItem.total);
                 if (updatedItem.unitPrice !== undefined) itemData.unitPrice = parseFloat(updatedItem.unitPrice);
                 
-                // ⚡ Atualiza no backend e AGUARDA resposta 200
+                // ⚡ Atualiza no backend
                 await updateItem(updatedItem.id, itemData);
                 
-                // ✅ API confirmou (200) - Recarrega nota fiscal completa
-                if (receiptId) {
-                    const updatedReceipt = await fetchReceiptById(receiptId);
-                    setPreviewData(updatedReceipt);
-                } else {
-                    // MODO SCAN: Atualiza estado local (nota ainda não foi salva)
-                    setPreviewData(prev => {
-                        if (!prev || !prev.items) return prev;
-                        
-                        const updatedItems = prev.items.map((item, index) => 
-                            index === itemIndex ? { ...item, ...updatedItem } : item
-                        );
-                        
-                        // Recalcula totais localmente
-                        const newSubtotal = updatedItems.reduce((sum, item) => 
-                            sum + (item.deleted ? 0 : parseFloat(item.total || 0)), 0
-                        );
-                        const newTotal = newSubtotal - parseFloat(prev.discount || 0);
-                        
-                        return {
-                            ...prev,
-                            items: updatedItems,
-                            subtotal: newSubtotal,
-                            total: newTotal,
-                            itemsCount: updatedItems.filter(i => !i.deleted).length,
-                        };
-                    });
-                }
+                // ✅ API confirmou - Recarrega nota fiscal completa
+                const updatedReceipt = await fetchReceiptById(receiptId);
+                setPreviewData(updatedReceipt);
                 
-                return; // ✅ Sucesso - não continua
-                
-            } catch (error) {
-                // ❌ API falhou - NÃO atualiza interface
-                setErrorState({
-                    visible: true,
-                    title: 'Erro ao Atualizar',
-                    message: error.message || 'Não foi possível atualizar o item.'
-                });
                 return;
             }
+            
+            // 🔍 MODO 2: Modo SCAN (sem ID) → Apenas atualiza estado local em RAM
+            // Dados serão enviados quando usuário clicar em "Confirmar Nota"
+            setPreviewData(prev => {
+                if (!prev || !prev.items) return prev;
+                
+                const updatedItems = prev.items.map((item, index) => 
+                    index === itemIndex ? { ...item, ...updatedItem } : item
+                );
+                
+                // Recalcula totais localmente
+                const newSubtotal = updatedItems.reduce((sum, item) => 
+                    sum + parseFloat(item.total || 0), 0
+                );
+                const newTotal = newSubtotal - parseFloat(prev.discount || 0);
+                
+                return {
+                    ...prev,
+                    items: updatedItems,
+                    subtotal: newSubtotal,
+                    total: newTotal,
+                    itemsCount: updatedItems.length,
+                };
+            });
+            
+        } catch (error) {
+            // ❌ API falhou
+            setErrorState({
+                visible: true,
+                title: 'Erro ao Atualizar',
+                message: error.message || 'Não foi possível atualizar o item.'
+            });
         }
-        
-        // ❌ Item sem ID - não deveria acontecer no histórico
-        console.warn('Item sem ID - não pode atualizar via API');
     };
 
     const handleDeleteItem = (itemIndex) => {
@@ -219,8 +214,10 @@ export default function PreViewScreen({ route, navigation }) {
 
     const handleConfirmNewReceipt = async () => {
         try {
-            // MODO SCAN: Confirma e salva nova nota
-            // Limpa a stack e navega para Home
+            // 🔍 MODO SCAN: Confirma e salva nova nota com todas as modificações feitas em RAM
+            // O previewData contém todos os items com as edições do usuário
+            
+            // Limpa a stack e navega para Home (não aguarda a resposta da API)
             navigation.reset({
                 index: 0,
                 routes: [
@@ -228,15 +225,10 @@ export default function PreViewScreen({ route, navigation }) {
                 ],
             });
 
-            // Callback de timeout: ativa notificação se demorar mais de 5s
-            const handleTimeout = () => {
-                // Notificação de processamento
-            };
-
-            // Inicia o salvamento em background
-            await confirmQRCode(previewData, handleTimeout);
-            // Se completou rápido (< 5s), não faz nada (já está na Home)
-            // Se demorou (> 5s), a notificação já está aparecendo
+            // Inicia o salvamento em background com os dados modificados
+            // Envia previewData que contém os items editados pelo usuário
+            await confirmQRCode(previewData);
+            
         } catch (error) {
             setErrorState({
                 visible: true,
