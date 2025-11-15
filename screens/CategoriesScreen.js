@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../contexts/DataContext';
 import httpClient from '../services/httpClient';
+import { CacheService } from '../services/cacheService';
 import { useFilters } from '../contexts/FilterContext';
 import { SkeletonCategoryCard } from '../components/common';
 import { DatePeriodModal } from '../components/modals';
@@ -274,6 +275,11 @@ export default function CategoriesScreen({ navigation }) {
 
                 // Chama API de atualização (precisa implementar no DataContext)
                 await httpClient.patch(`/category/${editingCategory.id}`, updateData);
+                
+                // 🔄 Invalida cache do gráfico se a cor mudou (para atualizar na home)
+                if (updateData.color) {
+                    await CacheService.invalidateGraphCache();
+                }
                 
                 Alert.alert('Sucesso', 'Categoria atualizada com sucesso!');
                 setModalVisible(false);

@@ -90,6 +90,20 @@ export const CacheService = {
     },
 
     /**
+     * Invalida cache do gráfico (remove todos os períodos)
+     */
+    invalidateGraphCache: async () => {
+        try {
+            const periods = ['week', 'month', 'all', 'custom'];
+            const keys = periods.map(p => `${CACHE_KEYS.GRAPH_DATA}_${p}`);
+            await AsyncStorage.multiRemove(keys);
+            console.log('[CacheService] ✅ Cache do gráfico invalidado');
+        } catch (error) {
+            console.error('Erro ao invalidar cache do gráfico:', error);
+        }
+    },
+
+    /**
      * Salva detalhes completos de um recibo
      */
     saveReceiptDetails: async (receiptId, receiptData) => {

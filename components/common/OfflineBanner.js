@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Platform, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { moderateScale } from '../../utils/responsive';
 
 /**
@@ -8,10 +9,12 @@ import { moderateScale } from '../../utils/responsive';
  * Mostra um banner no topo quando o app está sem internet
  */
 export default function OfflineBanner({ visible }) {
+    const insets = useSafeAreaInsets();
+    
     if (!visible) return null;
 
     return (
-        <View style={styles.banner}>
+        <View style={[styles.banner, { paddingTop: insets.top > 0 ? insets.top : moderateScale(8) }]}>
             <View style={styles.content}>
                 <Ionicons name="cloud-offline-outline" size={moderateScale(16)} color="#fff" />
                 <Text style={styles.text}>Modo Offline</Text>
@@ -23,7 +26,7 @@ export default function OfflineBanner({ visible }) {
 const styles = StyleSheet.create({
     banner: {
         backgroundColor: '#f59e0b',
-        paddingVertical: moderateScale(8),
+        paddingBottom: moderateScale(8),
         paddingHorizontal: moderateScale(16),
     },
     content: {
