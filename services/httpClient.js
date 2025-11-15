@@ -93,10 +93,12 @@ class HttpClient {
      */
     async refreshAccessToken() {
         if (!this.refreshToken) {
+            console.log('[HttpClient] ❌ Refresh token não disponível');
             throw new Error('Refresh token não disponível');
         }
 
         try {
+            console.log('[HttpClient] 🔄 Tentando renovar token...');
             const response = await fetch(`${this.baseURL}/auth/refresh`, {
                 method: 'POST',
                 headers: {
@@ -106,19 +108,23 @@ class HttpClient {
             });
 
             if (!response.ok) {
+                console.log('[HttpClient] ❌ Falha ao renovar token - Status:', response.status);
                 throw new Error('Falha ao renovar token');
             }
 
             const data = await response.json();
             
             if (data.accessToken) {
+                console.log('[HttpClient] ✅ Token renovado com sucesso');
                 // Salva accessToken e refreshToken (one-time use)
                 this.setTokens(data.accessToken, data.refreshToken);
                 return data.accessToken;
             }
 
+            console.log('[HttpClient] ❌ Token não retornado pelo servidor');
             throw new Error('Token não retornado pelo servidor');
         } catch (error) {
+            console.error('[HttpClient] ❌ Erro ao renovar token:', error.message);
             // Se falhar, limpa tudo
             this.setTokens(null, null);
             throw error;

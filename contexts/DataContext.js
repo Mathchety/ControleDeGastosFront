@@ -5,7 +5,8 @@ import useErrorModal from '../hooks/useErrorModal';
 import httpClient from '../services/httpClient';
 import { getErrorMessage, getErrorTitle } from '../utils/errorMessages';
 import { useConnectivity } from '../hooks/useConnectivity';
-import OfflineNotice from '../components/common/OfflineNotice';
+import OfflineBanner from '../components/common/OfflineBanner';
+import { CacheService } from '../services/cacheService';
 
 const DataContext = createContext();
 
@@ -105,8 +106,26 @@ export const DataProvider = ({ children }) => {
             setStoreNameList(storeNameList);
             setReceipts(receiptsData);
 
+            // 💾 Salva no cache
+            await CacheService.saveReceipts(receiptsData);
+
             return receiptsData;
         } catch (error) {
+            // 📱 Se falhar, tenta carregar do cache
+            if (!isConnected) {
+                const cachedReceipts = await CacheService.loadReceipts();
+                if (cachedReceipts.length > 0) {
+                    const dateList = cachedReceipts.map(r => r.date);
+                    const itemCountList = cachedReceipts.map(r => r.itemCount);
+                    const storeNameList = cachedReceipts.map(r => r.storeName);
+                    setDateList(dateList);
+                    setItemCountList(itemCountList);
+                    setStoreNameList(storeNameList);
+                    setReceipts(cachedReceipts);
+                    return cachedReceipts;
+                }
+            }
+            
             const errorMessage = getErrorMessage(error, 'Não foi possível carregar os recibos.');
             showError(error, errorMessage);
             throw error;
@@ -216,15 +235,41 @@ export const DataProvider = ({ children }) => {
             }
             
             if (receiptData) {
-                return {
+                const formattedReceipt = {
                     ...receiptData,
                     storeName: receiptData.storeName || receiptData.store_name || 'Loja',
                     itemsCount: receiptData.items?.length || receiptData.itemsCount || 0,
                 };
+                
+                // 💾 Salva detalhes completos no cache
+                await CacheService.saveReceiptDetails(id, formattedReceipt);
+                
+                return formattedReceipt;
             }
             
             throw new Error('Receipt não encontrado');
         } catch (error) {
+            // 📱 Se falhar e estiver offline, busca do cache local
+            if (!isConnected) {
+                // Tenta buscar detalhes completos salvos
+                const cachedDetails = await CacheService.loadReceiptDetails(id);
+                if (cachedDetails) {
+                    return cachedDetails;
+                }
+                
+                // Fallback: busca da lista básica
+                const cachedReceipts = await CacheService.loadReceipts();
+                const cachedReceipt = cachedReceipts.find(r => r.id === id);
+                
+                if (cachedReceipt) {
+                    return {
+                        ...cachedReceipt,
+                        storeName: cachedReceipt.storeName || cachedReceipt.store_name || 'Loja',
+                        itemsCount: cachedReceipt.items?.length || cachedReceipt.itemsCount || 0,
+                    };
+                }
+            }
+            
             const errorMessage = getErrorMessage(error, 'Não foi possível carregar os detalhes do recibo.');
             showError(error, errorMessage);
             throw error;
@@ -305,10 +350,42 @@ export const DataProvider = ({ children }) => {
             // Armazena no cache para uso na tela de Categorias
             setCategoriesCache(categoriesData); // Armazena todas, não só as filtradas
             
+            // 💾 Salva dados do gráfico no cache (determina período baseado nas datas)
+            const daysDiff = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24));
+            let period = 'month';
+            if (daysDiff <= 7) period = 'week';
+            else if (daysDiff > 365) period = 'all';
+            else if (daysDiff > 31) period = 'custom';
+            
+            await CacheService.saveGraphData(filteredCategories, period);
+            
             return filteredCategories;
         } catch (error) {
-            const errorMessage = getErrorMessage(error, 'Não foi possível carregar dados do gráfico de categorias.');
-            // Não mostra alert aqui, apenas retorna array vazio
+            console.error('[DataContext] Erro ao carregar gráfico:', error.message);
+            
+            // 📱 Tenta carregar do cache (determina período para buscar cache correto)
+            const daysDiff = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24));
+            let period = 'month';
+            if (daysDiff <= 7) period = 'week';
+            else if (daysDiff > 365) period = 'all';
+            else if (daysDiff > 31) period = 'custom';
+            
+            const cachedGraphData = await CacheService.loadGraphData(period);
+            if (cachedGraphData.length > 0) {
+                console.log(`[DataContext] ✅ Usando cache do gráfico (${period})`);
+                setCategoriesCache(cachedGraphData);
+                return cachedGraphData;
+            }
+            
+            // Se não tem cache E não é erro de rede, pode mostrar alerta
+            // Mas se é erro de rede, silencioso (usuário já vê banner offline)
+            const isNetworkErr = !error.response && 
+                (error.message === 'Network Error' || error.message === 'Network request failed');
+            
+            if (!isNetworkErr) {
+                console.warn('[DataContext] Sem cache disponível para o gráfico');
+            }
+            
             return [];
         } finally {
             setLoading(false);
@@ -372,12 +449,35 @@ export const DataProvider = ({ children }) => {
             
             // Armazena no cache para uso posterior
             setCategoriesCache(categoriesData);
-            setCategories(categoriesData); // Atualiza o estado de categories
+            setCategories(categoriesData);
+            
+            // 💾 Salva no cache
+            await CacheService.saveCategories(categoriesData);
             
             return categoriesData;
         } catch (error) {
-            const errorMessage = getErrorMessage(error, 'Não foi possível carregar as categorias.');
-            showError(error, errorMessage);
+            console.error('[DataContext] Erro ao carregar categorias:', error.message);
+            
+            // 📱 Tenta carregar do cache (offline OU erro na API)
+            const cachedCategories = await CacheService.loadCategories();
+            if (cachedCategories.length > 0) {
+                console.log('[DataContext] ✅ Usando categorias do cache');
+                setCategoriesCache(cachedCategories);
+                setCategories(cachedCategories);
+                return cachedCategories;
+            }
+            
+            // Verifica se é erro de rede
+            const isNetworkErr = !error.response && 
+                (error.message === 'Network Error' || error.message === 'Network request failed');
+            
+            // Se não tem cache e NÃO é erro de rede, mostra erro
+            // Se é erro de rede, usuário já vê o banner offline
+            if (!isNetworkErr && isConnected) {
+                const errorMessage = getErrorMessage(error, 'Não foi possível carregar as categorias.');
+                showError(error, errorMessage);
+            }
+            
             return [];
         } finally {
             setLoading(false);
@@ -424,16 +524,38 @@ export const DataProvider = ({ children }) => {
                 categoryData = response.data;
             }
             
-            // Retorna também informações de paginação e summary do backend
-            return {
+            // Prepara o resultado
+            const result = {
                 category: categoryData,
                 items: response?.items || response?.data?.items || [],
                 summary: response?.summary || response?.data?.summary || null,
                 pagination: response?.pagination || response?.data?.pagination || null,
             };
+            
+            // 💾 Salva detalhes da categoria no cache
+            await CacheService.saveCategoryDetails(id, result);
+            
+            return result;
         } catch (error) {
-            const errorMessage = getErrorMessage(error, 'Não foi possível carregar os detalhes da categoria.');
-            Alert.alert(getErrorTitle(error), errorMessage);
+            console.error('[DataContext] Erro ao carregar detalhes da categoria:', error.message);
+            
+            // 📱 Tenta carregar do cache
+            const cachedCategoryDetails = await CacheService.loadCategoryDetails(id);
+            if (cachedCategoryDetails) {
+                console.log(`[DataContext] ✅ Usando cache da categoria ${id}`);
+                return cachedCategoryDetails;
+            }
+            
+            // Verifica se é erro de rede
+            const isNetworkErr = !error.response && 
+                (error.message === 'Network Error' || error.message === 'Network request failed');
+            
+            // Se não tem cache e NÃO é erro de rede, mostra erro
+            if (!isNetworkErr) {
+                const errorMessage = getErrorMessage(error, 'Não foi possível carregar os detalhes da categoria.');
+                Alert.alert(getErrorTitle(error), errorMessage);
+            }
+            
             throw error;
         } finally {
             setLoading(false);
@@ -587,76 +709,91 @@ export const DataProvider = ({ children }) => {
 
     const clearPreview = () => setPreviewData(null);
 
-    // Busca recibos ao iniciar o app para garantir que o loading finalize
+    // 🚀 Carrega cache na inicialização (antes de tentar API)
     React.useEffect(() => {
-        if (receipts.length === 0 && isAuthenticated) {
-            fetchReceiptsBasic().catch(() => {});
-        }
-    }, [isAuthenticated]);
-    
-    // Busca dados completos da conta após login
+        const loadCachedData = async () => {
+            if (isAuthenticated && !isConnected) {
+                // Offline: carrega do cache
+                const cachedReceipts = await CacheService.loadReceipts();
+                const cachedCategories = await CacheService.loadCategories();
+                const cachedGraphData = await CacheService.loadGraphData();
+                
+                if (cachedReceipts.length > 0) {
+                    const dateList = cachedReceipts.map(r => r.date);
+                    const itemCountList = cachedReceipts.map(r => r.itemCount);
+                    const storeNameList = cachedReceipts.map(r => r.storeName);
+                    setDateList(dateList);
+                    setItemCountList(itemCountList);
+                    setStoreNameList(storeNameList);
+                    setReceipts(cachedReceipts);
+                }
+                
+                if (cachedCategories.length > 0) {
+                    setCategoriesCache(cachedCategories);
+                    setCategories(cachedCategories);
+                }
+            }
+        };
+        
+        loadCachedData();
+    }, [isAuthenticated, isConnected]);
+
+    // Busca dados completos da conta após login (apenas se online)
     React.useEffect(() => {
-        if (isAuthenticated) {
+        if (isAuthenticated && isConnected && !connectivityLoading) {
             fetchReceiptsBasic().catch(() => {});
             fetchCategories().catch(() => {});
         }
-    }, [isAuthenticated]);
+    }, [isAuthenticated, isConnected, connectivityLoading]);
 
     // Recarrega dados quando a conexão volta
     React.useEffect(() => {
         if (isConnected && !connectivityLoading && isAuthenticated) {
+            // Limpa cache e busca dados atualizados da API
             fetchReceiptsBasic().catch(() => {});
             fetchCategories().catch(() => {});
         }
-    }, [isConnected, connectivityLoading]);
+    }, [isConnected]);
 
     return (
-        <View style={{ flex: 1 }}>
-            <DataContext.Provider
-                value={{
-                    receipts,
-                    loading,
-                    previewData,
-                    previewQRCode,
-                    confirmQRCode,
-                    fetchReceiptsBasic,
-                    fetchReceiptsFull,
-                    fetchReceiptsByDate,
-                    fetchReceiptsByPeriod,
-                    fetchReceiptById,
-                    fetchCategoriesGraph,
-                    fetchCategories,
-                    fetchCategoriesComplete,
-                    fetchCategoryById,
-                    createCategory,
-                    deleteCategory,
-                    updateItem,
-                    deleteItem,
-                    deleteReceipt,
-                    updateReceipt,
-                    createManualReceipt,
-                    clearPreview,
-                    dateList,
-                    itemCountList,
-                    storeNameList,
-                    isProcessingReceipt,
-                    setIsProcessingReceipt,
-                    categoriesCache,
-                    categories,
-                }}
-            >
-                {children}
-            </DataContext.Provider>
-            
-            {/* 🌐 Mostra aviso offline se não tiver internet */}
-            <OfflineNotice 
-                visible={!isConnected && !connectivityLoading}
-                onRetry={() => {
-                    fetchReceiptsBasic().catch(() => {});
-                    fetchCategories().catch(() => {});
-                }}
-            />
-        </View>
+        <DataContext.Provider
+            value={{
+                receipts,
+                loading,
+                previewData,
+                isConnected,
+                previewQRCode,
+                confirmQRCode,
+                fetchReceiptsBasic,
+                fetchReceiptsFull,
+                fetchReceiptsByDate,
+                fetchReceiptsByPeriod,
+                fetchReceiptById,
+                fetchCategoriesGraph,
+                fetchCategories,
+                fetchCategoriesComplete,
+                fetchCategoryById,
+                createCategory,
+                deleteCategory,
+                updateItem,
+                deleteItem,
+                deleteReceipt,
+                updateReceipt,
+                createManualReceipt,
+                clearPreview,
+                dateList,
+                itemCountList,
+                storeNameList,
+                isProcessingReceipt,
+                setIsProcessingReceipt,
+                categoriesCache,
+                categories,
+            }}
+        >
+            {/* 📡 Banner não invasivo de modo offline */}
+            <OfflineBanner visible={!isConnected && !connectivityLoading && isAuthenticated} />
+            {children}
+        </DataContext.Provider>
     );
 };
 

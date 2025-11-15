@@ -4,7 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import HomeScreen from '../screens/HomeScreen';
-import ScanScreen from '../screens/ScanScreen';
+import ScanScreenWrapper from '../screens/ScanScreenWrapper';
 import HistoryScreen from '../screens/HistoryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CategoriesScreen from '../screens/CategoriesScreen';
@@ -79,7 +79,7 @@ export default function MainTabNavigator() {
       {/* ✨ Botão Escanear no CENTRO */}
       <Tab.Screen 
         name="Scan" 
-        component={ScanScreen}
+        component={ScanScreenWrapper}
         options={{ 
           tabBarLabel: 'Escanear',
           tabBarLabelStyle: {

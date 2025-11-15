@@ -7,3 +7,4 @@ export { default as FinansyncLogo } from './FinansyncLogo';
 export { default as FinansyncLogoSimple } from './FinansyncLogoSimple';
 export { ErrorMessage, useErrorMessage } from './ErrorMessage';
 export { default as OfflineNotice } from './OfflineNotice';
+export { default as OfflineBanner } from './OfflineBanner';

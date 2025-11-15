@@ -61,7 +61,7 @@ export const getErrorMessage = (error, defaultMessage = ERROR_MESSAGES.UNKNOWN_E
     if (!error) return defaultMessage;
 
     // Erro de rede (sem conexão)
-    if (!error.response && error.message === 'Network Error') {
+    if (!error.response && (error.message === 'Network Error' || error.message === 'Network request failed')) {
         return ERROR_MESSAGES.NETWORK_ERROR;
     }
 
@@ -192,7 +192,7 @@ export const isAuthError = (error) => {
  * @returns {boolean} True se for erro de rede
  */
 export const isNetworkError = (error) => {
-    return !error.response && error.message === 'Network Error';
+    return !error.response && (error.message === 'Network Error' || error.message === 'Network request failed');
 };
 
 /**

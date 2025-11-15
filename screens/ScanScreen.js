@@ -16,7 +16,7 @@ export default function ScanScreen({ navigation }) {
   const [scanTimeout, setScanTimeout] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false); // 🔒 Modal de permissão
 
-  const { loading: contextLoading, previewQRCode } = useData();
+  const { loading: contextLoading, previewQRCode, isConnected } = useData();
   const { errorState, showError, hideError } = useErrorModal();
   const loading = contextLoading || localLoading;
   
@@ -55,7 +55,15 @@ export default function ScanScreen({ navigation }) {
   const handleBarCodeScanned = async ({ data }) => {
     if (scanned || loading || scanTimeout || isNavigatingRef.current) return;
     
-    // �️ Valida QR Code com suporte a todas as regiões do Brasil
+    // 🌐 Verifica se está online
+    if (!isConnected) {
+      showError('Sem Internet', 'Você precisa estar online para escanear notas fiscais.', () => {
+        setScanned(false);
+      });
+      return;
+    }
+    
+    // 🗺️ Valida QR Code com suporte a todas as regiões do Brasil
     const validation = validateQRCode(data);
     
     if (!validation.valid) {

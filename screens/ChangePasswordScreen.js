@@ -13,11 +13,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '../contexts/AuthContext';
 import { moderateScale, fontScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
 import { GradientHeader } from '../components/common';
 
 export default function ChangePasswordScreen({ navigation }) {
+    const { changePassword, logout } = useAuth();
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -55,26 +57,27 @@ export default function ChangePasswordScreen({ navigation }) {
         try {
             setLoading(true);
             
-            // TODO: Integrar com API quando estiver pronta
-            // await authService.changePassword(currentPassword, newPassword);
+            await changePassword(currentPassword, newPassword);
             
-            // Simulação
-            setTimeout(() => {
-                setLoading(false);
-                Alert.alert(
-                    'Sucesso!',
-                    'Sua senha foi alterada com sucesso.',
-                    [
-                        {
-                            text: 'OK',
-                            onPress: () => navigation.goBack(),
+            setLoading(false);
+            
+            Alert.alert(
+                'Sucesso!',
+                'Sua senha foi alterada com sucesso. Por segurança, você será desconectado.',
+                [
+                    {
+                        text: 'OK',
+                        onPress: async () => {
+                            await logout();
+                            // Não precisa navigation.navigate pois o logout já redireciona para Auth
                         },
-                    ]
-                );
-            }, 1500);
+                    },
+                ]
+            );
         } catch (error) {
             setLoading(false);
-            Alert.alert('Erro', 'Não foi possível alterar a senha. Verifique sua senha atual e tente novamente.');
+            const errorMessage = error.response?.data?.message || error.message || 'Não foi possível alterar a senha. Verifique sua senha atual e tente novamente.';
+            Alert.alert('Erro', errorMessage);
         }
     };
 

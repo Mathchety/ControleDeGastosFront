@@ -29,6 +29,7 @@ import { theme } from '../utils/theme';
 import { useStatusBarColor } from '../hooks/useStatusBarColor';
 
 export default function HomeScreen({ navigation }) {
+    const { isConnected } = useData();
     const { user } = useAuth();
     
     // Hook para definir a cor da StatusBar
@@ -222,12 +223,14 @@ export default function HomeScreen({ navigation }) {
 
                         <CategoriesSection />
 
-                        <ScanButton 
-                            title="Adicionar Nota Manualmente"
-                            iconName="add-circle"
-                            onPress={() => navigation.navigate('ManualReceipt')}
-                            style={styles.addButton}
-                        />
+                        {isConnected && (
+                            <ScanButton 
+                                title="Adicionar Nota Manualmente"
+                                iconName="add-circle"
+                                onPress={() => navigation.navigate('ManualReceipt')}
+                                style={styles.addButton}
+                            />
+                        )}
                     </>
                 )}
             </Animated.ScrollView>
