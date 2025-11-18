@@ -32,6 +32,7 @@ const CategoriesSectionComponent = () => {
     const [modalVisible, setModalVisible] = useState(false);
     const [loading, setLoading] = useState(false);
     const [filterLoading, setFilterLoading] = useState(false);
+    const [loadError, setLoadError] = useState(false); // ✨ Estado para erro de timeout
     const [filterPeriod, setFilterPeriod] = useState('month');
     const [customDateModalVisible, setCustomDateModalVisible] = useState(false);
     const [showStartPicker, setShowStartPicker] = useState(false);
@@ -40,6 +41,7 @@ const CategoriesSectionComponent = () => {
     const [tempEndDate, setTempEndDate] = useState(new Date());
     const [startDate, setStartDate] = useState(new Date());
     const [endDate, setEndDate] = useState(new Date());
+    const loadTimeoutRef = useRef(null); // ✨ Referência do timeout
 
     // ✅ Função para carregar dados do gráfico
     const loadGraphData = useCallback(async () => {
@@ -53,6 +55,8 @@ const CategoriesSectionComponent = () => {
         try {
             isLoadingRef.current = true;
             setFilterLoading(true);
+            setLoadError(false); // ✨ Limpa erro anterior
+            
             let start, end;
             const today = new Date();
 
@@ -81,13 +85,40 @@ const CategoriesSectionComponent = () => {
 
             console.log('[CategoriesSection] Buscando dados de', start.toLocaleDateString(), 'até', end.toLocaleDateString());
             
-            const graphResponse = await fetchCategoriesGraph(start, end);
-            console.log('[CategoriesSection] Dados recebidos:', graphResponse?.length || 0, 'categorias');
-            
-            setGraphData(graphResponse || []);
-            setAllCategories(graphResponse || []);
+            // ✨ Cria Promise com timeout de 10 segundos
+            const timeoutPromise = new Promise((_, reject) => {
+                loadTimeoutRef.current = setTimeout(() => {
+                    reject(new Error('Timeout ao buscar categorias'));
+                }, 10000); // 10 segundos de timeout
+            });
+
+            try {
+                const graphResponse = await Promise.race([
+                    fetchCategoriesGraph(start, end),
+                    timeoutPromise
+                ]);
+                
+                // ✨ Limpa o timeout se a requisição foi bem sucedida
+                if (loadTimeoutRef.current) {
+                    clearTimeout(loadTimeoutRef.current);
+                    loadTimeoutRef.current = null;
+                }
+                
+                console.log('[CategoriesSection] Dados recebidos:', graphResponse?.length || 0, 'categorias');
+                
+                setGraphData(graphResponse || []);
+                setAllCategories(graphResponse || []);
+            } catch (timeoutError) {
+                console.error('[CategoriesSection] Timeout ou erro:', timeoutError.message);
+                setLoadError(true); // ✨ Mostra estado de erro
+                setGraphData([]);
+                setAllCategories([]);
+            }
         } catch (error) {
             console.error('[CategoriesSection] Erro ao carregar gráfico:', error);
+            setLoadError(true); // ✨ Mostra estado de erro
+            setGraphData([]);
+            setAllCategories([]);
         } finally {
             setFilterLoading(false);
             isLoadingRef.current = false;
@@ -288,6 +319,13 @@ const CategoriesSectionComponent = () => {
                             <ActivityIndicator size="large" color="#667eea" />
                             <Text style={styles.filterLoadingText}>Atualizando dados...</Text>
                         </View>
+                    ) : loadError ? (
+                        // ✨ Estado de erro com timeout
+                        <View style={styles.emptyChart}>
+                            <Ionicons name="alert-circle-outline" size={48} color="#ff6b6b" />
+                            <Text style={styles.emptyChartText}>Não foi possível carregar as categorias</Text>
+                            <Text style={styles.emptyChartSubtext}>Tente puxar a tela pra baixo para atualizar</Text>
+                        </View>
                     ) : (
                         <>
                             {/* Gráfico de Pizza */}
@@ -311,7 +349,8 @@ const CategoriesSectionComponent = () => {
                             ) : (
                                 <View style={styles.emptyChart}>
                                     <Ionicons name="pie-chart-outline" size={48} color="#ccc" />
-                                    <Text style={styles.emptyChartText}>Nenhum dado para o período selecionado</Text>
+                                    <Text style={styles.emptyChartText}>Nenhuma categoria encontrada</Text>
+                                    <Text style={styles.emptyChartSubtext}>Comece a adicionar notas para ver as categorias</Text>
                                 </View>
                             )}
                         </>
