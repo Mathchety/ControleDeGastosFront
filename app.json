@@ -21,10 +21,7 @@
         "android.permission.CAMERA"
       ],
       "package": "com.finansync.app",
-      "softwareKeyboardLayoutMode": "pan",
-      "navigationBar": {
-        "visible": "immersive"
-      }
+      "softwareKeyboardLayoutMode": "pan"
     },
     "web": {},
     "plugins": [
