@@ -34,6 +34,7 @@ export default function EditableReceiptItemCard({
     return { type: 'quantidade', icon: '📦', color: '#667eea', bgColor: '#e8f1ff' };
   };
   const unitInfo = getUnitInfo();
+  //test
 
   if (item.deleted) return null;
 
