@@ -174,11 +174,38 @@ class HttpClient {
                 ...otherOptions,
             });
 
+            // Extrai headers de rate limit
+            const rateLimitHeaders = {
+                'x-ratelimit-limit': response.headers.get('X-RateLimit-Limit'),
+                'x-ratelimit-remaining': response.headers.get('X-RateLimit-Remaining'),
+                'x-ratelimit-reset': response.headers.get('X-RateLimit-Reset'),
+                'x-ratelimit-retryafter': response.headers.get('X-RateLimit-RetryAfter') || response.headers.get('Retry-After'),
+            };
+
             // Lê a resposta como texto primeiro
             const textResponse = await response.text();
             
             // Se não for 2xx, trata como erro
             if (!response.ok) {
+                // Trata 429 (Too Many Requests) de forma especial
+                if (response.status === 429) {
+                    let errorData;
+                    try {
+                        errorData = JSON.parse(textResponse);
+                    } catch {
+                        errorData = { message: 'Muitas requisições. Tente novamente mais tarde.' };
+                    }
+
+                    const error = new Error(errorData.error || errorData.message || 'Muitas requisições');
+                    error.statusCode = 429;
+                    error.rateLimitHeaders = rateLimitHeaders;
+                    error.response = {
+                        status: 429,
+                        data: errorData
+                    };
+                    throw error;
+                }
+
                 // Tenta parsear como JSON para pegar a mensagem de erro
                 let errorData;
                 try {
@@ -239,6 +266,7 @@ class HttpClient {
                     if (!requiresAuth) {
                         const error = new Error(errorData.error || errorData.message || 'Credenciais inválidas');
                         error.statusCode = 401;
+                        error.rateLimitHeaders = rateLimitHeaders;
                         error.response = { status: 401, data: errorData };
                         throw error;
                     }
@@ -255,6 +283,7 @@ class HttpClient {
                 // Cria erro com informações completas
                 const error = new Error(errorData.error || errorData.message || `Erro ${response.status}`);
                 error.statusCode = response.status;
+                error.rateLimitHeaders = rateLimitHeaders;
                 error.response = {
                     status: response.status,
                     data: errorData

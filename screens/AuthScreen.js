@@ -23,6 +23,7 @@ import { PrimaryButton } from '../components/buttons';
 import { Input } from '../components/inputs';
 import { LoadingModal } from '../components/modals';
 import { FinansyncLogoSimple, ErrorMessage, useErrorMessage } from '../components/common';
+import { useRateLimitWarning } from '../hooks/useRateLimitWarning';
 import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
 
@@ -33,6 +34,7 @@ const isSmallDevice = SCREEN_HEIGHT < 700;
 const AnimatedForm = React.memo(({ isRegisterView, onSuccess, navigation }) => {
     const { login, register } = useAuth();
     const { getErrorMessage } = useErrorMessage();
+    const { handleRateLimitError, resetAlert } = useRateLimitWarning(); // ✨ Rate limit
     
     // Estado para loading e erro
     const [loading, setLoading] = useState(false);
@@ -76,8 +78,12 @@ const AnimatedForm = React.memo(({ isRegisterView, onSuccess, navigation }) => {
                 console.log('Erro ao carregar credenciais:', error);
             }
         };
+        
+        // ✨ Reseta alerta de rate limit quando troca de tela
+        resetAlert();
+        
         loadSavedCredentials();
-    }, [isRegisterView]);
+    }, [isRegisterView, resetAlert]);
 
     /**
      * handleLogin - Função integrada com API
@@ -110,13 +116,21 @@ const AnimatedForm = React.memo(({ isRegisterView, onSuccess, navigation }) => {
             
             onSuccess && onSuccess();
         } catch (err) {
-            const errorInfo = getErrorMessage(err);
+            // ✨ Verifica se é erro de rate limit (429)
+            const isRateLimited = handleRateLimitError(err, '/login');
             
-            setError({
-                visible: true,
-                message: errorInfo.message,
-                type: errorInfo.type
-            });
+            if (isRateLimited) {
+                // Já mostrou o alerta no hook
+                setError({ visible: false, message: '', type: 'error' });
+            } else {
+                const errorInfo = getErrorMessage(err);
+                
+                setError({
+                    visible: true,
+                    message: errorInfo.message,
+                    type: errorInfo.type
+                });
+            }
         } finally {
             setLoading(false);
         }
@@ -150,12 +164,20 @@ const AnimatedForm = React.memo(({ isRegisterView, onSuccess, navigation }) => {
             await register(nameRegister, emailRegister, passwordRegister);
             onSuccess && onSuccess();
         } catch (err) {
-            const errorInfo = getErrorMessage(err);
-            setError({
-                visible: true,
-                message: errorInfo.message,
-                type: errorInfo.type
-            });
+            // ✨ Verifica se é erro de rate limit (429)
+            const isRateLimited = handleRateLimitError(err, '/register');
+            
+            if (isRateLimited) {
+                // Já mostrou o alerta no hook
+                setError({ visible: false, message: '', type: 'error' });
+            } else {
+                const errorInfo = getErrorMessage(err);
+                setError({
+                    visible: true,
+                    message: errorInfo.message,
+                    type: errorInfo.type
+                });
+            }
         } finally {
             setLoading(false);
         }

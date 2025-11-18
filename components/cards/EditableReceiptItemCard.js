@@ -22,6 +22,19 @@ export default function EditableReceiptItemCard({
   const quantity = parseFloat(item.quantity || 1);
   const unitPrice = quantity > 0 ? itemTotal / quantity : 0;
 
+  // ✨ Determina tipo de unidade e cores
+  const getUnitInfo = () => {
+    const unityLower = unity?.toLowerCase() || '';
+    if (unityLower === 'l' || unityLower === 'litros') {
+      return { type: 'litros', icon: '🧊', color: '#667eea', bgColor: '#e8f1ff' };
+    }
+    if (unityLower === 'kg' || unityLower === 'kilo' || unityLower === 'kilos' || unityLower === 'gramas' || unityLower === 'g') {
+      return { type: 'peso', icon: '⚖️', color: '#ff6b6b', bgColor: '#ffe8e8' };
+    }
+    return { type: 'quantidade', icon: '📦', color: '#667eea', bgColor: '#e8f1ff' };
+  };
+  const unitInfo = getUnitInfo();
+
   if (item.deleted) return null;
 
   return (
@@ -43,9 +56,11 @@ export default function EditableReceiptItemCard({
         </View>
         <View style={styles.itemDetails}>
           <View style={styles.itemDetailRow}>
-            <Ionicons name="cube-outline" size={16} color="#666" />
+            <View style={[styles.unitIndicator, { backgroundColor: unitInfo.bgColor }]}>
+              <Text style={styles.unitIndicatorText}>{unitInfo.icon}</Text>
+            </View>
             <Text style={styles.itemDetailText}>
-              Quantidade: {quantity} {unity}
+              {unitInfo.type === 'litros' ? 'Litros' : unitInfo.type === 'peso' ? 'Peso' : 'Quantidade'}: {quantity} {unity}
             </Text>
           </View>
           <View style={styles.itemDetailRow}>
@@ -132,11 +147,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: moderateScale(6),
+    gap: moderateScale(8),
+  },
+  unitIndicator: {
+    width: moderateScale(32),
+    height: moderateScale(32),
+    borderRadius: moderateScale(8),
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  unitIndicatorText: {
+    fontSize: moderateScale(16),
   },
   itemDetailText: {
     fontSize: moderateScale(14),
     color: "#666",
-    marginLeft: moderateScale(8),
   },
   itemFooter: {
     flexDirection: "row",

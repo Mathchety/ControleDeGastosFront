@@ -45,6 +45,16 @@ export default function EditItemModal({
 
     // ✨ Extrai nome do produto com fallback
     const productName = item?.product?.name || item?.name || item?.description || 'Sem nome';
+    
+    // ✨ Extrai unidade e determina tipo de input
+    const unity = item?.product?.unity || item?.unit || 'UN';
+    const getInputType = () => {
+        const unityLower = unity?.toLowerCase() || '';
+        if (unityLower === 'l' || unityLower === 'litros') return 'litros';
+        if (unityLower === 'kg' || unityLower === 'kilo' || unityLower === 'kilos' || unityLower === 'gramas' || unityLower === 'g') return 'peso';
+        return 'quantidade'; // Padrão
+    };
+    const inputType = getInputType();
 
     // ✨ Atualiza campos quando modal abre (visible muda)
     useEffect(() => {
@@ -154,20 +164,37 @@ export default function EditItemModal({
 
                         {/* Quantidade */}
                         <View style={styles.formGroup}>
-                            <Text style={styles.label}>Quantidade *</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={itemQuantity}
-                                onChangeText={setItemQuantity}
-                                placeholder="Ex: 2"
-                                keyboardType="decimal-pad"
-                                maxLength={10}
-                            />
+                            <Text style={styles.label}>
+                                {inputType === 'litros' ? '🧊 Litros *' : inputType === 'peso' ? '⚖️ Peso (Kg) *' : '📦 Quantidade *'}
+                            </Text>
+                            <View style={styles.inputWithUnit}>
+                                <TextInput
+                                    style={[styles.input, styles.inputWithUnitField]}
+                                    value={itemQuantity}
+                                    onChangeText={setItemQuantity}
+                                    placeholder={inputType === 'litros' ? "Ex: 2.5" : inputType === 'peso' ? "Ex: 1.5" : "Ex: 2"}
+                                    keyboardType="decimal-pad"
+                                    maxLength={10}
+                                />
+                                <View style={[
+                                    styles.unitBadge,
+                                    inputType === 'litros' && styles.unitBadgeLitros,
+                                    inputType === 'peso' && styles.unitBadgePeso,
+                                    inputType === 'quantidade' && styles.unitBadgeQuantidade
+                                ]}>
+                                    <Text style={[
+                                        styles.unitBadgeText,
+                                        (inputType === 'litros' || inputType === 'peso') && styles.unitBadgeTextWhite
+                                    ]}>
+                                        {inputType === 'litros' ? 'L' : inputType === 'peso' ? 'Kg' : 'UN'}
+                                    </Text>
+                                </View>
+                            </View>
                         </View>
 
                         {/* Total */}
                         <View style={styles.formGroup}>
-                            <Text style={styles.label}>Total (R$) *</Text>
+                            <Text style={styles.label}>💰 Total (R$) *</Text>
                             <TextInput
                                 style={styles.input}
                                 value={itemTotal}
@@ -300,6 +327,39 @@ const styles = StyleSheet.create({
         color: '#333',
         borderWidth: 1,
         borderColor: '#e5e7eb',
+    },
+    inputWithUnit: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: moderateScale(10),
+    },
+    inputWithUnitField: {
+        flex: 1,
+    },
+    unitBadge: {
+        paddingVertical: moderateScale(12),
+        paddingHorizontal: moderateScale(12),
+        borderRadius: moderateScale(12),
+        alignItems: 'center',
+        justifyContent: 'center',
+        minWidth: moderateScale(50),
+    },
+    unitBadgeQuantidade: {
+        backgroundColor: '#e8f1ff',
+    },
+    unitBadgeLitros: {
+        backgroundColor: '#667eea',
+    },
+    unitBadgePeso: {
+        backgroundColor: '#ff6b6b',
+    },
+    unitBadgeText: {
+        fontSize: moderateScale(14),
+        fontWeight: '600',
+        color: '#667eea',
+    },
+    unitBadgeTextWhite: {
+        color: '#fff',
     },
     readOnlyField: {
         backgroundColor: '#f0f0f0',

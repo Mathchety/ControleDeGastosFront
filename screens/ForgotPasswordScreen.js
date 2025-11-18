@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
+import { useRateLimitWarning } from '../hooks/useRateLimitWarning';
 import { moderateScale, fontScale } from '../utils/responsive';
 import { Input } from '../components/inputs';
 import { theme } from '../utils/theme';
@@ -23,6 +24,7 @@ const isSmallDevice = SCREEN_HEIGHT < 700;
 
 export default function ForgotPasswordScreen({ navigation, route }) {
     const { forgotPassword, isAuthenticated, user } = useAuth();
+    const { handleRateLimitError, resetAlert } = useRateLimitWarning(); // ✨ Rate limit
     const userEmail = route?.params?.email || user?.email || '';
     const [email, setEmail] = useState(userEmail);
     const [localLoading, setLocalLoading] = useState(false);
@@ -31,10 +33,13 @@ export default function ForgotPasswordScreen({ navigation, route }) {
 
     // Detecta a altura do teclado - funciona melhor em iOS e Android
     useEffect(() => {
+        // ✨ Reseta alerta de rate limit quando entra na tela
+        resetAlert();
+        
         // Não fazemos scroll automático aqui, deixamos o usuario controlar
         // apenas o scroll manual quando clica no input via onFocus
         return () => {};
-    }, []);
+    }, [resetAlert]);
 
     const scrollToBottom = () => {
         // Scroll suave apenas quando o usuario clica no input
@@ -79,12 +84,20 @@ export default function ForgotPasswordScreen({ navigation, route }) {
         } catch (error) {
             setLocalLoading(false);
             
-            // Extrai a mensagem de erro do backend
-            const backendMessage = error.response?.data?.message || 
-                                  error.response?.data?.error ||
-                                  error.message;
+            // ✨ Verifica se é erro de rate limit (429)
+            const isRateLimited = handleRateLimitError(error, '/forgot-password');
             
-            setErrorMessage(backendMessage || 'Não foi possível enviar o código. Verifique o e-mail e tente novamente.');
+            if (isRateLimited) {
+                // Já mostrou o alerta no hook
+                setErrorMessage('');
+            } else {
+                // Extrai a mensagem de erro do backend
+                const backendMessage = error.response?.data?.message || 
+                                      error.response?.data?.error ||
+                                      error.message;
+                
+                setErrorMessage(backendMessage || 'Não foi possível enviar o código. Verifique o e-mail e tente novamente.');
+            }
         }
     };
 
