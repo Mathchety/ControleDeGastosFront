@@ -17,7 +17,8 @@
         "backgroundColor": "#667eea"
       },
       "permissions": [
-        "CAMERA"
+        "CAMERA",
+        "android.permission.CAMERA"
       ],
       "package": "com.finansync.app",
       "softwareKeyboardLayoutMode": "pan",
@@ -34,6 +35,12 @@
         }
       ],
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d33720b0-3825-441a-b432-4ff40b7c2d44"
+      }
+    },
+    "owner": "pmmvito"
   }
 }
