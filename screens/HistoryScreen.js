@@ -170,10 +170,6 @@ export default function HistoryScreen({ navigation }) {
     </TouchableOpacity>
   );
 
-  const handleEditReceipt = (receiptId) => {
-    navigation.navigate('Preview', { receiptId });
-  };
-
   const handleDeleteReceipt = async (receiptId, storeName) => {
     Alert.alert(
       'Excluir Nota Fiscal',
@@ -251,15 +247,6 @@ export default function HistoryScreen({ navigation }) {
           </View>
           
           <View style={styles.receiptActions}>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.editButton]}
-              onPress={(e) => {
-                e.stopPropagation();
-                handleEditReceipt(item.id);
-              }}
-            >
-              <Ionicons name="create-outline" size={18} color="#667eea" />
-            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionButton, styles.deleteButton]}
               onPress={(e) => {
