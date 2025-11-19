@@ -1,0 +1,10 @@
+{
+  "android": {
+    "preview": {
+      "autoIncrement": true
+    },
+    "production": {
+      "autoIncrement": true
+    }
+  }
+}
