@@ -13,7 +13,7 @@
       "bundleIdentifier": "com.finansync.app"
     },
     "android": {
-      "icon": "./assets/logo-finansync.svg",
+  "icon": "./assets/logo-finansync.png",
       "adaptiveIcon": {
         "backgroundColor": "#667eea"
       },
@@ -23,8 +23,7 @@
         "INTERNET"
       ],
       "package": "com.finansync.app",
-      "softwareKeyboardLayoutMode": "pan",
-      "usesCleartextTraffic": true
+  "softwareKeyboardLayoutMode": "pan"
     },
     "web": {},
     "plugins": [
