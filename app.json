@@ -13,15 +13,18 @@
       "bundleIdentifier": "com.finansync.app"
     },
     "android": {
+      "icon": "./assets/logo-finansync.svg",
       "adaptiveIcon": {
         "backgroundColor": "#667eea"
       },
       "permissions": [
         "CAMERA",
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "INTERNET"
       ],
       "package": "com.finansync.app",
-      "softwareKeyboardLayoutMode": "pan"
+      "softwareKeyboardLayoutMode": "pan",
+      "usesCleartextTraffic": true
     },
     "web": {},
     "plugins": [
