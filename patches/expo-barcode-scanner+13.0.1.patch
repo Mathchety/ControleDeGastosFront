@@ -1,0 +1,105 @@
+diff --git a/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/BarCodeScannerModule.kt b/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/BarCodeScannerModule.kt
+index cd9cfdc..5c04bb9 100644
+--- a/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/BarCodeScannerModule.kt
++++ b/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/BarCodeScannerModule.kt
+@@ -7,7 +7,7 @@ import android.util.Log
+ import com.google.mlkit.vision.barcode.common.Barcode
+ import expo.modules.barcodescanner.utils.BarCodeScannerResultSerializer
+ import expo.modules.core.errors.ModuleDestroyedException
+-import expo.modules.interfaces.barcodescanner.BarCodeScannerSettings
++import expo.interfaces.barcodescanner.BarCodeScannerSettings
+ import expo.modules.interfaces.imageloader.ImageLoaderInterface.ResultListener
+ import expo.modules.interfaces.permissions.Permissions
+ import expo.modules.kotlin.Promise
+diff --git a/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/BarCodeScannerProvider.kt b/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/BarCodeScannerProvider.kt
+index 1cf51b5..6317c48 100644
+--- a/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/BarCodeScannerProvider.kt
++++ b/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/BarCodeScannerProvider.kt
+@@ -2,8 +2,8 @@ package expo.modules.barcodescanner
+ 
+ import android.content.Context
+ import expo.modules.core.interfaces.InternalModule
+-import expo.modules.interfaces.barcodescanner.BarCodeScannerProviderInterface
+-import expo.modules.interfaces.barcodescanner.BarCodeScannerInterface
++import expo.interfaces.barcodescanner.BarCodeScannerProviderInterface
++import expo.interfaces.barcodescanner.BarCodeScannerInterface
+ import expo.modules.barcodescanner.scanners.MLKitBarCodeScanner
+ 
+ class BarCodeScannerProvider : InternalModule, BarCodeScannerProviderInterface {
+diff --git a/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/BarCodeScannerView.kt b/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/BarCodeScannerView.kt
+index 71303df..16fc8a0 100644
+--- a/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/BarCodeScannerView.kt
++++ b/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/BarCodeScannerView.kt
+@@ -11,8 +11,8 @@ import androidx.core.util.component1
+ import androidx.core.util.component2
+ import expo.modules.barcodescanner.utils.mapX
+ import expo.modules.barcodescanner.utils.mapY
+-import expo.modules.interfaces.barcodescanner.BarCodeScannerResult
+-import expo.modules.interfaces.barcodescanner.BarCodeScannerSettings
++import expo.interfaces.barcodescanner.BarCodeScannerResult
++import expo.interfaces.barcodescanner.BarCodeScannerSettings
+ import expo.modules.kotlin.AppContext
+ import expo.modules.kotlin.viewevent.EventDispatcher
+ import expo.modules.kotlin.views.ExpoView
+diff --git a/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/BarCodeScannerViewFinder.kt b/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/BarCodeScannerViewFinder.kt
+index df88b71..07ba560 100644
+--- a/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/BarCodeScannerViewFinder.kt
++++ b/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/BarCodeScannerViewFinder.kt
+@@ -9,9 +9,9 @@ import android.util.Log
+ import android.view.TextureView
+ import android.view.TextureView.SurfaceTextureListener
+ import expo.modules.core.errors.ModuleDestroyedException
+-import expo.modules.interfaces.barcodescanner.BarCodeScannerInterface
+-import expo.modules.interfaces.barcodescanner.BarCodeScannerProviderInterface
+-import expo.modules.interfaces.barcodescanner.BarCodeScannerSettings
++import expo.interfaces.barcodescanner.BarCodeScannerInterface
++import expo.interfaces.barcodescanner.BarCodeScannerProviderInterface
++import expo.interfaces.barcodescanner.BarCodeScannerSettings
+ import expo.modules.kotlin.AppContext
+ import kotlinx.coroutines.CoroutineScope
+ import kotlinx.coroutines.Dispatchers
+diff --git a/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/scanners/ExpoBarCodeScanner.kt b/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/scanners/ExpoBarCodeScanner.kt
+index 62f8d34..7e277ed 100644
+--- a/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/scanners/ExpoBarCodeScanner.kt
++++ b/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/scanners/ExpoBarCodeScanner.kt
+@@ -1,8 +1,8 @@
+ package expo.modules.barcodescanner.scanners
+ 
+ import android.content.Context
+-import expo.modules.interfaces.barcodescanner.BarCodeScannerInterface
+-import expo.modules.interfaces.barcodescanner.BarCodeScannerSettings
++import expo.interfaces.barcodescanner.BarCodeScannerInterface
++import expo.interfaces.barcodescanner.BarCodeScannerSettings
+ 
+ abstract class ExpoBarCodeScanner internal constructor(protected var mContext: Context) : BarCodeScannerInterface {
+   protected var barCodeTypes: List<Int>? = null
+diff --git a/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/scanners/MLKitBarCodeScanner.kt b/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/scanners/MLKitBarCodeScanner.kt
+index 16ac4c8..4469d43 100644
+--- a/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/scanners/MLKitBarCodeScanner.kt
++++ b/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/scanners/MLKitBarCodeScanner.kt
+@@ -8,8 +8,8 @@ import com.google.mlkit.vision.barcode.BarcodeScannerOptions
+ import com.google.mlkit.vision.barcode.BarcodeScanning
+ import com.google.mlkit.vision.barcode.common.Barcode
+ import com.google.mlkit.vision.common.InputImage
+-import expo.modules.interfaces.barcodescanner.BarCodeScannerResult
+-import expo.modules.interfaces.barcodescanner.BarCodeScannerSettings
++import expo.interfaces.barcodescanner.BarCodeScannerResult
++import expo.interfaces.barcodescanner.BarCodeScannerSettings
+ import kotlinx.coroutines.*
+ import kotlin.coroutines.resume
+ import kotlin.coroutines.resumeWithException
+diff --git a/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/utils/BarCodeScannerResultSerializer.kt b/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/utils/BarCodeScannerResultSerializer.kt
+index 18fe77b..324d823 100644
+--- a/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/utils/BarCodeScannerResultSerializer.kt
++++ b/node_modules/expo-barcode-scanner/android/src/main/java/expo/modules/barcodescanner/utils/BarCodeScannerResultSerializer.kt
+@@ -2,8 +2,8 @@ package expo.modules.barcodescanner.utils
+ 
+ import android.os.Bundle
+ import android.util.Pair
+-import expo.modules.interfaces.barcodescanner.BarCodeScannerResult
+-import expo.modules.interfaces.barcodescanner.BarCodeScannerResult.BoundingBox
++import expo.interfaces.barcodescanner.BarCodeScannerResult
++import expo.interfaces.barcodescanner.BarCodeScannerResult.BoundingBox
+ 
+ object BarCodeScannerResultSerializer {
+   fun toBundle(result: BarCodeScannerResult, density: Float) =
