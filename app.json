@@ -26,7 +26,7 @@
     "web": {},
     "plugins": [
       [
-        "expo-barcode-scanner",
+        "expo-camera",
         {
           "cameraPermission": "Permitir $(PRODUCT_NAME) acessar sua câmera para escanear QR Codes de notas fiscais."
         }

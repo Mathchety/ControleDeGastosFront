@@ -3,7 +3,8 @@
 .expo-shared/
 dist/
 web-build/
-
+android/
+ios/
 # Node
 node_modules/
 npm-debug.log

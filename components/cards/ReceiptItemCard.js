@@ -47,16 +47,6 @@ export const ReceiptItemCard = ({ item, deleted = false, onEdit }) => (
             >
                 {item.description || item.name}
             </Text>
-            
-            {/* Botão Editar */}
-            {onEdit && !deleted && (
-                <TouchableOpacity 
-                    style={styles.editButton}
-                    onPress={onEdit}
-                >
-                    <Ionicons name="create-outline" size={20} color="#667eea" />
-                </TouchableOpacity>
-            )}
         </View>
         
         <View style={styles.itemFooter}>

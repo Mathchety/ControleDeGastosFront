@@ -46,14 +46,6 @@ export default function EditableReceiptItemCard({
             <Text style={styles.itemBadgeText}>#{itemIndex + 1}</Text>
           </View>
           <Text style={styles.itemName}>{productName}</Text>
-          {!readOnly && (
-            <TouchableOpacity
-              style={styles.editItemButton}
-              onPress={() => setModalVisible(true)}
-            >
-              <Ionicons name="create-outline" size={20} color="#667eea" />
-            </TouchableOpacity>
-          )}
         </View>
         <View style={styles.itemDetails}>
           <View style={styles.itemDetailRow}>
