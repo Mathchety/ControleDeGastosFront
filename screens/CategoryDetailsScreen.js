@@ -354,6 +354,7 @@ export default function CategoryDetailsScreen({ route, navigation }) {
                 visible={modalVisible}
                 item={editingItem}
                 categories={categories}
+                disableQuantityTotal={true}
                 onSave={handleSaveItem}
                 onClose={() => setModalVisible(false)}
             />

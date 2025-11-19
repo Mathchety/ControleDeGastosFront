@@ -25,6 +25,7 @@ import { ErrorMessage } from '../common/ErrorMessage';
  * @param {boolean} visible - Controla visibilidade do modal
  * @param {object} item - Item a ser editado { id, name, quantity, total, categoryId }
  * @param {array} categories - Lista de categorias disponíveis
+ * @param {boolean} disableQuantityTotal - Se true, bloqueia edição de quantity e total (ex: tela de Categoria)
  * @param {function} onSave - Callback ao salvar (item) => Promise
  * @param {function} onClose - Callback ao fechar modal
  */
@@ -34,6 +35,7 @@ export default function EditItemModal({
     categories = [], 
     disableCategory = false,
     hideCategory = false,
+    disableQuantityTotal = false,
     onSave, 
     onClose 
 }) {
@@ -169,9 +171,11 @@ export default function EditItemModal({
                             </Text>
                             <View style={styles.inputWithUnit}>
                                 <TextInput
-                                    style={[styles.input, styles.inputWithUnitField]}
+                                    style={[styles.input, styles.inputWithUnitField, disableQuantityTotal && styles.inputDisabled]}
                                     value={itemQuantity}
                                     onChangeText={setItemQuantity}
+                                    editable={!disableQuantityTotal}
+                                    selectTextOnFocus={!disableQuantityTotal}
                                     placeholder={inputType === 'litros' ? "Ex: 2.5" : inputType === 'peso' ? "Ex: 1.5" : "Ex: 2"}
                                     keyboardType="decimal-pad"
                                     maxLength={10}
@@ -196,9 +200,11 @@ export default function EditItemModal({
                         <View style={styles.formGroup}>
                             <Text style={styles.label}>💰 Total (R$) *</Text>
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, disableQuantityTotal && styles.inputDisabled]}
                                 value={itemTotal}
                                 onChangeText={setItemTotal}
+                                editable={!disableQuantityTotal}
+                                selectTextOnFocus={!disableQuantityTotal}
                                 placeholder="Ex: 10.50"
                                 keyboardType="decimal-pad"
                                 maxLength={10}
@@ -327,6 +333,10 @@ const styles = StyleSheet.create({
         color: '#333',
         borderWidth: 1,
         borderColor: '#e5e7eb',
+    },
+    inputDisabled: {
+        backgroundColor: '#f0f0f0',
+        color: '#9ca3af'
     },
     inputWithUnit: {
         flexDirection: 'row',
