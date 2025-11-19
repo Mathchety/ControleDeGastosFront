@@ -9,7 +9,7 @@ const API_URLS = {
     development: 'http://147.185.221.212:61489/api/v1',
     
     // Produção (APK final)
-    production: 'http://147.185.221.212:61489/api/v1', // Mesmo URL, mas pode ser diferente
+    production: 'https://unverdurous-overinterestedly-louetta.ngrok-free.dev/api/v1/', // Mesmo URL, mas pode ser diferente
 };
 
 /**
