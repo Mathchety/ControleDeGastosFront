@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store'; // 🔐 Armazenamento seguro para tokens
+import { getApiBaseUrl } from '../config/apiConfig';
 
-const API_BASE_URL = 'http://147.185.221.212:61489/api/v1';
+const API_BASE_URL = getApiBaseUrl();
 
 /**
  * Cliente HTTP com interceptor automático de token JWT

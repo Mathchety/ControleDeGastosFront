@@ -1,5 +1,7 @@
-// Configuração base da API
-const API_BASE_URL = 'http://147.185.221.212:61489/api/v1';
+import { getApiBaseUrl } from '../config/apiConfig';
+
+// Configuração base da API (dinâmica por ambiente)
+const API_BASE_URL = getApiBaseUrl();
 
 // Helper para fazer requisições
 const apiRequest = async (endpoint, options = {}) => {
