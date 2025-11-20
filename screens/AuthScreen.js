@@ -83,7 +83,7 @@ const AnimatedForm = React.memo(({ isRegisterView, onSuccess, navigation }) => {
         resetAlert();
         
         loadSavedCredentials();
-    }, [isRegisterView, resetAlert]);
+    }, [/* isRegisterView, resetAlert */]);
 
     /**
      * handleLogin - Função integrada com API

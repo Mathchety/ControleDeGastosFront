@@ -417,7 +417,7 @@ export default function ManualReceiptScreen({ navigation }) {
                                     onChangeText={(text) => setNewItem({ ...newItem, productName: text })}
                                     placeholder="Nome do produto"
                                     placeholderTextColor="#999"
-                                    maxLength={7}
+                                    maxLength={50}
                                 />
                             </View>
 
