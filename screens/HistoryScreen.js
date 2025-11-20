@@ -258,7 +258,7 @@ export default function HistoryScreen({ navigation }) {
           
           <View style={styles.receiptActions}>
             <TouchableOpacity
-              style={[styles.actionButton, styles.deleteButton, !isConnected && styles.buttonDisabled]}
+              style={[styles.actionButton, styles.deleteButton]}
               onPress={(e) => {
                 e.stopPropagation();
                 if (!isConnected) {
@@ -267,7 +267,6 @@ export default function HistoryScreen({ navigation }) {
                 }
                 handleDeleteReceipt(item.id, storeName);
               }}
-              disabled={!isConnected}
             >
               <Ionicons name="trash-outline" size={18} color="#ff4444" />
             </TouchableOpacity>

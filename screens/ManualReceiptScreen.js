@@ -76,12 +76,12 @@ export default function ManualReceiptScreen({ navigation }) {
         const q = parseFloat(newItem.quantity.toString().replace(',', '.'));
         const t = parseFloat(newItem.total.toString().replace(',', '.'));
 
-        if (q >= 1000000) {
-            Alert.alert('Atenção', 'Quantidade muito grande (máx: 1.000.000)');
+        if (q > 9999999) {
+            Alert.alert('Atenção', 'Quantidade muito grande (máx: 9.999.999)');
             return false;
         }
-        if (t >= 1000000000) {
-            Alert.alert('Atenção', 'Valor muito grande (máx: R$ 1.000.000.000)');
+        if (t > 9999999) {
+            Alert.alert('Atenção', 'Valor muito grande (máx: R$ 9.999.999)');
             return false;
         }
 
@@ -174,11 +174,11 @@ export default function ManualReceiptScreen({ navigation }) {
             !item.quantity || 
             isNaN(item.quantity) ||
             item.quantity <= 0 ||
-            item.quantity >= 1000000 || // Limite máximo de quantidade
+            item.quantity > 9999999 || // Limite máximo de quantidade
             !item.total ||
             isNaN(item.total) ||
             item.total <= 0 ||
-            item.total >= 1000000000 || // Limite máximo de valor (1.000.000.000)
+            item.total > 9999999 || // Limite máximo de valor (9.999.999)
             !item.categoryId
         );
 
@@ -189,13 +189,12 @@ export default function ManualReceiptScreen({ navigation }) {
                 total: item.total,
                 problema: !item.productName?.trim() ? 'Nome vazio' :
                          isNaN(item.quantity) || item.quantity <= 0 ? 'Quantidade inválida' :
-                         item.quantity >= 1000000 ? 'Quantidade muito grande (máx: 1.000.000)' :
+                         item.quantity > 9999999 ? 'Quantidade muito grande (máx: 9.999.999)' :
                          isNaN(item.total) || item.total <= 0 ? 'Total inválido' :
-                         item.total >= 1000000000 ? 'Valor muito grande (máx: R$ 1.000.000.000)' :
+                         item.total > 9999999 ? 'Valor muito grande (máx: R$ 9.999.999)' :
                          !item.categoryId ? 'Sem categoria' : 'Desconhecido'
             }));
-            
-            
+
             Alert.alert(
                 'Atenção', 
                 'Alguns itens estão inválidos:\n\n' + 
@@ -495,8 +494,8 @@ export default function ManualReceiptScreen({ navigation }) {
                                     keyboardType="decimal-pad"
                                     maxLength={7}
                                 />
-                                {newItem.quantity && parseFloat(newItem.quantity.toString().replace(',', '.')) >= 1000000 && (
-                                    <Text style={styles.warningText}>⚠️ Quantidade muito grande (máx: 1.000.000)</Text>
+                                {newItem.quantity && parseFloat(newItem.quantity.toString().replace(',', '.')) > 9999999 && (
+                                    <Text style={styles.warningText}>⚠️ Quantidade muito grande (máx: 9.999.999)</Text>
                                 )}
                             </View>
 
@@ -512,8 +511,8 @@ export default function ManualReceiptScreen({ navigation }) {
                                     keyboardType="decimal-pad"
                                     maxLength={7}
                                 />
-                                {newItem.total && parseFloat(newItem.total.toString().replace(',', '.')) >= 10000000 && (
-                                    <Text style={styles.warningText}>⚠️ Valor muito grande (máx: R$ 1.000.000.000)</Text>
+                                {newItem.total && parseFloat(newItem.total.toString().replace(',', '.')) > 9999999 && (
+                                    <Text style={styles.warningText}>⚠️ Valor muito grande (máx: R$ 9.999.999)</Text>
                                 )}
                             </View>
 
@@ -567,16 +566,16 @@ export default function ManualReceiptScreen({ navigation }) {
                                      !newItem.quantity || 
                                      !newItem.total || 
                                      !newItem.categoryId ||
-                                     parseFloat((newItem.quantity || '0').toString().replace(',', '.')) >= 1000000 ||
-                                     parseFloat((newItem.total || '0').toString().replace(',', '.')) >= 1000000000) && styles.buttonDisabled
+                                     parseFloat((newItem.quantity || '0').toString().replace(',', '.')) > 9999999 ||
+                                     parseFloat((newItem.total || '0').toString().replace(',', '.')) > 9999999) && styles.buttonDisabled
                                 ]}
                                 onPress={handleAddAndContinue}
                                 disabled={!newItem.productName.trim() || 
                                          !newItem.quantity || 
                                          !newItem.total || 
                                          !newItem.categoryId ||
-                                         parseFloat((newItem.quantity || '0').toString().replace(',', '.')) >= 1000000 ||
-                                         parseFloat((newItem.total || '0').toString().replace(',', '.')) >= 1000000000}
+                                         parseFloat((newItem.quantity || '0').toString().replace(',', '.')) > 9999999 ||
+                                         parseFloat((newItem.total || '0').toString().replace(',', '.')) > 9999999}
                             >
                                 <Ionicons name="add-circle-outline" size={20} color="#fff" />
                                 <Text style={styles.addContinueButtonText}>Adicionar Outro</Text>
@@ -598,16 +597,16 @@ export default function ManualReceiptScreen({ navigation }) {
                                          !newItem.quantity || 
                                          !newItem.total || 
                                          !newItem.categoryId ||
-                                         parseFloat((newItem.quantity || '0').toString().replace(',', '.')) >= 1000000 ||
-                                         parseFloat((newItem.total || '0').toString().replace(',', '.')) >= 1000000000) && styles.buttonDisabled
+                                         parseFloat((newItem.quantity || '0').toString().replace(',', '.')) > 9999999 ||
+                                         parseFloat((newItem.total || '0').toString().replace(',', '.')) > 9999999) && styles.buttonDisabled
                                     ]}
                                     onPress={() => handleAddItem(true)}
                                     disabled={!newItem.productName.trim() || 
                                              !newItem.quantity || 
                                              !newItem.total || 
                                              !newItem.categoryId ||
-                                             parseFloat((newItem.quantity || '0').toString().replace(',', '.')) >= 1000000 ||
-                                             parseFloat((newItem.total || '0').toString().replace(',', '.')) >= 1000000000}
+                                             parseFloat((newItem.quantity || '0').toString().replace(',', '.')) > 9999999 ||
+                                             parseFloat((newItem.total || '0').toString().replace(',', '.')) > 9999999}
                                 >
                                     <Text style={styles.addModalButtonText}>Concluir</Text>
                                 </TouchableOpacity>

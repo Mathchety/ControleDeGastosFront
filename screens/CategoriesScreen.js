@@ -360,7 +360,7 @@ export default function CategoriesScreen({ navigation }) {
                         <Text style={styles.headerTitle}>Minhas Categorias</Text>
                     </View>
                     <TouchableOpacity
-                        style={[styles.addButton, !isConnected && styles.buttonDisabled]}
+                        style={[styles.addButton]}
                         onPress={() => {
                             if (!isConnected) {
                                 Alert.alert('Modo offline', 'Você está offline. Não é possível adicionar categorias.');
@@ -368,7 +368,6 @@ export default function CategoriesScreen({ navigation }) {
                             }
                             handleAddCategory();
                         }}
-                        disabled={!isConnected}
                     >
                         <Ionicons name="add-circle" size={32} color="#fff" />
                     </TouchableOpacity>
@@ -531,7 +530,7 @@ export default function CategoriesScreen({ navigation }) {
                                 
                                 <View style={styles.categoryActions}>
                                     <TouchableOpacity
-                                        style={[styles.actionButton, styles.editButton, !isConnected && styles.buttonDisabled]}
+                                        style={[styles.actionButton, styles.editButton]}
                                         onPress={(e) => {
                                             e.stopPropagation();
                                             if (!isConnected) {
@@ -540,12 +539,11 @@ export default function CategoriesScreen({ navigation }) {
                                             }
                                             handleEditCategory(category);
                                         }}
-                                        disabled={!isConnected}
                                     >
                                         <Ionicons name="create-outline" size={18} color="#667eea" />
                                     </TouchableOpacity>
                                     <TouchableOpacity
-                                        style={[styles.actionButton, styles.deleteButton, !isConnected && styles.buttonDisabled]}
+                                        style={[styles.actionButton, styles.deleteButton]}
                                         onPress={(e) => {
                                             e.stopPropagation();
                                             if (!isConnected) {
@@ -554,7 +552,6 @@ export default function CategoriesScreen({ navigation }) {
                                             }
                                             handleDeleteCategory(category.id, category.name);
                                         }}
-                                        disabled={!isConnected}
                                     >
                                         <Ionicons name="trash-outline" size={18} color="#ff4444" />
                                     </TouchableOpacity>

@@ -262,7 +262,6 @@ export default function CategoryDetailsScreen({ route, navigation }) {
                                             }
                                             handleEditItem(item);
                                         }}
-                                        disabled={!isConnected}
                                     >
                                         <Ionicons name="create-outline" size={20} color="#667eea" />
                                     </TouchableOpacity>
@@ -401,6 +400,10 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(255,255,255,0.2)',
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    buttonDisabled: {
+        opacity: 0.6,
+        // Keep consistent disabled look used across screens
     },
     headerInfo: {
         flex: 1,

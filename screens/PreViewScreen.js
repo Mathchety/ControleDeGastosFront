@@ -222,10 +222,10 @@ export default function PreViewScreen({ route, navigation }) {
     };
 
     const handleConfirmNewReceipt = async () => {
-        if (!isConnected) {
-            setErrorState({ visible: true, title: 'Modo offline', message: 'Você está offline. Não é possível confirmar notas no momento.' });
-            return;
-        }
+            if (!isConnected) {
+                setErrorState({ visible: true, title: 'Modo offline', message: 'Você está offline. Não é possível confirmar notas no momento.' });
+                return;
+            }
         try {
             // 🔍 MODO SCAN: Confirma e salva nova nota com todas as modificações feitas em RAM
             // O previewData contém todos os items com as edições do usuário
@@ -408,6 +408,7 @@ export default function PreViewScreen({ route, navigation }) {
                     <View style={styles.fixedButtonContainer}>
                         <ConfirmButton 
                             onPress={handleConfirmNewReceipt}
+                            disabled={!isConnected}
                         />
                     </View>
                 )}

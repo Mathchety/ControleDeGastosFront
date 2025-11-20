@@ -5,11 +5,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { moderateScale, fontScale } from '../../utils/responsive';
 import { theme } from '../../utils/theme';
 
-export const ConfirmButton = ({ onPress, title = 'Confirmar e Salvar', style }) => (
+export const ConfirmButton = ({ onPress, title = 'Confirmar e Salvar', style, disabled = false }) => (
     <TouchableOpacity 
-        style={[styles.confirmButton, style]}
-        onPress={onPress}
+        style={[styles.confirmButton, disabled && styles.buttonDisabled, style]}
+        onPress={disabled ? undefined : onPress}
         activeOpacity={0.8}
+        disabled={disabled}
     >
         <LinearGradient
             colors={['#667eea', '#764ba2']}
@@ -26,6 +27,9 @@ const styles = StyleSheet.create({
         borderRadius: theme.radius.lg,
         overflow: 'hidden',
         ...theme.shadows.medium,
+    },
+    buttonDisabled: {
+        opacity: 0.6,
     },
     confirmButtonGradient: {
         flexDirection: 'row',
