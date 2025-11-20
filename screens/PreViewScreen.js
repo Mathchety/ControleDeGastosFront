@@ -21,11 +21,11 @@ import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
 
 export default function PreViewScreen({ route, navigation }) {
-    const { qrLink, previewData: receivedData, receiptId } = route.params || {};
-    const { previewQRCode, confirmQRCode, fetchReceiptById, updateReceipt, updateItem, categories, loading, fetchCategories } = useData();
+    const { qrLink, previewData: receivedData, receiptId, readOnly: readOnlyParam } = route.params || {};
+    const { previewQRCode, confirmQRCode, fetchReceiptById, updateReceipt, updateItem, categories, loading, fetchCategories, isConnected } = useData();
     const [errorState, setErrorState] = useState({ visible: false, title: '', message: '' });
     const [previewData, setPreviewData] = useState(receivedData || null);
-    const [isReadOnly, setIsReadOnly] = useState(false);
+    const [isReadOnly, setIsReadOnly] = useState(Boolean(readOnlyParam));
     const [isOpening, setIsOpening] = useState(false); // ⚡ Previne múltiplos cliques
     const [isInitializing, setIsInitializing] = useState(!receivedData); // ✨ Mostra skeleton na inicialização
     
@@ -54,7 +54,8 @@ export default function PreViewScreen({ route, navigation }) {
     useEffect(() => {
         // MODO 1: Se recebeu ID de uma nota já salva, busca pelo endpoint
         if (receiptId) {
-            setIsReadOnly(false); // AGORA PERMITE EDIÇÃO mesmo do histórico
+            // Se o parâmetro readOnly estiver presente, respeita ele; caso contrário, permite edição
+            setIsReadOnly(Boolean(readOnlyParam));
             loadReceiptById();
             return;
         }
@@ -119,6 +120,10 @@ export default function PreViewScreen({ route, navigation }) {
     };
 
     const handleUpdateItem = async (updatedItem, itemIndex) => {
+        if (!isConnected && receiptId) {
+            setErrorState({ visible: true, title: 'Modo offline', message: 'Você está offline. Não é possível editar itens de notas já salvas.' });
+            return;
+        }
         try {
             // 🔍 MODO 1: Item tem ID (já existe no backend) → Atualiza via API
             if (updatedItem.id && receiptId) {
@@ -174,6 +179,10 @@ export default function PreViewScreen({ route, navigation }) {
     };
 
     const handleDeleteItem = (itemIndex) => {
+        if (!isConnected && receiptId) {
+            setErrorState({ visible: true, title: 'Modo offline', message: 'Você está offline. Não é possível excluir itens de notas já salvas.' });
+            return;
+        }
         Alert.alert(
             'Excluir Item',
             'Tem certeza que deseja excluir este item?',
@@ -213,6 +222,10 @@ export default function PreViewScreen({ route, navigation }) {
     };
 
     const handleConfirmNewReceipt = async () => {
+        if (!isConnected) {
+            setErrorState({ visible: true, title: 'Modo offline', message: 'Você está offline. Não é possível confirmar notas no momento.' });
+            return;
+        }
         try {
             // 🔍 MODO SCAN: Confirma e salva nova nota com todas as modificações feitas em RAM
             // O previewData contém todos os items com as edições do usuário
@@ -380,7 +393,7 @@ export default function PreViewScreen({ route, navigation }) {
                                 itemIndex={index}
                                 onUpdate={handleUpdateItem}
                                 onDelete={handleDeleteItem}
-                                readOnly={false}
+                                readOnly={isReadOnly}
                                 categories={categories || []}
                                 {...(!receiptId ? { hideCategory: true } : {})}
                             />

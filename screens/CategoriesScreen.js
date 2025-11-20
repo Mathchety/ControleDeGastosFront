@@ -38,7 +38,7 @@ const COLOR_PALETTE = [
 ];
 
 export default function CategoriesScreen({ navigation }) {
-    const { fetchCategories, createCategory, deleteCategory } = useData();
+    const { fetchCategories, createCategory, deleteCategory, isConnected } = useData();
     const { categoriesFilter, updateCategoriesFilter } = useFilters();
     
     // Hook para definir a cor da StatusBar
@@ -185,6 +185,10 @@ export default function CategoriesScreen({ navigation }) {
     };
 
     const handleAddCategory = () => {
+        if (!isConnected) {
+            Alert.alert('Modo offline', 'Você está offline. Não é possível adicionar categorias.');
+            return;
+        }
         // Reseta o formulário
         setEditingCategory(null);
         setCategoryName('');
@@ -194,6 +198,10 @@ export default function CategoriesScreen({ navigation }) {
     };
 
     const handleEditCategory = (category) => {
+        if (!isConnected) {
+            Alert.alert('Modo offline', 'Você está offline. Não é possível editar categorias.');
+            return;
+        }
         setEditingCategory(category);
         setCategoryName(category.name);
         setCategoryDescription(category.description || '');
@@ -202,6 +210,10 @@ export default function CategoriesScreen({ navigation }) {
     };
 
     const handleDeleteCategory = async (categoryId, categoryName) => {
+        if (!isConnected) {
+            Alert.alert('Modo offline', 'Você está offline. Não é possível excluir categorias.');
+            return;
+        }
         Alert.alert(
             'Excluir Categoria',
             `Tem certeza que deseja excluir a categoria "${categoryName}"?\n\nTodos os itens desta categoria serão movidos para "Não categorizado".`,
@@ -225,6 +237,10 @@ export default function CategoriesScreen({ navigation }) {
     };
 
     const handleSaveCategory = async () => {
+        if (!isConnected) {
+            Alert.alert('Modo offline', 'Você está offline. Não é possível salvar categorias.');
+            return;
+        }
         // Validações
         if (!categoryName.trim()) {
             Alert.alert('Erro', 'Por favor, informe o nome da categoria.');
@@ -344,8 +360,15 @@ export default function CategoriesScreen({ navigation }) {
                         <Text style={styles.headerTitle}>Minhas Categorias</Text>
                     </View>
                     <TouchableOpacity
-                        style={styles.addButton}
-                        onPress={handleAddCategory}
+                        style={[styles.addButton, !isConnected && styles.buttonDisabled]}
+                        onPress={() => {
+                            if (!isConnected) {
+                                Alert.alert('Modo offline', 'Você está offline. Não é possível adicionar categorias.');
+                                return;
+                            }
+                            handleAddCategory();
+                        }}
+                        disabled={!isConnected}
                     >
                         <Ionicons name="add-circle" size={32} color="#fff" />
                     </TouchableOpacity>
@@ -508,20 +531,30 @@ export default function CategoriesScreen({ navigation }) {
                                 
                                 <View style={styles.categoryActions}>
                                     <TouchableOpacity
-                                        style={[styles.actionButton, styles.editButton]}
+                                        style={[styles.actionButton, styles.editButton, !isConnected && styles.buttonDisabled]}
                                         onPress={(e) => {
                                             e.stopPropagation();
+                                            if (!isConnected) {
+                                                Alert.alert('Modo offline', 'Você está offline. Não é possível editar categorias.');
+                                                return;
+                                            }
                                             handleEditCategory(category);
                                         }}
+                                        disabled={!isConnected}
                                     >
                                         <Ionicons name="create-outline" size={18} color="#667eea" />
                                     </TouchableOpacity>
                                     <TouchableOpacity
-                                        style={[styles.actionButton, styles.deleteButton]}
+                                        style={[styles.actionButton, styles.deleteButton, !isConnected && styles.buttonDisabled]}
                                         onPress={(e) => {
                                             e.stopPropagation();
+                                            if (!isConnected) {
+                                                Alert.alert('Modo offline', 'Você está offline. Não é possível excluir categorias.');
+                                                return;
+                                            }
                                             handleDeleteCategory(category.id, category.name);
                                         }}
+                                        disabled={!isConnected}
                                     >
                                         <Ionicons name="trash-outline" size={18} color="#ff4444" />
                                     </TouchableOpacity>
@@ -572,7 +605,7 @@ export default function CategoriesScreen({ navigation }) {
                                     placeholder="Ex: Alimentação, Transporte..."
                                     value={categoryName}
                                     onChangeText={setCategoryName}
-                                    maxLength={50}
+                                    maxLength={7}
                                 />
                             </View>
 
@@ -586,7 +619,7 @@ export default function CategoriesScreen({ navigation }) {
                                     onChangeText={setCategoryDescription}
                                     multiline
                                     numberOfLines={3}
-                                    maxLength={200}
+                                    maxLength={7}
                                 />
                             </View>
 

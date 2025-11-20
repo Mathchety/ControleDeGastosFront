@@ -380,7 +380,7 @@ export const DataProvider = ({ children }) => {
             // Se não tem cache E não é erro de rede, pode mostrar alerta
             // Mas se é erro de rede, silencioso (usuário já vê banner offline)
             const isNetworkErr = !error.response && 
-                (error.message === 'Network Error' || error.message === 'Network request failed');
+                (error.message === 'Network Error' || error.message === 'Falha ao conectar-se à rede' || error.message === 'Network request failed');
             
             if (!isNetworkErr) {
                 console.warn('[DataContext] Sem cache disponível para o gráfico');
@@ -469,7 +469,7 @@ export const DataProvider = ({ children }) => {
             
             // Verifica se é erro de rede
             const isNetworkErr = !error.response && 
-                (error.message === 'Network Error' || error.message === 'Network request failed');
+                (error.message === 'Network Error' || error.message === 'Falha ao conectar-se à rede');
             
             // Se não tem cache e NÃO é erro de rede, mostra erro
             // Se é erro de rede, usuário já vê o banner offline
@@ -548,7 +548,7 @@ export const DataProvider = ({ children }) => {
             
             // Verifica se é erro de rede
             const isNetworkErr = !error.response && 
-                (error.message === 'Network Error' || error.message === 'Network request failed');
+                (error.message === 'Network Error' || error.message === 'Falha ao conectar-se à rede');
             
             // Se não tem cache e NÃO é erro de rede, mostra erro
             if (!isNetworkErr) {

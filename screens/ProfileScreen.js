@@ -19,6 +19,7 @@ import { UserAvatar, AvatarSelectorModal } from '../components/profile';
 import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
 import { useStatusBarColor } from '../hooks/useStatusBarColor';
+import { useConnectivity } from '../hooks/useConnectivity';
 
 // Componente de Card Animado
 const AnimatedCard = ({ children, delay = 0 }) => (
@@ -41,7 +42,13 @@ const InfoItem = ({ icon, label, value, onPress, delay }) => (
                 <Text style={styles.infoLabel} numberOfLines={1}>{label}</Text>
             </View>
             <View style={styles.infoRight}>
-                <Text style={styles.infoValue} numberOfLines={1}>{value}</Text>
+                <Text
+                    style={styles.infoValue}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                >
+                    {value}
+                </Text>
                 <Ionicons name="chevron-forward" size={moderateScale(20)} color="#ccc" />
             </View>
         </TouchableOpacity>
@@ -58,6 +65,7 @@ export default function ProfileScreen({ navigation }) {
     
     // Hook para definir a cor da StatusBar
     useStatusBarColor('#667eea', 'light-content');
+    const { isConnected } = useConnectivity();
     
     // 🎨 Carrega avatar salvo ao montar componente
     useEffect(() => {
@@ -122,6 +130,11 @@ export default function ProfileScreen({ navigation }) {
     };
 
     const handleChangeName = () => {
+        if (!isConnected) {
+            Alert.alert('Modo offline', 'Você está offline. Não é possível alterar o nome agora.');
+            return;
+        }
+
         setShowChangeNameModal(true);
     };
 
@@ -136,6 +149,11 @@ export default function ProfileScreen({ navigation }) {
     };
 
     const handleChangeEmail = () => {
+        if (!isConnected) {
+            Alert.alert('Modo offline', 'Você está offline. Não é possível alterar o email agora.');
+            return;
+        }
+
         setShowChangeEmailModal(true);
     };
 
@@ -155,6 +173,11 @@ export default function ProfileScreen({ navigation }) {
 
     const handleChangePassword = () => {
         // Navega para o fluxo de recuperação de senha específico para usuários logados
+        if (!isConnected) {
+            Alert.alert('Modo offline', 'Você está offline. Não é possível alterar a senha agora.');
+            return;
+        }
+
         navigation.navigate('ForgotPasswordLogged');
     };
 
@@ -229,15 +252,15 @@ export default function ProfileScreen({ navigation }) {
                         icon="person-outline"
                         label="Nome Completo"
                         value={user.name}
-                        onPress={handleChangeName}
+                        onPress={isConnected ? handleChangeName : () => Alert.alert('Modo offline', 'Você está offline. Essa ação está bloqueada.')}
                         delay={100}
                     />
-                    
+
                     <InfoItem
                         icon="mail-outline"
                         label="E-mail"
                         value={user.email}
-                        onPress={handleChangeEmail}
+                        onPress={isConnected ? handleChangeEmail : () => Alert.alert('Modo offline', 'Você está offline. Essa ação está bloqueada.')}
                         delay={150}
                     />
                     
@@ -367,11 +390,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: moderateScale(20),
     },
     userName: {
-        fontSize: theme.fonts.h2,
+        fontSize: theme.fonts.h4,
         fontWeight: 'bold',
         color: '#fff',
         textAlign: 'center',
-        width: '100%',
+        width: '80%',
+        maxWidth: '80%',
     },
     userEmail: {
         fontSize: theme.fonts.body,
@@ -414,7 +438,6 @@ const styles = StyleSheet.create({
     },
     infoItem: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
         paddingVertical: moderateScale(15),
         borderBottomWidth: 1,
@@ -441,12 +464,14 @@ const styles = StyleSheet.create({
     infoRight: {
         flexDirection: 'row',
         alignItems: 'center',
+        maxWidth: '50%',
     },
     infoValue: {
         fontSize: theme.fonts.body,
         fontWeight: '600',
         color: '#333',
         marginRight: moderateScale(8),
+        flexShrink: 1,
     },
     statsCard: {
         backgroundColor: '#fff',

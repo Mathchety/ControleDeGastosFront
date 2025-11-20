@@ -11,14 +11,27 @@ export default function SplashScreen({ onFinish }) {
     const animationRef = useRef(null);
 
     useEffect(() => {
-        // Resetar valores de animação
+        // Resetar valores de animação (apenas uma vez no mount)
         scaleAnim.setValue(0);
         fadeAnim.setValue(0);
         pulseValue.setValue(1);
 
-        // Animação em sequência
+        // Sequência de pulsação finita (2 ciclos)
+        const pulseSequence = Animated.sequence([
+            Animated.timing(pulseValue, {
+                toValue: 1.1,
+                duration: 600,
+                useNativeDriver: true,
+            }),
+            Animated.timing(pulseValue, {
+                toValue: 1,
+                duration: 600,
+                useNativeDriver: true,
+            }),
+        ]);
+
+        // Animação em sequência: aparecer + 2 pulsos e finalizar
         const anim = Animated.sequence([
-            // 1. Ícone aparece com escala
             Animated.parallel([
                 Animated.spring(scaleAnim, {
                     toValue: 1,
@@ -32,23 +45,8 @@ export default function SplashScreen({ onFinish }) {
                     useNativeDriver: true,
                 }),
             ]),
-            // 2. Pequena pausa
             Animated.delay(300),
-            // 3. Pulse (pulsação) ao invés de rotação
-            Animated.loop(
-                Animated.sequence([
-                    Animated.timing(pulseValue, {
-                        toValue: 1.1,
-                        duration: 600,
-                        useNativeDriver: true,
-                    }),
-                    Animated.timing(pulseValue, {
-                        toValue: 1,
-                        duration: 600,
-                        useNativeDriver: true,
-                    }),
-                ])
-            ),
+            Animated.sequence([pulseSequence, pulseSequence]),
         ]);
 
         animationRef.current = anim;
@@ -66,7 +64,7 @@ export default function SplashScreen({ onFinish }) {
                 animationRef.current.stop();
             }
         };
-    }, [onFinish, scaleAnim, fadeAnim, pulseValue]);
+    }, []); // roda apenas uma vez, evitando reinícios da animação
 
     return (
         <View style={styles.container}>

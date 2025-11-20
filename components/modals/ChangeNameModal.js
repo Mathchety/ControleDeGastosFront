@@ -89,6 +89,7 @@ export const ChangeNameModal = ({ visible, onClose, onSubmit, currentName }) => 
                             placeholder="Digite seu nome completo"
                             value={name}
                             onChangeText={setName}
+                            maxLength={7}
                             autoCapitalize="words"
                             editable={!loading}
                         />

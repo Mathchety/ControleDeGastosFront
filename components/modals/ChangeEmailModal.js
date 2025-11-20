@@ -164,6 +164,7 @@ export const ChangeEmailModal = ({ visible, onClose, onRequestChange, onConfirmC
                                     placeholder="Digite o novo email"
                                     value={newEmail}
                                     onChangeText={setNewEmail}
+                                    maxLength={254}
                                     keyboardType="email-address"
                                     autoCapitalize="none"
                                     editable={!loading}

@@ -74,7 +74,7 @@ export default function EditItemModal({
         
         try {
             // Validações
-            if (!itemQuantity || parseFloat(itemQuantity) <= 0) {
+            if (!itemQuantity || isNaN(parseFloat(itemQuantity.toString().replace(',', '.'))) || parseFloat(itemQuantity.toString().replace(',', '.')) <= 0) {
                 setErrorState({
                     visible: true,
                     title: 'Campo Obrigatório',
@@ -82,11 +82,30 @@ export default function EditItemModal({
                 });
                 return;
             }
-            if (!itemTotal || parseFloat(itemTotal) <= 0) {
+            if (!itemTotal || isNaN(parseFloat(itemTotal.toString().replace(',', '.'))) || parseFloat(itemTotal.toString().replace(',', '.')) <= 0) {
                 setErrorState({
                     visible: true,
                     title: 'Campo Obrigatório',
                     message: 'Total deve ser maior que zero'
+                });
+                return;
+            }
+
+            const q = parseFloat(itemQuantity.toString().replace(',', '.'));
+            const t = parseFloat(itemTotal.toString().replace(',', '.'));
+            if (q >= 1000000) {
+                setErrorState({
+                    visible: true,
+                    title: 'Valor excede o permitido',
+                    message: 'Quantidade muito grande (máx: 1.000.000)'
+                });
+                return;
+            }
+            if (t >= 1000000000) {
+                setErrorState({
+                    visible: true,
+                    title: 'Valor excede o permitido',
+                    message: 'Valor muito grande (máx: R$ 1.000.000.000)'
                 });
                 return;
             }
@@ -178,7 +197,7 @@ export default function EditItemModal({
                                     selectTextOnFocus={!disableQuantityTotal}
                                     placeholder={inputType === 'litros' ? "Ex: 2.5" : inputType === 'peso' ? "Ex: 1.5" : "Ex: 2"}
                                     keyboardType="decimal-pad"
-                                    maxLength={10}
+                                    maxLength={7}
                                 />
                                 <View style={[
                                     styles.unitBadge,
@@ -207,7 +226,7 @@ export default function EditItemModal({
                                 selectTextOnFocus={!disableQuantityTotal}
                                 placeholder="Ex: 10.50"
                                 keyboardType="decimal-pad"
-                                maxLength={10}
+                                maxLength={7}
                             />
                         </View>
 
@@ -261,9 +280,9 @@ export default function EditItemModal({
                             <Text style={styles.cancelButtonText}>Cancelar</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            style={[styles.modalButton, styles.saveButton, saving && styles.saveButtonDisabled]}
+                            style={[styles.modalButton, styles.saveButton, (saving || (itemQuantity && parseFloat(itemQuantity.toString().replace(',', '.')) >= 1000000) || (itemTotal && parseFloat(itemTotal.toString().replace(',', '.')) >= 1000000000)) && styles.saveButtonDisabled]}
                             onPress={handleSave}
-                            disabled={saving}
+                            disabled={saving || (itemQuantity && parseFloat(itemQuantity.toString().replace(',', '.')) >= 1000000) || (itemTotal && parseFloat(itemTotal.toString().replace(',', '.')) >= 1000000000)}
                         >
                             {saving ? (
                                 <ActivityIndicator color="#fff" />

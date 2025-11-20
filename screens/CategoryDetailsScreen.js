@@ -25,7 +25,7 @@ import { useStatusBarColor } from '../hooks/useStatusBarColor';
 
 export default function CategoryDetailsScreen({ route, navigation }) {
     const { category } = route.params || {};
-    const { fetchCategoryById, updateItem, fetchCategories } = useData();
+    const { fetchCategoryById, updateItem, fetchCategories, isConnected } = useData();
     
     // Hook para definir a cor da StatusBar baseado na cor da categoria
     const categoryColor = category?.color || '#667eea';
@@ -164,6 +164,10 @@ export default function CategoryDetailsScreen({ route, navigation }) {
     };
 
     const handleSaveItem = async (updatedItem) => {
+        if (!isConnected) {
+            Alert.alert('Modo offline', 'Você está offline. Não é possível atualizar itens.');
+            throw new Error('Modo offline');
+        }
         try {
             await updateItem(updatedItem.id, {
                 quantity: updatedItem.quantity,
@@ -251,7 +255,14 @@ export default function CategoryDetailsScreen({ route, navigation }) {
                                     <Text style={styles.itemName}>{item.name}</Text>
                                     <TouchableOpacity
                                         style={styles.editItemButton}
-                                        onPress={() => handleEditItem(item)}
+                                        onPress={() => {
+                                            if (!isConnected) {
+                                                Alert.alert('Modo offline', 'Você está offline. Não é possível editar itens.');
+                                                return;
+                                            }
+                                            handleEditItem(item);
+                                        }}
+                                        disabled={!isConnected}
                                     >
                                         <Ionicons name="create-outline" size={20} color="#667eea" />
                                     </TouchableOpacity>

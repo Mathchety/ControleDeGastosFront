@@ -25,6 +25,11 @@
       "package": "com.finansync.app",
   "softwareKeyboardLayoutMode": "pan"
     },
+    "splash": {
+      "image": "./assets/logo-finansync.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#667eea"
+    },
     "web": {},
     "plugins": [
       [

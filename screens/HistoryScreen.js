@@ -17,6 +17,7 @@ export default function HistoryScreen({ navigation }) {
     fetchReceiptsByDate,
     fetchReceiptsByPeriod,
     deleteReceipt,
+    isConnected,
     dateList, 
     itemCountList, 
     storeNameList 
@@ -53,7 +54,7 @@ export default function HistoryScreen({ navigation }) {
     }
     
     setIsNavigating(true);
-    navigation.navigate('Preview', { receiptId });
+    navigation.navigate('Preview', { receiptId, readOnly: !isConnected });
     
     // Reseta após a navegação
     setTimeout(() => setIsNavigating(false), 1000);
@@ -204,6 +205,7 @@ export default function HistoryScreen({ navigation }) {
       : item.date;
     const itemCount = itemCountList[index] || item.itemCount || 0;
     const total = parseFloat(item.total || 0);
+    const discount = parseFloat(item.discount || 0);
 
     return (
       <TouchableOpacity
@@ -238,6 +240,14 @@ export default function HistoryScreen({ navigation }) {
                 {itemCount} {itemCount === 1 ? 'item' : 'itens'}
               </Text>
             </View>
+            {discount > 0 && (
+              <View style={styles.statItem}>
+                <Ionicons name="pricetag-outline" size={16} color="#10b981" />
+                <Text style={styles.receiptDiscount}>
+                  - R$ {discount.toFixed(2)}
+                </Text>
+              </View>
+            )}
             <View style={styles.statItem}>
               <Ionicons name="cash-outline" size={16} color="#ef4444" />
               <Text style={styles.receiptTotal}>
@@ -248,11 +258,16 @@ export default function HistoryScreen({ navigation }) {
           
           <View style={styles.receiptActions}>
             <TouchableOpacity
-              style={[styles.actionButton, styles.deleteButton]}
+              style={[styles.actionButton, styles.deleteButton, !isConnected && styles.buttonDisabled]}
               onPress={(e) => {
                 e.stopPropagation();
+                if (!isConnected) {
+                  Alert.alert('Modo offline', 'Você está offline. Não é possível excluir notas.');
+                  return;
+                }
                 handleDeleteReceipt(item.id, storeName);
               }}
+              disabled={!isConnected}
             >
               <Ionicons name="trash-outline" size={18} color="#ff4444" />
             </TouchableOpacity>
@@ -473,6 +488,12 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(14),
     color: '#ef4444',
     fontWeight: '700',
+  },
+  receiptDiscount: {
+    fontSize: moderateScale(14),
+    color: '#10b981',
+    fontWeight: '700',
+    marginLeft: moderateScale(6),
   },
   receiptActions: {
     flexDirection: 'row',
