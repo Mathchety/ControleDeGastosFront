@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../contexts/DataContext';
 import { useFilters } from '../contexts/FilterContext';
+import { formatDateToBrazil, formatDateToBrazilReadable } from '../utils/dateUtils';
 import { SkeletonCategoryCard } from '../components/common';
 import { EditItemModal } from '../components/modals';
 import { moderateScale } from '../utils/responsive';
@@ -76,15 +77,8 @@ export default function CategoryDetailsScreen({ route, navigation }) {
             
             // Se há filtro de data selecionado na tela de Categorias, aplica aqui também
             if (categoriesFilter.startDate && categoriesFilter.endDate) {
-                const formatDate = (date) => {
-                    if (date instanceof Date) {
-                        return date.toISOString().split('T')[0];
-                    }
-                    return new Date(date).toISOString().split('T')[0];
-                };
-                
-                options.startDate = formatDate(categoriesFilter.startDate);
-                options.endDate = formatDate(categoriesFilter.endDate);
+                options.startDate = formatDateToBrazil(categoriesFilter.startDate);
+                options.endDate = formatDateToBrazil(categoriesFilter.endDate);
             }
             
             const data = await fetchCategoryById(category.id, options);
@@ -289,7 +283,7 @@ export default function CategoryDetailsScreen({ route, navigation }) {
                                         <View style={styles.itemDetailRow}>
                                             <Ionicons name="calendar-outline" size={16} color="#666" />
                                             <Text style={styles.itemDetailText}>
-                                                {new Date(item.purchaseDate).toLocaleDateString('pt-BR')}
+                                                {formatDateToBrazilReadable(item.purchaseDate)}
                                             </Text>
                                         </View>
                                     )}

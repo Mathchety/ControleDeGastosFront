@@ -35,6 +35,7 @@ export default function HomeScreen({ navigation }) {
     // Hook para definir a cor da StatusBar
     useStatusBarColor('#667eea', 'light-content');
     const { receipts, loading, fetchReceiptsBasic, dateList, itemCountList, storeNameList, isProcessingReceipt } = useData();
+    const [offlineNotifVisible, setOfflineNotifVisible] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [monthSpent, setMonthSpent] = useState(0);
     const [allReceipts, setAllReceipts] = useState([]); // Estado local para não ser afetado por filtros
@@ -48,6 +49,21 @@ export default function HomeScreen({ navigation }) {
     useEffect(() => {
         loadData();
     }, []);
+
+    // Mostra notificação offline quando perder a conexão por 10s
+    useEffect(() => {
+        let t = null;
+        if (!isConnected) {
+            setOfflineNotifVisible(true);
+            t = setTimeout(() => setOfflineNotifVisible(false), 10000);
+        } else {
+            setOfflineNotifVisible(false);
+        }
+
+        return () => {
+            if (t) clearTimeout(t);
+        };
+    }, [isConnected]);
 
     // Observa mudanças nos receipts do contexto (ex: após deletar uma nota)
     useEffect(() => {
@@ -164,11 +180,22 @@ export default function HomeScreen({ navigation }) {
                 <HomeHeader userName={user?.name} opacity={headerOpacity} />
             </Animated.View>
 
-            {/* Notificação de processamento */}
-            <ProcessingNotification 
-                visible={isProcessingReceipt} 
-                message="A IA está categorizando sua nota fiscal..."
-            />
+            {/* Notificação de processamento ou aviso offline (prioriza processamento) */}
+            {isProcessingReceipt ? (
+                <ProcessingNotification
+                    visible={true}
+                    message="A IA está categorizando sua nota fiscal..."
+                    progressDuration={null}
+                    isOffline={false}
+                />
+            ) : (
+                <ProcessingNotification
+                    visible={offlineNotifVisible}
+                    message={'Você está offline — alguns recursos podem não estar totalmente disponíveis.'}
+                    progressDuration={10000}
+                    isOffline={true}
+                />
+            )}
 
             <Animated.ScrollView 
                 style={styles.content}

@@ -15,6 +15,8 @@ class HttpClient {
         this.refreshToken = null;
         this.isRefreshing = false;
         this.refreshSubscribers = [];
+        this.onRefreshFail = null; // callback quando o refresh falhar
+        this._notifiedRefreshFail = false; // impede notificações duplicadas ao AuthContext
     }
 
     /**
@@ -38,6 +40,14 @@ class HttpClient {
         this.token = accessToken;
         
         if (accessToken) {
+            // Ao salvar um novo access token (novo login/refresh bem-sucedido),
+            // garantimos que a flag de notificação de falha seja resetada para
+            // permitir futuras notificações caso ocorram novas falhas.
+            try {
+                this._notifiedRefreshFail = false;
+            } catch (e) {
+                // ignore
+            }
             SecureStore.setItemAsync('access_token', accessToken);
         } else {
             SecureStore.deleteItemAsync('access_token');
@@ -92,7 +102,7 @@ class HttpClient {
     /**
      * Tenta renovar o access token usando o refresh token
      */
-    async refreshAccessToken() {
+    async refreshAccessToken(notifyOnFail = true) {
         if (!this.refreshToken) {
             console.log('[HttpClient] ❌ Refresh token não disponível');
             throw new Error('Refresh token não disponível');
@@ -130,6 +140,9 @@ class HttpClient {
                 console.log('[HttpClient] 📝 Novo refresh token recebido:', !!data.refreshToken);
                 // Salva accessToken e refreshToken (API retorna ambos)
                 this.setTokens(data.accessToken, data.refreshToken);
+                // Reseta sinalização de notificação após sucesso
+                this._notifiedRefreshFail = false;
+                console.debug('[HttpClient] _notifiedRefreshFail reset -> false (refresh success)');
                 return data.accessToken;
             }
 
@@ -139,7 +152,45 @@ class HttpClient {
             console.error('[HttpClient] ❌ Erro ao renovar token:', error.message);
             // Se falhar, limpa tudo
             this.setTokens(null, null);
+            // Não bloqueamos tentativas futuras aqui; apenas limpamos tokens e
+            // notificamos quando apropriado (notifyOnFail).
+            // Notifica subscribers e consumidor (ex: AuthContext) que o refresh falhou (opcional)
+            try {
+                this.onRefreshed(null);
+            } catch (e) {
+                // ignore
+            }
+            if (notifyOnFail) {
+                try {
+                    if (typeof this.onRefreshFail === 'function' && !this._notifiedRefreshFail) {
+                        this._notifiedRefreshFail = true;
+                        console.debug('[HttpClient] Notificando onRefreshFail (from refreshAccessToken)');
+                        this.onRefreshFail(error);
+                    } else {
+                        console.debug('[HttpClient] onRefreshFail presente?', typeof this.onRefreshFail === 'function');
+                        console.debug('[HttpClient] _notifiedRefreshFail:', this._notifiedRefreshFail);
+                    }
+                } catch (notifyErr) {
+                    console.error('[HttpClient] Erro ao notificar onRefreshFail:', notifyErr);
+                }
+            }
             throw error;
+        }
+    }
+
+    /**
+     * Permite registrar um callback para quando o refresh falhar
+     * callback(error)
+     */
+    setOnRefreshFail(callback) {
+        this.onRefreshFail = callback;
+        console.debug('[HttpClient] setOnRefreshFail called. handlerPresent=', typeof callback === 'function');
+        // Reset da sinalização de notificação quando um novo handler for registrado
+        if (callback) {
+            this._notifiedRefreshFail = false;
+        } else {
+            // Se remover o handler, garante que a flag também seja limpa
+            this._notifiedRefreshFail = false;
         }
     }
 
@@ -150,7 +201,7 @@ class HttpClient {
      * @param {boolean} requiresAuth - Se true, adiciona o token de autenticação
      * @param {boolean} isRetry - Se true, é uma tentativa após refresh (evita loop infinito)
      */
-    async request(endpoint, options = {}, requiresAuth = true, isRetry = false) {
+    async request(endpoint, options = {}, requiresAuth = true, isRetry = false, allowAutoRefresh = true) {
         const { method = 'GET', body, headers = {}, ...otherOptions } = options;
 
         // Monta os headers
@@ -215,49 +266,90 @@ class HttpClient {
                     errorData = { message: textResponse || `Erro HTTP ${response.status}` };
                 }
 
-                // Se for 401 e tiver refresh token, tenta renovar
-                if (response.status === 401 && requiresAuth && !isRetry && this.refreshToken) {
-                    try {
-                        // Se já está refreshing, aguarda
-                        if (this.isRefreshing) {
-                            return new Promise((resolve, reject) => {
-                                this.addRefreshSubscriber((token) => {
-                                    if (token) {
-                                        // Tenta novamente com o novo token
-                                        this.request(endpoint, options, requiresAuth, true)
-                                            .then(resolve)
-                                            .catch(reject);
-                                    } else {
-                                        reject(new Error('Sessão expirada. Faça login novamente.'));
-                                    }
-                                });
+                // Se for 401 e requer autenticação:
+                // - se allowAutoRefresh === false, NÃO tentamos renovar agora (usado durante inicialização)
+                // - caso contrário tentamos renovar, respeitando o isRetry para evitar loops
+                if (response.status === 401 && requiresAuth) {
+                    if (!allowAutoRefresh) {
+                        // Não tentamos renovar neste contexto (ex: inicialização do app)
+                        this.setTokens(null, null);
+                        const err = new Error(errorData.error || errorData.message || 'Token expirado');
+                        err.statusCode = 401;
+                        err.response = { status: 401, data: errorData };
+                        err.silent = true;
+                        throw err;
+                    }
+                    // Se já está em processo de refresh (outro fluxo), aguarda o resultado
+                    if (this.isRefreshing) {
+                        return new Promise((resolve, reject) => {
+                            this.addRefreshSubscriber((token) => {
+                                if (token) {
+                                    this.request(endpoint, options, requiresAuth, true)
+                                        .then(resolve)
+                                        .catch(reject);
+                                } else {
+                                    const err = new Error('Sessão expirada. Faça login novamente.');
+                                    err.statusCode = 401;
+                                    err.silent = true;
+                                    reject(err);
+                                }
                             });
+                        });
+                    }
+                    // Se esta requisição já é um retry, não tentamos renovar de novo
+                    if (isRetry) {
+                        try {
+                            if (typeof this.onRefreshFail === 'function' && !this._notifiedRefreshFail) {
+                                this._notifiedRefreshFail = true;
+                                console.debug('[HttpClient] Notificando onRefreshFail (from request isRetry)');
+                                this.onRefreshFail(new Error('401 recebido: token inválido/expirado'));
+                            } else {
+                                console.debug('[HttpClient] isRetry path: handlerPresent=', typeof this.onRefreshFail === 'function', ' _notifiedRefreshFail=', this._notifiedRefreshFail);
+                            }
+                        } catch (notifyErr) {
+                            console.error('[HttpClient] Erro ao notificar onRefreshFail:', notifyErr);
                         }
 
-                        // Marca que está refreshing
-                        this.isRefreshing = true;
+                        const err = new Error(errorData.error || errorData.message || 'Token expirado');
+                        err.statusCode = 401;
+                        err.response = { status: 401, data: errorData };
+                        err.silent = true;
+                        throw err;
+                    }
 
-                        // Tenta renovar o token
-                        const newToken = await this.refreshAccessToken();
-                        
-                        // Notifica os subscribers
+                    // Tenta renovar automaticamente agora
+                    try {
+                        this.isRefreshing = true;
+                        const newToken = await this.refreshAccessToken(false); // false = não notificar onRefreshFail internamente
+                        // Notifica subscribers e tenta a requisição original novamente
                         this.onRefreshed(newToken);
                         this.isRefreshing = false;
-
-                        // Tenta novamente com o novo token
                         return this.request(endpoint, options, requiresAuth, true);
-                    } catch (refreshError) {
-                        // 🔇 Se falhar o refresh, limpa tudo SILENCIOSAMENTE
-                        // Não mostra alert - apenas redireciona para login via AuthContext
+                    } catch (refreshErr) {
+                        // Falha ao renovar: garante estado limpo e notifica AuthContext (uma vez)
                         this.isRefreshing = false;
-                        this.onRefreshed(null);
-                        this.setTokens(null, null);
-                        
-                        const error = new Error('Token expirado');
-                        error.statusCode = 401;
-                        error.response = { status: 401, data: errorData };
-                        error.silent = true; // 🔇 Flag para não mostrar alert
-                        throw error;
+                        try {
+                            this.onRefreshed(null);
+                        } catch (e) {
+                            // ignore
+                        }
+                        try {
+                            if (typeof this.onRefreshFail === 'function' && !this._notifiedRefreshFail) {
+                                this._notifiedRefreshFail = true;
+                                console.debug('[HttpClient] Notificando onRefreshFail (from request refreshErr)');
+                                this.onRefreshFail(refreshErr);
+                            } else {
+                                console.debug('[HttpClient] refreshErr path: handlerPresent=', typeof this.onRefreshFail === 'function', ' _notifiedRefreshFail=', this._notifiedRefreshFail);
+                            }
+                        } catch (notifyErr) {
+                            console.error('[HttpClient] Erro ao notificar onRefreshFail:', notifyErr);
+                        }
+
+                        const err = new Error(errorData.error || errorData.message || 'Token expirado');
+                        err.statusCode = 401;
+                        err.response = { status: 401, data: errorData };
+                        err.silent = true;
+                        throw err;
                     }
                 }
 
@@ -311,24 +403,23 @@ class HttpClient {
     /**
      * Métodos de conveniência
      */
-    async get(endpoint, requiresAuth = true) {
-        return this.request(endpoint, { method: 'GET' }, requiresAuth);
+    async get(endpoint, requiresAuth = true, allowAutoRefresh = true) {
+        return this.request(endpoint, { method: 'GET' }, requiresAuth, false, allowAutoRefresh);
+    }
+    async post(endpoint, body, requiresAuth = true, allowAutoRefresh = true) {
+        return this.request(endpoint, { method: 'POST', body }, requiresAuth, false, allowAutoRefresh);
     }
 
-    async post(endpoint, body, requiresAuth = true) {
-        return this.request(endpoint, { method: 'POST', body }, requiresAuth);
+    async patch(endpoint, body, requiresAuth = true, allowAutoRefresh = true) {
+        return this.request(endpoint, { method: 'PATCH', body }, requiresAuth, false, allowAutoRefresh);
     }
 
-    async patch(endpoint, body, requiresAuth = true) {
-        return this.request(endpoint, { method: 'PATCH', body }, requiresAuth);
+    async put(endpoint, body, requiresAuth = true, allowAutoRefresh = true) {
+        return this.request(endpoint, { method: 'PUT', body }, requiresAuth, false, allowAutoRefresh);
     }
 
-    async put(endpoint, body, requiresAuth = true) {
-        return this.request(endpoint, { method: 'PUT', body }, requiresAuth);
-    }
-
-    async delete(endpoint, requiresAuth = true) {
-        return this.request(endpoint, { method: 'DELETE' }, requiresAuth);
+    async delete(endpoint, requiresAuth = true, allowAutoRefresh = true) {
+        return this.request(endpoint, { method: 'DELETE' }, requiresAuth, false, allowAutoRefresh);
     }
 }
 

@@ -10,11 +10,16 @@ import {
     ActivityIndicator,
     Modal,
     Platform,
+    Dimensions,
+    KeyboardAvoidingView,
+    Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useData } from '../contexts/DataContext';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { formatDateToBrazil, parseYYYYMMDDToDate } from '../utils/dateUtils';
 import { moderateScale, fontScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
 import { getValidIcon } from '../utils/iconHelper';
@@ -23,11 +28,17 @@ import { GradientHeader } from '../components/common';
 export default function ManualReceiptScreen({ navigation }) {
     const { categories, fetchCategories, createManualReceipt, isConnected } = useData();
     const [storeName, setStoreName] = useState('');
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(formatDateToBrazil(new Date()));
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [tempDate, setTempDate] = useState(parseYYYYMMDDToDate(formatDateToBrazil(new Date())));
     const [items, setItems] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
     const [saving, setSaving] = useState(false);
     const [loadingCategories, setLoadingCategories] = useState(true);
+
+    // Responsividade: detecta dispositivos pequenos (iOS/Android)
+    const { width, height } = Dimensions.get('window');
+    const isSmallDevice = width <= 360 || height <= 700;
 
     // Novo item sendo adicionado
     const [newItem, setNewItem] = useState({
@@ -38,6 +49,15 @@ export default function ManualReceiptScreen({ navigation }) {
         categoryName: '',
         unity: 'UN',
     });
+
+    // Desconto da nota (no nível da nota, não por item)
+    const [receiptDiscount, setReceiptDiscount] = useState('');
+
+    // Normaliza entradas numéricas (vírgula -> ponto, remove caracteres não-numéricos)
+    const normalizeNumberInput = (text) => {
+        if (typeof text !== 'string') return '';
+        return text.replace(',', '.').replace(/[^0-9.]/g, '');
+    };
 
     useEffect(() => {
         loadCategories();
@@ -90,9 +110,9 @@ export default function ManualReceiptScreen({ navigation }) {
 
     const handleAddItem = (closeModal = true) => {
         if (!validateItem()) return;
-        const quantity = parseFloat(newItem.quantity.toString().replace(',', '.'));
-        const total = parseFloat(newItem.total.toString().replace(',', '.'));
-        const unitPrice = total / quantity;
+    const quantity = parseFloat(newItem.quantity.toString().replace(',', '.'));
+    const total = parseFloat(newItem.total.toString().replace(',', '.'));
+    const unitPrice = total / quantity;
 
         const item = {
             id: Date.now().toString(),
@@ -149,8 +169,19 @@ export default function ManualReceiptScreen({ navigation }) {
         });
     };
 
+    const calculateSubtotal = () => items.reduce((sum, item) => sum + (parseFloat(item.total || 0)), 0);
+    
+    // Variáveis auxiliares para validação visual do desconto
+    const currentSubtotal = calculateSubtotal();
+    const currentDiscount = receiptDiscount ? parseFloat(receiptDiscount.toString().replace(',', '.')) : 0;
+    const isDiscountInvalid = currentDiscount > currentSubtotal;
+
     const calculateTotal = () => {
-        return items.reduce((sum, item) => sum + item.total, 0);
+        const subtotal = calculateSubtotal();
+        const discount = receiptDiscount ? parseFloat(receiptDiscount.toString().replace(',', '.')) : 0;
+        // Garante que não fique negativo visualmente, embora a validação impeça salvar
+        const total = subtotal - (isNaN(discount) ? 0 : discount);
+        return total < 0 ? 0 : total;
     };
 
     const handleSave = async () => {
@@ -164,6 +195,15 @@ export default function ManualReceiptScreen({ navigation }) {
         }
         if (items.length === 0) {
             Alert.alert('Atenção', 'Adicione pelo menos um item');
+            return;
+        }
+
+        const subtotal = calculateSubtotal();
+        const discount = receiptDiscount ? parseFloat(receiptDiscount.toString().replace(',', '.')) : 0;
+
+        // Validação do Desconto > 100%
+        if (discount > subtotal) {
+            Alert.alert('Atenção', 'O desconto não pode ser maior que o valor total da nota (100%)');
             return;
         }
 
@@ -205,16 +245,15 @@ export default function ManualReceiptScreen({ navigation }) {
 
         try {
             setSaving(true);
-            const total = calculateTotal();
-            
-            
+            const total = subtotal - (isNaN(discount) ? 0 : discount);
+
             // Formato correto da API POST /receipt
             const receiptData = {
                 storeName: storeName.trim(),
                 date: date,
                 currency: 'BRL',
-                subtotal: total,
-                discount: 0,
+                subtotal: subtotal,
+                discount: isNaN(discount) ? 0 : discount,
                 total: total,
                 notes: '',
                 items: items.map(item => {
@@ -301,92 +340,191 @@ export default function ManualReceiptScreen({ navigation }) {
                 }
             />
 
-            <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-                {/* Informações da Nota */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Informações da Nota</Text>
-                    
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Estabelecimento</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={storeName}
-                            onChangeText={setStoreName}
-                            placeholder="Nome do estabelecimento"
-                            placeholderTextColor="#999"
-                            maxLength={80}
-                        />
+            {/* 🚀 MELHORIA DO SCROLL VIEW: Envolvemos em KeyboardAvoidingView */}
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0} 
+            >
+                <ScrollView 
+                    style={styles.content} 
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    contentContainerStyle={{ flexGrow: 1, paddingBottom: moderateScale(100) }}
+                >
+                    {/* Informações da Nota */}
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Informações da Nota</Text>
+                        
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Estabelecimento</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={storeName}
+                                onChangeText={setStoreName}
+                                placeholder="Nome do estabelecimento"
+                                placeholderTextColor="#999"
+                                maxLength={80}
+                            />
+                        </View>
+
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Data</Text>
+                            <TouchableOpacity
+                                style={[styles.input, { justifyContent: 'center' }]}
+                                onPress={() => {
+                                    setTempDate(parseYYYYMMDDToDate(date));
+                                    setShowDatePicker(true);
+                                }}
+                                activeOpacity={0.8}
+                            >
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Text style={{ color: date ? '#333' : '#999' }}>{date}</Text>
+                                    <Ionicons name="calendar-outline" size={20} color="#666" />
+                                </View>
+                            </TouchableOpacity>
+                        </View>
                     </View>
 
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Data</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={date}
-                            onChangeText={setDate}
-                            placeholder="AAAA-MM-DD"
-                            placeholderTextColor="#999"
-                            maxLength={7}
-                        />
-                    </View>
-                </View>
+                    {/* Lista de Itens */}
+                    <View style={styles.section}>
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionTitle}>Itens ({items.length})</Text>
+                            <TouchableOpacity
+                                style={styles.addItemButton}
+                                onPress={() => setModalVisible(true)}
+                            >
+                                <Ionicons name="add-circle" size={28} color="#667eea" />
+                            </TouchableOpacity>
+                        </View>
 
-                {/* Lista de Itens */}
-                <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Itens ({items.length})</Text>
+                        {items.length === 0 ? (
+                            <View style={styles.emptyState}>
+                                <Ionicons name="cube-outline" size={48} color="#ccc" />
+                                <Text style={styles.emptyText}>Nenhum item adicionado</Text>
+                                <Text style={styles.emptySubtext}>Toque no + para adicionar</Text>
+                            </View>
+                        ) : (
+                            items.map(renderItemCard)
+                        )}
+                    </View>
+
+                    {/* Total / Subtotal / Desconto da Nota */}
+                    {items.length > 0 && (
+                        <View style={[styles.totalSection, isSmallDevice && styles.totalSectionSmall]}>
+                            <View style={[styles.totalRow, isSmallDevice && styles.totalRowSmall]}>
+                                <Text style={[styles.totalLabel, isSmallDevice && styles.totalLabelSmall]}>Subtotal</Text>
+                                <Text style={[styles.totalValue, isSmallDevice && styles.totalValueSmall]}>R$ {calculateSubtotal().toFixed(2)}</Text>
+                            </View>
+
+                            <View style={[styles.discountRow, isSmallDevice && styles.discountRowSmall]}>
+                                <Text style={[styles.totalLabel, isSmallDevice && styles.totalLabelSmall]}>Desconto da Nota (R$)</Text>
+                                <TextInput
+                                    style={[
+                                        styles.discountInput, 
+                                        isSmallDevice && styles.discountInputSmall,
+                                        isDiscountInvalid && styles.inputError // Estilo de erro
+                                    ]}
+                                    value={receiptDiscount}
+                                    onChangeText={(text) => setReceiptDiscount(normalizeNumberInput(text))}
+                                    placeholder="0.00"
+                                    keyboardType="decimal-pad"
+                                    maxLength={7}
+                                />
+                            </View>
+
+                            {/* Aviso visual se o desconto for maior que o subtotal */}
+                            {isDiscountInvalid && (
+                                <Text style={styles.discountWarningText}>
+                                    ⚠️ Desconto não pode ser maior que 100% do valor
+                                </Text>
+                            )}
+
+                            <View style={[styles.totalRow, isSmallDevice && styles.totalRowSmall]}> 
+                                <Text style={[styles.totalLabel, isSmallDevice && styles.totalLabelSmall]}>Total da Nota</Text>
+                                <Text style={[styles.totalValue, styles.totalValueBold, isSmallDevice && styles.totalValueSmall]}>R$ {calculateTotal().toFixed(2)}</Text>
+                            </View>
+                        </View>
+                    )}
+                </ScrollView>
+
+                {/* Botão Salvar */}
+                {items.length > 0 && (
+                    <View style={styles.footer}>
                         <TouchableOpacity
-                            style={styles.addItemButton}
-                            onPress={() => setModalVisible(true)}
+                            style={[
+                                styles.saveButton, 
+                                (saving || !isConnected || isDiscountInvalid) && styles.saveButtonDisabled
+                            ]}
+                            onPress={handleSave}
+                            disabled={saving || !isConnected || isDiscountInvalid}
                         >
-                            <Ionicons name="add-circle" size={28} color="#667eea" />
+                            <LinearGradient
+                                colors={['#667eea', '#764ba2']}
+                                style={styles.saveButtonGradient}
+                            >
+                                {saving ? (
+                                    <ActivityIndicator color="#fff" />
+                                ) : (
+                                    <>
+                                        <Ionicons name="checkmark-circle" size={24} color="#fff" />
+                                        <Text style={styles.saveButtonText}>Salvar Nota</Text>
+                                    </>
+                                )}
+                            </LinearGradient>
                         </TouchableOpacity>
                     </View>
-
-                    {items.length === 0 ? (
-                        <View style={styles.emptyState}>
-                            <Ionicons name="cube-outline" size={48} color="#ccc" />
-                            <Text style={styles.emptyText}>Nenhum item adicionado</Text>
-                            <Text style={styles.emptySubtext}>Toque no + para adicionar</Text>
-                        </View>
-                    ) : (
-                        items.map(renderItemCard)
-                    )}
-                </View>
-
-                {/* Total */}
-                {items.length > 0 && (
-                    <View style={styles.totalSection}>
-                        <Text style={styles.totalLabel}>Total da Nota</Text>
-                        <Text style={styles.totalValue}>R$ {calculateTotal().toFixed(2)}</Text>
-                    </View>
                 )}
-            </ScrollView>
 
-            {/* Botão Salvar */}
-            {items.length > 0 && (
-                <View style={styles.footer}>
-                    <TouchableOpacity
-                        style={[styles.saveButton, (saving || !isConnected) && styles.saveButtonDisabled]}
-                        onPress={handleSave}
-                        disabled={saving || !isConnected}
-                    >
-                        <LinearGradient
-                            colors={['#667eea', '#764ba2']}
-                            style={styles.saveButtonGradient}
-                        >
-                            {saving ? (
-                                <ActivityIndicator color="#fff" />
-                            ) : (
-                                <>
-                                    <Ionicons name="checkmark-circle" size={24} color="#fff" />
-                                    <Text style={styles.saveButtonText}>Salvar Nota</Text>
-                                </>
-                            )}
-                        </LinearGradient>
-                    </TouchableOpacity>
-                </View>
-            )}
+                {/* DateTimePicker nativo para selecionar DATA única */}
+                {showDatePicker && (
+                    <>
+                        <DateTimePicker
+                            value={tempDate || new Date()}
+                            mode="date"
+                            display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                            onChange={(event, selectedDate) => {
+                                // selectedDate pode ser undefined se dismiss
+                                if (selectedDate) {
+                                    setTempDate(selectedDate);
+                                }
+                                // No Android, o picker nativo mostra botões OK/Cancel; ainda assim
+                                // respeitamos o fluxo de confirmação manual abaixo.
+                                if (Platform.OS === 'android') {
+                                    // Quando Android enviar selection, atualizamos e fechamos automaticamente
+                                    if (event?.type === 'set' && selectedDate) {
+                                        setDate(formatDateToBrazil(selectedDate));
+                                    }
+                                    setShowDatePicker(false);
+                                }
+                            }}
+                            maximumDate={new Date()}
+                            locale="pt-BR"
+                        />
+
+                        {/* Ações de confirmar/cancelar para iOS inline e para consistência */}
+                        <View style={styles.datePickerActions}>
+                            <TouchableOpacity
+                                style={[styles.datePickerButton, styles.datePickerCancel]}
+                                onPress={() => {
+                                    setShowDatePicker(false);
+                                }}
+                            >
+                                <Text style={styles.datePickerButtonText}>Cancelar</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.datePickerButton, styles.datePickerConfirm]}
+                                onPress={() => {
+                                    setDate(formatDateToBrazil(tempDate || new Date()));
+                                    setShowDatePicker(false);
+                                }}
+                            >
+                                <Text style={[styles.datePickerButtonText, { color: '#fff' }]}>Confirmar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </>
+                )}
+            </KeyboardAvoidingView>
 
             {/* Modal de Adicionar Item */}
             <Modal
@@ -396,203 +534,177 @@ export default function ManualReceiptScreen({ navigation }) {
                 onRequestClose={() => setModalVisible(false)}
             >
                 <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Adicionar Item</Text>
-                            <TouchableOpacity onPress={() => setModalVisible(false)}>
-                                <Ionicons name="close" size={28} color="#666" />
-                            </TouchableOpacity>
-                        </View>
-
-                        <ScrollView 
-                            showsVerticalScrollIndicator={false}
-                            contentContainerStyle={styles.modalScrollContent}
-                        >
-                            {/* Nome do Produto */}
-                            <View style={styles.formGroup}>
-                                <Text style={styles.formLabel}>Produto</Text>
-                                <TextInput
-                                    style={styles.formInput}
-                                    value={newItem.productName}
-                                    onChangeText={(text) => setNewItem({ ...newItem, productName: text })}
-                                    placeholder="Nome do produto"
-                                    placeholderTextColor="#999"
-                                    maxLength={50}
-                                />
-                            </View>
-
-                            {/* Tipo de Unidade */}
-                            <View style={styles.formGroup}>
-                                <Text style={styles.formLabel}>Tipo</Text>
-                                <View style={styles.unityButtons}>
-                                    <TouchableOpacity
-                                        style={[
-                                            styles.unityButton,
-                                            newItem.unity === 'UN' && styles.unityButtonActive,
-                                        ]}
-                                        onPress={() => setNewItem({ ...newItem, unity: 'UN' })}
-                                    >
-                                        <Text
-                                            style={[
-                                                styles.unityButtonText,
-                                                newItem.unity === 'UN' && styles.unityButtonTextActive,
-                                            ]}
-                                        >
-                                            Unidade
-                                        </Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={[
-                                            styles.unityButton,
-                                            newItem.unity === 'KG' && styles.unityButtonActive,
-                                        ]}
-                                        onPress={() => setNewItem({ ...newItem, unity: 'KG' })}
-                                    >
-                                        <Text
-                                            style={[
-                                                styles.unityButtonText,
-                                                newItem.unity === 'KG' && styles.unityButtonTextActive,
-                                            ]}
-                                        >
-                                            Peso (kg)
-                                        </Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={[
-                                            styles.unityButton,
-                                            newItem.unity === 'ML' && styles.unityButtonActive,
-                                        ]}
-                                        onPress={() => setNewItem({ ...newItem, unity: 'ML' })}
-                                    >
-                                        <Text
-                                            style={[
-                                                styles.unityButtonText,
-                                                newItem.unity === 'ML' && styles.unityButtonTextActive,
-                                            ]}
-                                        >
-                                            Volume (ml)
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-
-                            {/* Quantidade */}
-                            <View style={styles.formGroup}>
-                                <Text style={styles.formLabel}>
-                                    {newItem.unity === 'KG'
-                                        ? 'Peso'
-                                        : newItem.unity === 'ML'
-                                        ? 'Volume'
-                                        : 'Quantidade'}
-                                </Text>
-                                <TextInput
-                                    style={styles.formInput}
-                                    value={newItem.quantity}
-                                    onChangeText={(text) => setNewItem({ ...newItem, quantity: text.replace(',', '.').replace(/[^0-9.]/g, '') })}
-                                    placeholder="0"
-                                    placeholderTextColor="#999"
-                                    keyboardType="decimal-pad"
-                                    maxLength={7}
-                                />
-                                {newItem.quantity && parseFloat(newItem.quantity.toString().replace(',', '.')) > 9999999 && (
-                                    <Text style={styles.warningText}>⚠️ Quantidade muito grande (máx: 9.999.999)</Text>
-                                )}
-                            </View>
-
-                            {/* Total */}
-                            <View style={styles.formGroup}>
-                                <Text style={styles.formLabel}>Total (R$)</Text>
-                                <TextInput
-                                    style={styles.formInput}
-                                    value={newItem.total}
-                                    onChangeText={(text) => setNewItem({ ...newItem, total: text.replace(',', '.').replace(/[^0-9.]/g, '') })}
-                                    placeholder="0.00"
-                                    placeholderTextColor="#999"
-                                    keyboardType="decimal-pad"
-                                    maxLength={7}
-                                />
-                                {newItem.total && parseFloat(newItem.total.toString().replace(',', '.')) > 9999999 && (
-                                    <Text style={styles.warningText}>⚠️ Valor muito grande (máx: R$ 9.999.999)</Text>
-                                )}
-                            </View>
-
-                            {/* Categoria */}
-                            <View style={styles.formGroup}>
-                                <Text style={styles.formLabel}>Categoria</Text>
-                                {loadingCategories ? (
-                                    <ActivityIndicator color="#667eea" style={styles.categoryLoader} />
-                                ) : (
-                                    <View style={styles.categoriesGrid}>
-                                        {categories.map((category) => {
-                                            const iconName = getValidIcon(category.icon);
-                                            const isSelected = newItem.categoryId === category.id;
-                                            return (
-                                                <TouchableOpacity
-                                                    key={category.id}
-                                                    style={[
-                                                        styles.categoryCard,
-                                                        isSelected && styles.categoryCardActive,
-                                                    ]}
-                                                    onPress={() => handleSelectCategory(category)}
-                                                >
-                                                    <Ionicons
-                                                        name={iconName}
-                                                        size={24}
-                                                        color={isSelected ? '#fff' : category.color}
-                                                    />
-                                                    <Text
-                                                        style={[
-                                                            styles.categoryCardText,
-                                                            isSelected && styles.categoryCardTextActive,
-                                                        ]}
-                                                    >
-                                                        {category.name}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            );
-                                        })}
-                                    </View>
-                                )}
-                            </View>
-                        </ScrollView>
-
-                        {/* Botões do Modal - Fixos na parte inferior */}
-                        <View style={styles.modalFooter}>
-                            {/* Botão Adicionar e Continuar */}
-                            <TouchableOpacity
-                                style={[
-                                    styles.addContinueButton,
-                                    (!newItem.productName.trim() || 
-                                     !newItem.quantity || 
-                                     !newItem.total || 
-                                     !newItem.categoryId ||
-                                     parseFloat((newItem.quantity || '0').toString().replace(',', '.')) > 9999999 ||
-                                     parseFloat((newItem.total || '0').toString().replace(',', '.')) > 9999999) && styles.buttonDisabled
-                                ]}
-                                onPress={handleAddAndContinue}
-                                disabled={!newItem.productName.trim() || 
-                                         !newItem.quantity || 
-                                         !newItem.total || 
-                                         !newItem.categoryId ||
-                                         parseFloat((newItem.quantity || '0').toString().replace(',', '.')) > 9999999 ||
-                                         parseFloat((newItem.total || '0').toString().replace(',', '.')) > 9999999}
-                            >
-                                <Ionicons name="add-circle-outline" size={20} color="#fff" />
-                                <Text style={styles.addContinueButtonText}>Adicionar Outro</Text>
-                            </TouchableOpacity>
-
-                            {/* Botões Cancelar e Concluir */}
-                            <View style={styles.modalButtons}>
-                                <TouchableOpacity
-                                    style={[styles.modalButton, styles.cancelModalButton]}
-                                    onPress={() => setModalVisible(false)}
-                                >
-                                    <Text style={styles.cancelModalButtonText}>Cancelar</Text>
+                    <KeyboardAvoidingView 
+                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                        style={styles.keyboardView}
+                    >
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>Adicionar Item</Text>
+                                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                                    <Ionicons name="close" size={28} color="#666" />
                                 </TouchableOpacity>
+                            </View>
+
+                            <ScrollView 
+                                showsVerticalScrollIndicator={false}
+                                contentContainerStyle={styles.modalScrollContent}
+                                keyboardShouldPersistTaps="handled"
+                            >
+                                {/* Nome do Produto */}
+                                <View style={styles.formGroup}>
+                                    <Text style={styles.formLabel}>Produto</Text>
+                                    <TextInput
+                                        style={styles.formInput}
+                                        value={newItem.productName}
+                                        onChangeText={(text) => setNewItem({ ...newItem, productName: text })}
+                                        placeholder="Nome do produto"
+                                        placeholderTextColor="#999"
+                                        maxLength={50}
+                                    />
+                                </View>
+
+                                {/* Tipo de Unidade */}
+                                <View style={styles.formGroup}>
+                                    <Text style={styles.formLabel}>Tipo</Text>
+                                    <View style={styles.unityButtons}>
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.unityButton,
+                                                newItem.unity === 'UN' && styles.unityButtonActive,
+                                            ]}
+                                            onPress={() => setNewItem({ ...newItem, unity: 'UN' })}
+                                        >
+                                            <Text
+                                                style={[
+                                                    styles.unityButtonText,
+                                                    newItem.unity === 'UN' && styles.unityButtonTextActive,
+                                                ]}
+                                            >
+                                                Unidade
+                                            </Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.unityButton,
+                                                newItem.unity === 'KG' && styles.unityButtonActive,
+                                            ]}
+                                            onPress={() => setNewItem({ ...newItem, unity: 'KG' })}
+                                        >
+                                            <Text
+                                                style={[
+                                                    styles.unityButtonText,
+                                                    newItem.unity === 'KG' && styles.unityButtonTextActive,
+                                                ]}
+                                            >
+                                                Peso (kg)
+                                            </Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.unityButton,
+                                                newItem.unity === 'ML' && styles.unityButtonActive,
+                                            ]}
+                                            onPress={() => setNewItem({ ...newItem, unity: 'ML' })}
+                                        >
+                                            <Text
+                                                style={[
+                                                    styles.unityButtonText,
+                                                    newItem.unity === 'ML' && styles.unityButtonTextActive,
+                                                ]}
+                                            >
+                                                Volume (ml)
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+
+                                {/* Quantidade */}
+                                <View style={styles.formGroup}>
+                                    <Text style={styles.formLabel}>
+                                        {newItem.unity === 'KG'
+                                            ? 'Peso'
+                                            : newItem.unity === 'ML'
+                                            ? 'Volume'
+                                            : 'Quantidade'}
+                                    </Text>
+                                    <TextInput
+                                        style={styles.formInput}
+                                        value={newItem.quantity}
+                                        onChangeText={(text) => setNewItem({ ...newItem, quantity: text.replace(',', '.').replace(/[^0-9.]/g, '') })}
+                                        placeholder="0"
+                                        placeholderTextColor="#999"
+                                        keyboardType="decimal-pad"
+                                        maxLength={7}
+                                    />
+                                    {newItem.quantity && parseFloat(newItem.quantity.toString().replace(',', '.')) > 9999999 && (
+                                        <Text style={styles.warningText}>⚠️ Quantidade muito grande (máx: 9.999.999)</Text>
+                                    )}
+                                </View>
+
+                                {/* Total */}
+                                <View style={styles.formGroup}>
+                                    <Text style={styles.formLabel}>Total (R$)</Text>
+                                    <TextInput
+                                        style={styles.formInput}
+                                        value={newItem.total}
+                                        onChangeText={(text) => setNewItem({ ...newItem, total: text.replace(',', '.').replace(/[^0-9.]/g, '') })}
+                                        placeholder="0.00"
+                                        placeholderTextColor="#999"
+                                        keyboardType="decimal-pad"
+                                        maxLength={7}
+                                    />
+                                    {newItem.total && parseFloat(newItem.total.toString().replace(',', '.')) > 9999999 && (
+                                        <Text style={styles.warningText}>⚠️ Valor muito grande (máx: R$ 9.999.999)</Text>
+                                    )}
+                                </View>
+
+                                {/* Categoria */}
+                                <View style={styles.formGroup}>
+                                    <Text style={styles.formLabel}>Categoria</Text>
+                                    {loadingCategories ? (
+                                        <ActivityIndicator color="#667eea" style={styles.categoryLoader} />
+                                    ) : (
+                                        <View style={styles.categoriesGrid}>
+                                            {categories.map((category) => {
+                                                const iconName = getValidIcon(category.icon);
+                                                const isSelected = newItem.categoryId === category.id;
+                                                return (
+                                                    <TouchableOpacity
+                                                        key={category.id}
+                                                        style={[
+                                                            styles.categoryCard,
+                                                            isSelected && styles.categoryCardActive,
+                                                        ]}
+                                                        onPress={() => handleSelectCategory(category)}
+                                                    >
+                                                        <Ionicons
+                                                            name={iconName}
+                                                            size={24}
+                                                            color={isSelected ? '#fff' : category.color}
+                                                        />
+                                                        <Text
+                                                            style={[
+                                                                styles.categoryCardText,
+                                                                isSelected && styles.categoryCardTextActive,
+                                                            ]}
+                                                        >
+                                                            {category.name}
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                );
+                                            })}
+                                        </View>
+                                    )}
+                                </View>
+                            </ScrollView>
+
+                            {/* Botões do Modal */}
+                            <View style={styles.modalFooter}>
+                                {/* Botão Adicionar e Continuar */}
                                 <TouchableOpacity
                                     style={[
-                                        styles.modalButton,
-                                        styles.addModalButton,
+                                        styles.addContinueButton,
                                         (!newItem.productName.trim() || 
                                          !newItem.quantity || 
                                          !newItem.total || 
@@ -600,19 +712,51 @@ export default function ManualReceiptScreen({ navigation }) {
                                          parseFloat((newItem.quantity || '0').toString().replace(',', '.')) > 9999999 ||
                                          parseFloat((newItem.total || '0').toString().replace(',', '.')) > 9999999) && styles.buttonDisabled
                                     ]}
-                                    onPress={() => handleAddItem(true)}
+                                    onPress={handleAddAndContinue}
                                     disabled={!newItem.productName.trim() || 
+                                              !newItem.quantity || 
+                                              !newItem.total || 
+                                              !newItem.categoryId ||
+                                              parseFloat((newItem.quantity || '0').toString().replace(',', '.')) > 9999999 ||
+                                              parseFloat((newItem.total || '0').toString().replace(',', '.')) > 9999999}
+                                >
+                                    <Ionicons name="add-circle-outline" size={20} color="#fff" />
+                                    <Text style={styles.addContinueButtonText}>Adicionar Outro</Text>
+                                </TouchableOpacity>
+
+                                {/* Botões Cancelar e Concluir */}
+                                <View style={styles.modalButtons}>
+                                    <TouchableOpacity
+                                        style={[styles.modalButton, styles.cancelModalButton]}
+                                        onPress={() => setModalVisible(false)}
+                                    >
+                                        <Text style={styles.cancelModalButtonText}>Cancelar</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.modalButton,
+                                            styles.addModalButton,
+                                            (!newItem.productName.trim() || 
                                              !newItem.quantity || 
                                              !newItem.total || 
                                              !newItem.categoryId ||
                                              parseFloat((newItem.quantity || '0').toString().replace(',', '.')) > 9999999 ||
-                                             parseFloat((newItem.total || '0').toString().replace(',', '.')) > 9999999}
-                                >
-                                    <Text style={styles.addModalButtonText}>Concluir</Text>
-                                </TouchableOpacity>
+                                             parseFloat((newItem.total || '0').toString().replace(',', '.')) > 9999999) && styles.buttonDisabled
+                                        ]}
+                                        onPress={() => handleAddItem(true)}
+                                        disabled={!newItem.productName.trim() || 
+                                                    !newItem.quantity || 
+                                                    !newItem.total || 
+                                                    !newItem.categoryId ||
+                                                    parseFloat((newItem.quantity || '0').toString().replace(',', '.')) > 9999999 ||
+                                                    parseFloat((newItem.total || '0').toString().replace(',', '.')) > 9999999}
+                                    >
+                                        <Text style={styles.addModalButtonText}>Concluir</Text>
+                                    </TouchableOpacity>
+                                </View>
                             </View>
                         </View>
-                    </View>
+                    </KeyboardAvoidingView>
                 </View>
             </Modal>
         </SafeAreaView>
@@ -623,6 +767,10 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#f8f9fa',
+    },
+    keyboardView: {
+        flex: 1,
+        justifyContent: 'flex-end',
     },
     backButton: {
         width: 40,
@@ -753,15 +901,90 @@ const styles = StyleSheet.create({
     totalSection: {
         backgroundColor: '#fff',
         borderRadius: moderateScale(15),
-        padding: moderateScale(20),
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        padding: moderateScale(16),
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        justifyContent: 'flex-start',
+        gap: moderateScale(10),
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 3,
+    },
+    totalSectionSmall: {
+        padding: moderateScale(12),
+    },
+    totalRow: {
+        width: '100%',
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    totalRowSmall: {
+        gap: moderateScale(6),
+    },
+    discountRow: {
+        width: '100%',
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: moderateScale(10),
+    },
+    discountRowSmall: {
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+    },
+    discountInput: {
+        width: moderateScale(140),
+        backgroundColor: '#fff',
+        padding: moderateScale(10),
+        borderRadius: moderateScale(8),
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+        textAlign: 'right',
+    },
+    inputError: {
+        borderColor: '#ff6b6b',
+        color: '#ff6b6b',
+        borderWidth: 1,
+    },
+    discountInputSmall: {
+        width: '100%',
+        marginTop: moderateScale(6),
+    },
+    datePickerActions: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: moderateScale(8),
+        paddingTop: moderateScale(8),
+        paddingBottom: moderateScale(12),
+        paddingHorizontal: moderateScale(4),
+    },
+    datePickerButton: {
+        paddingVertical: moderateScale(10),
+        paddingHorizontal: moderateScale(16),
+        borderRadius: moderateScale(10),
+    },
+    datePickerCancel: {
+        backgroundColor: '#f0f0f0',
+    },
+    datePickerConfirm: {
+        backgroundColor: '#667eea',
+    },
+    datePickerButtonText: {
+        fontSize: fontScale(14),
+        fontWeight: '600',
+        color: '#333',
+    },
+    totalLabelSmall: {
+        fontSize: fontScale(14),
+    },
+    totalValueSmall: {
+        fontSize: fontScale(18),
+    },
+    totalValueBold: {
+        fontWeight: '800',
     },
     totalLabel: {
         fontSize: fontScale(16),
@@ -852,6 +1075,15 @@ const styles = StyleSheet.create({
         color: '#ff6b6b',
         marginTop: moderateScale(4),
         marginLeft: moderateScale(4),
+    },
+    discountWarningText: {
+        fontSize: fontScale(12),
+        color: '#ff6b6b',
+        textAlign: 'right',
+        width: '100%',
+        marginTop: -5,
+        marginBottom: 10,
+        fontWeight: '600',
     },
     unityButtons: {
         flexDirection: 'row',

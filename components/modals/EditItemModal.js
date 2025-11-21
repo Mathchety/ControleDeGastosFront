@@ -13,21 +13,38 @@ import {
     Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { moderateScale } from '../../utils/responsive';
-import { ErrorMessage } from '../common/ErrorMessage';
+
+// --- MOCKS / UTILITÁRIOS INLINE (Para garantir funcionamento independente) ---
+
+const moderateScale = (size, factor = 0.5) => size; 
+
+const ErrorMessage = ({ visible, title, message, onClose, type }) => {
+    // Conversão explícita para Boolean para evitar crash no Android
+    const safeVisible = Boolean(visible);
+    
+    if (!safeVisible) return null;
+    return (
+        <Modal transparent={true} animationType="fade" visible={safeVisible} onRequestClose={onClose}>
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                <View style={{ backgroundColor: 'white', padding: 20, borderRadius: 10, width: '80%' }}>
+                    <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10, color: type === 'error' ? 'red' : 'black' }}>
+                        {title || 'Atenção'}
+                    </Text>
+                    <Text style={{ marginBottom: 20 }}>{message}</Text>
+                    <TouchableOpacity onPress={onClose} style={{ alignSelf: 'flex-end', padding: 10 }}>
+                        <Text style={{ color: '#007AFF', fontWeight: 'bold' }}>OK</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </Modal>
+    );
+};
+
+// --- FIM DOS UTILITÁRIOS INLINE ---
 
 /**
  * 🎨 Modal Bonito de Edição de Item
- * 
- * Componente extraído do CategoryDetailsScreen para ser reutilizado
- * em todas as telas que precisam editar itens (Histórico, Categorias, etc)
- * 
- * @param {boolean} visible - Controla visibilidade do modal
- * @param {object} item - Item a ser editado { id, name, quantity, total, categoryId }
- * @param {array} categories - Lista de categorias disponíveis
- * @param {boolean} disableQuantityTotal - Se true, bloqueia edição de quantity e total (ex: tela de Categoria)
- * @param {function} onSave - Callback ao salvar (item) => Promise
- * @param {function} onClose - Callback ao fechar modal
+ * Componente extraído para reutilização em todas as telas que precisam editar itens.
  */
 export default function EditItemModal({ 
     visible, 
@@ -68,13 +85,54 @@ export default function EditItemModal({
         }
     }, [item, visible]);
 
+    // --- SANITIZAÇÃO DE PROPS (CRÍTICO PARA ANDROID) ---
+    // Convertemos explicitamente para Boolean. O React Native Android crasha se receber 
+    // uma string ("true"/"false") ou undefined onde espera um boolean.
+
+    const safeDisableQty = (
+        disableQuantityTotal === true ||
+        disableQuantityTotal === 'true' ||
+        disableQuantityTotal === 1 ||
+        disableQuantityTotal === '1'
+    );
+
+    const safeDisableCategory = (
+        disableCategory === true ||
+        disableCategory === 'true' ||
+        disableCategory === 1 ||
+        disableCategory === '1'
+    );
+
+    const safeHideCategory = (
+        hideCategory === true ||
+        hideCategory === 'true' ||
+        hideCategory === 1 ||
+        hideCategory === '1'
+    );
+    
+    // Garante que a prop visible do Modal seja ESTRITAMENTE boolean
+    const safeVisible = Boolean(visible);
+
+    // Normalização comum para campos numéricos: substitui vírgula por ponto e remove chars não numéricos exceto ponto
+    const normalizeNumberInput = (text) => {
+        if (typeof text !== 'string') return '';
+        return text.replace(',', '.').replace(/[^0-9.]/g, '');
+    };
+
+    // Lógica de validação do botão salvar
+    const isQuantityTooHigh = !!itemQuantity && parseFloat(itemQuantity.toString().replace(',', '.')) >= 1000000;
+    const isTotalTooHigh = !!itemTotal && parseFloat(itemTotal.toString().replace(',', '.')) >= 1000000000;
+    
+    const isSaveDisabled = Boolean(saving || isQuantityTooHigh || isTotalTooHigh);
+
+    // ------------------------------------------------------------------
+
     const handleSave = async () => {
-        // Fecha o teclado imediatamente
         Keyboard.dismiss();
         
         try {
             // Validações
-            if (!itemQuantity || isNaN(parseFloat(itemQuantity.toString().replace(',', '.'))) || parseFloat(itemQuantity.toString().replace(',', '.')) <= 0) {
+            if (!safeDisableQty && (!itemQuantity || isNaN(parseFloat(itemQuantity.toString().replace(',', '.'))) || parseFloat(itemQuantity.toString().replace(',', '.')) <= 0)) {
                 setErrorState({
                     visible: true,
                     title: 'Campo Obrigatório',
@@ -82,7 +140,7 @@ export default function EditItemModal({
                 });
                 return;
             }
-            if (!itemTotal || isNaN(parseFloat(itemTotal.toString().replace(',', '.'))) || parseFloat(itemTotal.toString().replace(',', '.')) <= 0) {
+            if (!safeDisableQty && (!itemTotal || isNaN(parseFloat(itemTotal.toString().replace(',', '.'))) || parseFloat(itemTotal.toString().replace(',', '.')) <= 0)) {
                 setErrorState({
                     visible: true,
                     title: 'Campo Obrigatório',
@@ -91,9 +149,7 @@ export default function EditItemModal({
                 return;
             }
 
-            const q = parseFloat(itemQuantity.toString().replace(',', '.'));
-            const t = parseFloat(itemTotal.toString().replace(',', '.'));
-            if (q >= 1000000) {
+            if (isQuantityTooHigh) {
                 setErrorState({
                     visible: true,
                     title: 'Valor excede o permitido',
@@ -101,7 +157,7 @@ export default function EditItemModal({
                 });
                 return;
             }
-            if (t >= 1000000000) {
+            if (isTotalTooHigh) {
                 setErrorState({
                     visible: true,
                     title: 'Valor excede o permitido',
@@ -112,8 +168,8 @@ export default function EditItemModal({
 
             setSaving(true);
 
-            const quantity = parseFloat(itemQuantity);
-            const total = parseFloat(itemTotal);
+            const quantity = parseFloat(itemQuantity.toString().replace(',', '.'));
+            const total = parseFloat(itemTotal.toString().replace(',', '.'));
             const unitPrice = total / quantity;
 
             const updateData = {
@@ -126,8 +182,6 @@ export default function EditItemModal({
             };
 
             await onSave(updateData);
-            
-            // Fecha modal após salvar
             handleClose();
         } catch (error) {
             setErrorState({
@@ -141,9 +195,7 @@ export default function EditItemModal({
     };
 
     const handleClose = () => {
-        // Fecha o teclado
         Keyboard.dismiss();
-        // Reseta estados
         setItemQuantity('');
         setItemTotal('');
         setSelectedCategoryId(null);
@@ -151,11 +203,12 @@ export default function EditItemModal({
         onClose();
     };
 
+    // Se não houver item, não renderiza nada (evita erros de renderização)
     if (!item) return null;
 
     return (
         <Modal
-            visible={visible}
+            visible={safeVisible}
             transparent={true}
             animationType="slide"
             onRequestClose={handleClose}
@@ -190,11 +243,11 @@ export default function EditItemModal({
                             </Text>
                             <View style={styles.inputWithUnit}>
                                 <TextInput
-                                    style={[styles.input, styles.inputWithUnitField, disableQuantityTotal && styles.inputDisabled]}
+                                    style={[styles.input, styles.inputWithUnitField, safeDisableQty && styles.inputDisabled]}
                                     value={itemQuantity}
-                                    onChangeText={setItemQuantity}
-                                    editable={!disableQuantityTotal}
-                                    selectTextOnFocus={!disableQuantityTotal}
+                                    onChangeText={(text) => setItemQuantity(normalizeNumberInput(text))}
+                                    editable={Boolean(!safeDisableQty)}
+                                    selectTextOnFocus={Boolean(!safeDisableQty)}
                                     placeholder={inputType === 'litros' ? "Ex: 2.5" : inputType === 'peso' ? "Ex: 1.5" : "Ex: 2"}
                                     keyboardType="decimal-pad"
                                     maxLength={7}
@@ -219,11 +272,11 @@ export default function EditItemModal({
                         <View style={styles.formGroup}>
                             <Text style={styles.label}>💰 Total (R$) *</Text>
                             <TextInput
-                                style={[styles.input, disableQuantityTotal && styles.inputDisabled]}
+                                style={[styles.input, safeDisableQty && styles.inputDisabled]}
                                 value={itemTotal}
-                                onChangeText={setItemTotal}
-                                editable={!disableQuantityTotal}
-                                selectTextOnFocus={!disableQuantityTotal}
+                                onChangeText={(text) => setItemTotal(normalizeNumberInput(text))}
+                                editable={Boolean(!safeDisableQty)}
+                                selectTextOnFocus={Boolean(!safeDisableQty)}
                                 placeholder="Ex: 10.50"
                                 keyboardType="decimal-pad"
                                 maxLength={7}
@@ -231,17 +284,17 @@ export default function EditItemModal({
                         </View>
 
                         {/* Preço Unitário Calculado */}
-                        {itemQuantity && itemTotal && parseFloat(itemQuantity) > 0 && (
+                        {itemQuantity && itemTotal && parseFloat(itemQuantity.replace(',', '.')) > 0 && (
                             <View style={styles.calculatedField}>
                                 <Text style={styles.calculatedLabel}>Preço Unitário:</Text>
                                 <Text style={styles.calculatedValue}>
-                                    R$ {(parseFloat(itemTotal) / parseFloat(itemQuantity)).toFixed(2)}
+                                    R$ {(parseFloat(itemTotal.replace(',', '.')) / parseFloat(itemQuantity.replace(',', '.'))).toFixed(2)}
                                 </Text>
                             </View>
                         )}
 
                         {/* Categoria */}
-                        {!hideCategory && categories && categories.length > 0 && (
+                        {!safeHideCategory && categories && categories.length > 0 && (
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Categoria</Text>
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -251,10 +304,10 @@ export default function EditItemModal({
                                             style={[
                                                 styles.categoryChip,
                                                 selectedCategoryId === cat.id && styles.categoryChipSelected,
-                                                disableCategory && { opacity: 0.5 }
+                                                safeDisableCategory && { opacity: 0.5 }
                                             ]}
-                                            onPress={() => !disableCategory && setSelectedCategoryId(cat.id)}
-                                            disabled={disableCategory}
+                                            onPress={() => !safeDisableCategory && setSelectedCategoryId(cat.id)}
+                                            disabled={Boolean(safeDisableCategory)}
                                         >
                                             <View style={[styles.categoryChipColor, { backgroundColor: cat.color }]} />
                                             <Text style={[
@@ -275,14 +328,19 @@ export default function EditItemModal({
                         <TouchableOpacity
                             style={[styles.modalButton, styles.cancelButton]}
                             onPress={handleClose}
-                            disabled={saving}
+                            disabled={Boolean(saving)}
                         >
                             <Text style={styles.cancelButtonText}>Cancelar</Text>
                         </TouchableOpacity>
+                        
                         <TouchableOpacity
-                            style={[styles.modalButton, styles.saveButton, (saving || (itemQuantity && parseFloat(itemQuantity.toString().replace(',', '.')) >= 1000000) || (itemTotal && parseFloat(itemTotal.toString().replace(',', '.')) >= 1000000000)) && styles.saveButtonDisabled]}
+                            style={[
+                                styles.modalButton, 
+                                styles.saveButton, 
+                                isSaveDisabled && styles.saveButtonDisabled
+                            ]}
                             onPress={handleSave}
-                            disabled={saving || (itemQuantity && parseFloat(itemQuantity.toString().replace(',', '.')) >= 1000000) || (itemTotal && parseFloat(itemTotal.toString().replace(',', '.')) >= 1000000000)}
+                            disabled={Boolean(isSaveDisabled)}
                         >
                             {saving ? (
                                 <ActivityIndicator color="#fff" />
@@ -322,6 +380,7 @@ const styles = StyleSheet.create({
         borderTopLeftRadius: moderateScale(25),
         borderTopRightRadius: moderateScale(25),
         padding: moderateScale(20),
+        paddingBottom: moderateScale(30),
         maxHeight: '90%',
     },
     modalHeader: {

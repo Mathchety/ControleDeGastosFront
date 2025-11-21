@@ -412,7 +412,7 @@ const CategoriesSectionComponent = () => {
                                         >
                                             <Ionicons name="calendar" size={20} color="#667eea" />
                                             <Text style={styles.dateText}>
-                                                {tempStartDate.toLocaleDateString('pt-BR')}
+                                                {tempStartDate.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
                                             </Text>
                                         </TouchableOpacity>
                                     </View>
@@ -445,7 +445,7 @@ const CategoriesSectionComponent = () => {
                                         >
                                             <Ionicons name="calendar" size={20} color="#667eea" />
                                             <Text style={styles.dateText}>
-                                                {tempEndDate.toLocaleDateString('pt-BR')}
+                                                {tempEndDate.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
                                             </Text>
                                         </TouchableOpacity>
                                     </View>

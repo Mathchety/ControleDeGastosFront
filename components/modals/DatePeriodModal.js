@@ -137,7 +137,7 @@ export const DatePeriodModal = ({
                                     >
                                         <Ionicons name="calendar" size={20} color="#667eea" />
                                         <Text style={styles.dateText}>
-                                            {tempStartDate?.toLocaleDateString('pt-BR') || 'Selecione'}
+                                            {tempStartDate?.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) || 'Selecione'}
                                         </Text>
                                     </TouchableOpacity>
                                 </View>
@@ -170,7 +170,7 @@ export const DatePeriodModal = ({
                                     >
                                         <Ionicons name="calendar" size={20} color="#667eea" />
                                         <Text style={styles.dateText}>
-                                            {tempEndDate?.toLocaleDateString('pt-BR') || 'Selecione'}
+                                            {tempEndDate?.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) || 'Selecione'}
                                         </Text>
                                     </TouchableOpacity>
                                 </View>

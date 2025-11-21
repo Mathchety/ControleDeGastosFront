@@ -123,9 +123,11 @@ export default function ScanScreen({ navigation }) {
         // Protege contra navegação duplicada
         if (!isNavigatingRef.current) {
           isNavigatingRef.current = true;
+          // Ao navegar desde o scanner usamos uma flag para desabilitar a animação de transição
           navigation.replace('Preview', { 
             previewData,
-            qrLink: data 
+            qrLink: data,
+            fromScan: true,
           });
           // Reset flag após um pequeno delay (caso usuário volte)
           setTimeout(() => {

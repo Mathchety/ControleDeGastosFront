@@ -26,6 +26,7 @@ import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
 import { getValidIcon } from '../utils/iconHelper';
 import { useStatusBarColor } from '../hooks/useStatusBarColor';
+import { formatDateToBrazil } from '../utils/dateUtils';
 
 // Paleta de cores disponíveis
 const COLOR_PALETTE = [
@@ -81,7 +82,7 @@ export default function CategoriesScreen({ navigation }) {
             setFilterLoading(true); // ⚡ Ativa loading ao trocar filtro
             
             let start, end;
-            const formatDate = (date) => date.toISOString().split('T')[0]; // YYYY-MM-DD
+            const formatDate = (date) => formatDateToBrazil(date); // YYYY-MM-DD (Brasília)
             const today = new Date();
 
             switch (filterPeriod) {
@@ -450,7 +451,7 @@ export default function CategoriesScreen({ navigation }) {
                         filterPeriod === 'custom' && styles.customPeriodTextActive
                     ]}>
                         {filterPeriod === 'custom' && startDate && endDate
-                            ? `${startDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - ${endDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`
+                            ? `${startDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })} - ${endDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })}`
                             : 'Período customizado'
                         }
                     </Text>
@@ -495,70 +496,80 @@ export default function CategoriesScreen({ navigation }) {
                         <Text style={styles.emptySubtext}>Toque no + para adicionar sua primeira categoria</Text>
                     </View>
                 ) : (
-                    categories.map((category, index) => (
-                        <TouchableOpacity
-                            key={category.id || index}
-                            style={styles.categoryCard}
-                            onPress={() => navigation.navigate('CategoryDetails', { category })}
-                            activeOpacity={0.7}
-                        >
-                            <View style={styles.categoryHeader}>
-                                <View style={styles.categoryLeft}>
-                                    <View style={[styles.categoryIcon, { backgroundColor: category.color || '#667eea' }]}>
-                                        <Ionicons name={getValidIcon(category.icon)} size={24} color="#fff" />
+                    categories.map((category, index) => {
+                        const protectedNames = ['não categorizado', 'nao categorizado', 'uncategorized'];
+                        const nameLower = (category.name || '').toLowerCase();
+                        const isProtectedCategory = !!category.isProtected || protectedNames.includes(nameLower);
+
+                        return (
+                            <TouchableOpacity
+                                key={category.id || index}
+                                style={styles.categoryCard}
+                                onPress={() => navigation.navigate('CategoryDetails', { category })}
+                                activeOpacity={0.7}
+                            >
+                                <View style={styles.categoryHeader}>
+                                    <View style={styles.categoryLeft}>
+                                        <View style={[styles.categoryIcon, { backgroundColor: category.color || '#667eea' }]}>
+                                            <Ionicons name={getValidIcon(category.icon)} size={24} color="#fff" />
+                                        </View>
+                                        <View style={styles.categoryInfo}>
+                                            <Text style={styles.categoryName}>{category.name}</Text>
+                                            {category.description && (
+                                                <Text style={styles.categoryDescription} numberOfLines={1}>
+                                                    {category.description}
+                                                </Text>
+                                            )}
+                                        </View>
                                     </View>
-                                    <View style={styles.categoryInfo}>
-                                        <Text style={styles.categoryName}>{category.name}</Text>
-                                        {category.description && (
-                                            <Text style={styles.categoryDescription} numberOfLines={1}>
-                                                {category.description}
-                                            </Text>
+                                    <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                                </View>
+
+                                {/* Rodapé com quantidade e ações */}
+                                <View style={styles.categoryFooter}>
+                                    <View style={styles.categoryStats}>
+                                        <Ionicons name="list-outline" size={16} color="#666" />
+                                        <Text style={styles.categoryCount}>
+                                            {category.itemCount || 0} {(category.itemCount || 0) === 1 ? 'item' : 'itens'}
+                                        </Text>
+                                    </View>
+
+                                    <View style={styles.categoryActions}>
+                                        {!isProtectedCategory && (
+                                            <>
+                                                <TouchableOpacity
+                                                    style={[styles.actionButton, styles.editButton]}
+                                                    onPress={(e) => {
+                                                        e.stopPropagation();
+                                                        if (!isConnected) {
+                                                            Alert.alert('Modo offline', 'Você está offline. Não é possível editar categorias.');
+                                                            return;
+                                                        }
+                                                        handleEditCategory(category);
+                                                    }}
+                                                >
+                                                    <Ionicons name="create-outline" size={18} color="#667eea" />
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={[styles.actionButton, styles.deleteButton]}
+                                                    onPress={(e) => {
+                                                        e.stopPropagation();
+                                                        if (!isConnected) {
+                                                            Alert.alert('Modo offline', 'Você está offline. Não é possível excluir categorias.');
+                                                            return;
+                                                        }
+                                                        handleDeleteCategory(category.id, category.name);
+                                                    }}
+                                                >
+                                                    <Ionicons name="trash-outline" size={18} color="#ff4444" />
+                                                </TouchableOpacity>
+                                            </>
                                         )}
                                     </View>
                                 </View>
-                                <Ionicons name="chevron-forward" size={20} color="#ccc" />
-                            </View>
-                            
-                            {/* Rodapé com quantidade e ações */}
-                            <View style={styles.categoryFooter}>
-                                <View style={styles.categoryStats}>
-                                    <Ionicons name="list-outline" size={16} color="#666" />
-                                    <Text style={styles.categoryCount}>
-                                        {category.itemCount || 0} {(category.itemCount || 0) === 1 ? 'item' : 'itens'}
-                                    </Text>
-                                </View>
-                                
-                                <View style={styles.categoryActions}>
-                                    <TouchableOpacity
-                                        style={[styles.actionButton, styles.editButton]}
-                                        onPress={(e) => {
-                                            e.stopPropagation();
-                                            if (!isConnected) {
-                                                Alert.alert('Modo offline', 'Você está offline. Não é possível editar categorias.');
-                                                return;
-                                            }
-                                            handleEditCategory(category);
-                                        }}
-                                    >
-                                        <Ionicons name="create-outline" size={18} color="#667eea" />
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={[styles.actionButton, styles.deleteButton]}
-                                        onPress={(e) => {
-                                            e.stopPropagation();
-                                            if (!isConnected) {
-                                                Alert.alert('Modo offline', 'Você está offline. Não é possível excluir categorias.');
-                                                return;
-                                            }
-                                            handleDeleteCategory(category.id, category.name);
-                                        }}
-                                    >
-                                        <Ionicons name="trash-outline" size={18} color="#ff4444" />
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        </TouchableOpacity>
-                    ))
+                            </TouchableOpacity>
+                        );
+                    })
                 )}
             </ScrollView>
 
@@ -602,7 +613,7 @@ export default function CategoriesScreen({ navigation }) {
                                     placeholder="Ex: Alimentação, Transporte..."
                                     value={categoryName}
                                     onChangeText={setCategoryName}
-                                    maxLength={7}
+                                    maxLength={50}
                                 />
                             </View>
 
@@ -616,7 +627,7 @@ export default function CategoriesScreen({ navigation }) {
                                     onChangeText={setCategoryDescription}
                                     multiline
                                     numberOfLines={3}
-                                    maxLength={7}
+                                    maxLength={200}
                                 />
                             </View>
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useLayoutEffect } from 'react';
 import { 
     View, 
     Text, 
@@ -17,6 +17,7 @@ import { ConfirmButton } from '../components/buttons';
 import { PreviewHeader, ReceiptSummaryCard, EditableReceiptItemCard } from '../components/cards';
 import { SkeletonPreviewScreen, ErrorMessage } from '../components/common';
 import { useRequestThrottle } from '../hooks/useScreenFade';
+import { CardStyleInterpolators } from '@react-navigation/stack';
 import { moderateScale } from '../utils/responsive';
 import { theme } from '../utils/theme';
 
@@ -31,6 +32,9 @@ export default function PreViewScreen({ route, navigation }) {
     
     // Animação do header ao rolar
     const scrollY = useRef(new Animated.Value(0)).current;
+    // Pulso para o resumo da nota (sem bugs): reinicia ao abrir a tela
+    const pulseAnim = useRef(new Animated.Value(1)).current;
+    const pulseRef = useRef(null);
     const HEADER_HEIGHT = Platform.OS === 'ios' ? moderateScale(80) : moderateScale(110);
     const HEADER_SCROLL_DISTANCE = Platform.OS === 'ios' ? moderateScale(50) : moderateScale(45);
     
@@ -74,6 +78,61 @@ export default function PreViewScreen({ route, navigation }) {
             loadPreview();
         }
     }, [qrLink, receivedData, receiptId]);
+
+    // Reinicia a animação do resumo quando a tela recebe foco ou quando os dados do preview mudam
+    // Implementação segura: evita reiniciar duas vezes rapidamente (debounce) para prevenir "piscadas".
+    const pulseTimeoutRef = useRef(null);
+    const lastPulseAtRef = useRef(0);
+
+    const startPulse = () => {
+        // evita reiniciar muito frequentemente
+        const now = Date.now();
+        if (now - lastPulseAtRef.current < 300) return;
+
+        if (pulseRef.current) {
+            pulseRef.current.stop && pulseRef.current.stop();
+        }
+
+        pulseAnim.setValue(1);
+        const seq = Animated.sequence([
+            Animated.timing(pulseAnim, { toValue: 1.03, duration: 220, useNativeDriver: true }),
+            Animated.timing(pulseAnim, { toValue: 1, duration: 220, useNativeDriver: true }),
+        ]);
+
+        pulseRef.current = seq;
+        seq.start(() => {});
+        lastPulseAtRef.current = now;
+    };
+
+    useEffect(() => {
+        // inicia a animação quando o previewData primeiro chega (mas debounce evita dupla execução)
+        if (previewData) {
+            if (pulseTimeoutRef.current) clearTimeout(pulseTimeoutRef.current);
+            pulseTimeoutRef.current = setTimeout(() => startPulse(), 80);
+        }
+
+        // reinicia quando a tela ganha foco
+        const unsubscribe = navigation.addListener('focus', () => {
+            if (pulseTimeoutRef.current) clearTimeout(pulseTimeoutRef.current);
+            pulseTimeoutRef.current = setTimeout(() => startPulse(), 80);
+        });
+
+        return () => {
+            if (pulseTimeoutRef.current) clearTimeout(pulseTimeoutRef.current);
+            if (pulseRef.current) pulseRef.current.stop && pulseRef.current.stop();
+            unsubscribe && unsubscribe();
+        };
+    }, [navigation, previewData]);
+
+    // Se a tela foi aberta a partir do scanner, desabilita a animação de transição
+    useLayoutEffect(() => {
+        const fromScan = route.params?.fromScan;
+        if (fromScan) {
+            // Desabilita a animação de entrada para evitar duplo slide
+            navigation.setOptions({ cardStyleInterpolator: CardStyleInterpolators.forNoAnimation });
+        }
+        // Nota: não reverte aqui porque a configuração do navigator aplica por tela
+    }, [navigation, route.params]);
 
     const loadReceiptById = async () => {
         // ⚡ Previne múltiplas chamadas se já está carregando
@@ -373,12 +432,23 @@ export default function PreViewScreen({ route, navigation }) {
                         { useNativeDriver: false }
                     )}
                 >
-                    <ReceiptSummaryCard 
-                        storeName={previewData.storeName}
-                        subtotal={previewData.subtotal}
-                        discount={previewData.discount}
-                        total={previewData.total}
-                    />
+                    <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+                        {/* Normaliza campos para garantir que ReceiptSummaryCard receba números */}
+                        {(() => {
+                            const subtotalVal = parseFloat(previewData.subtotal ?? previewData.sub_total ?? previewData.total_before_discount ?? 0) || 0;
+                            const discountVal = parseFloat(previewData.discount ?? previewData.receipt?.discount ?? previewData.discount_amount ?? 0) || 0;
+                            const totalVal = parseFloat(previewData.total ?? previewData.total_after_discount ?? (subtotalVal - discountVal) ?? 0) || 0;
+
+                            return (
+                                <ReceiptSummaryCard 
+                                    storeName={previewData.storeName}
+                                    subtotal={subtotalVal}
+                                    discount={discountVal}
+                                    total={totalVal}
+                                />
+                            );
+                        })()}
+                    </Animated.View>
 
                     {/* Cabeçalho dos itens */}
                     <View style={styles.itemsHeader}>

@@ -69,7 +69,8 @@ export const RecentReceiptsSection = ({
                                 date={dateList[index] ? new Date(dateList[index]).toLocaleDateString('pt-BR', { 
                                     day: '2-digit', 
                                     month: '2-digit', 
-                                    year: 'numeric' 
+                                    year: 'numeric',
+                                    timeZone: 'America/Sao_Paulo'
                                 }) : ''}
                                 onPress={() => handleReceiptPress(receipt.id)}
                             />

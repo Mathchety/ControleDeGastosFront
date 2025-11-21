@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import httpClient from '../services/httpClient';
@@ -10,7 +11,96 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const refreshTimerRef = React.useRef(null); // 🔒 Timer para auto-refresh
+  const refreshFailCountRef = React.useRef(0); // Conta falhas de refresh (0 = nenhum, 1 = já falhou uma vez)
   const isInitializingRef = React.useRef(false); // 🚀 Previne múltiplas inicializações
+  const showingAuthAlertRef = React.useRef(false); // evita múltiplos alerts de login
+
+  // Handler único para falha no refresh - registrado no httpClient
+  const handleRefreshFail = async (err) => {
+    try {
+      console.warn('[AuthContext] handleRefreshFail chamado:', err?.message || err);
+      // Se já estivermos exibindo um alerta, ignora chamadas subsequentes
+      if (showingAuthAlertRef.current) {
+        console.warn('[AuthContext] alerta de auth já visível — ignorando chamada adicional');
+        return;
+      }
+      // Se já houve uma falha automática antes, exibimos apenas a opção de fazer login
+      if (refreshFailCountRef.current >= 1) {
+        showingAuthAlertRef.current = true;
+        Alert.alert(
+          'Sessão expirada',
+          'Sua sessão expirou. Faça login novamente para continuar.',
+          [
+            {
+              text: 'Fazer login',
+              onPress: async () => {
+                if (refreshTimerRef.current) clearInterval(refreshTimerRef.current);
+                await logout();
+                showingAuthAlertRef.current = false;
+              },
+            },
+          ],
+          { cancelable: false }
+        );
+        return;
+      }
+
+      // Primeira falha: pergunta ao usuário se quer tentar novamente
+      refreshFailCountRef.current = 1;
+      showingAuthAlertRef.current = true;
+      Alert.alert(
+        'Erro de renovação',
+        'Falha ao renovar a sessão. Deseja tentar novamente agora?',
+        [
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+            onPress: () => {
+              // permite futuros alerts
+              showingAuthAlertRef.current = false;
+            },
+          },
+          {
+            text: 'Tentar novamente',
+            onPress: async () => {
+              try {
+                // Forçamos uma nova tentativa imediata
+                const retried = await httpClient.refreshAccessToken();
+                if (retried) {
+                  await AsyncStorage.setItem('loginTimestamp', Date.now().toString());
+                  refreshFailCountRef.current = 0;
+                  showingAuthAlertRef.current = false;
+                  return;
+                }
+              } catch (retryErr) {
+                // Se falhar, mostramos a opção de fazer login (não tentamos mais retries automáticos)
+                showingAuthAlertRef.current = true;
+                Alert.alert(
+                  'Sessão expirada',
+                  'Não foi possível renovar a sessão. Faça login novamente para continuar.',
+                  [
+                    {
+                      text: 'Fazer login',
+                      onPress: async () => {
+                        if (refreshTimerRef.current) clearInterval(refreshTimerRef.current);
+                        await logout();
+                        showingAuthAlertRef.current = false;
+                      },
+                    },
+                  ],
+                  { cancelable: false }
+                );
+              }
+            },
+          },
+        ],
+        { cancelable: true }
+      );
+    } catch (handlerErr) {
+      if (refreshTimerRef.current) clearInterval(refreshTimerRef.current);
+      await logout();
+    }
+  };
 
   useEffect(() => {
     // Previne múltiplas chamadas de initializeAuth
@@ -24,6 +114,16 @@ export const AuthProvider = ({ children }) => {
       if (refreshTimerRef.current) {
         clearInterval(refreshTimerRef.current);
       }
+    };
+  }, []);
+
+  // Registra o handler de falha do refresh assim que o AuthProvider montar
+  useEffect(() => {
+    console.debug('[AuthContext] Registrando handler de refresh failure no httpClient');
+    httpClient.setOnRefreshFail(handleRefreshFail);
+    return () => {
+      console.debug('[AuthContext] Limpando handler de refresh failure no httpClient (unmount)');
+      httpClient.setOnRefreshFail(null);
     };
   }, []);
 
@@ -43,12 +143,13 @@ export const AuthProvider = ({ children }) => {
           if (newToken) {
             // Atualiza timestamp do login
             await AsyncStorage.setItem('loginTimestamp', Date.now().toString());
+            // reset fail count on success
+            refreshFailCountRef.current = 0;
           }
         }
       } catch (error) {
-        // Se falhar, limpa tudo e desloga
-        clearInterval(refreshTimerRef.current);
-        await logout();
+        // O httpClient notificará o AuthContext via setOnRefreshFail; aqui apenas logamos
+        console.warn('[AuthContext] setupAutoRefresh: falha ao renovar token (delegado ao handler)');
       }
     }, 6 * 60 * 60 * 1000); // A cada 6 horas
   };
@@ -61,30 +162,42 @@ export const AuthProvider = ({ children }) => {
   const initializeAuth = async () => {
     try {
       await httpClient.init();
+      // handler de refresh é registrado globalmente na montagem do provider
       const token = httpClient.getToken();
       const refreshToken = httpClient.getRefreshToken();
       const rememberMe = await AsyncStorage.getItem('rememberMe');
       if (token || refreshToken) {
         try {
-          await validateToken();
-          setLoading(false);
+          // Durante a inicialização do app não tentamos renovar automaticamente
+          // o token ao receber 401. Passamos allowAutoRefresh=false para que
+          // o httpClient não tente refresh nessa fase.
+          await validateToken(false);
           await setupAutoRefresh();
         } catch (tokenError) {
           if (rememberMe === 'true') {
             await tryAutoLogin();
           } else {
-            setLoading(false);
+            // nothing else
           }
         }
       } else if (rememberMe === 'true') {
         await tryAutoLogin();
       } else {
-        setLoading(false);
+        // nothing else
       }
     } catch (error) {
       // Silencioso: nunca mostra nada para o usuário
       await logout();
-      setLoading(false);
+    } finally {
+      // Garantir que não fiquemos presos na tela de splash — sempre
+      // definimos loading como false quando a inicialização terminar
+      // (sucesso ou falha). tryAutoLogin e logout já definem loading
+      // como false, mas reforçamos aqui para cobrir condições de corrida.
+      try {
+        setLoading(false);
+      } catch (e) {
+        // ignore
+      }
     }
   };
 
@@ -119,9 +232,9 @@ export const AuthProvider = ({ children }) => {
    * Valida o token atual chamando GET /me
    * Se falhar (401), o token é inválido/expirado
    */
-  const validateToken = async () => {
+  const validateToken = async (allowAutoRefresh = true) => {
     try {
-      const response = await httpClient.get('/me');
+      const response = await httpClient.get('/me', true, allowAutoRefresh);
 
       // Suporta várias formas que a API pode retornar:
       //  - { user: {...} }
@@ -137,7 +250,9 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Resposta inválida do /me');
       }
     } catch (error) {
-      await logout();
+      // Não desloga automaticamente aqui: se o token expirou tentaremos
+      // um fluxo de auto-login (rememberMe) no inicializador. Logout só
+      // deve ocorrer se não for possível renovar com refresh token.
       throw error;
     }
   };
@@ -175,6 +290,15 @@ export const AuthProvider = ({ children }) => {
         // Novo sistema com access + refresh tokens
         console.log('[AuthContext] ✅ Salvando access token e refresh token');
         httpClient.setTokens(response.accessToken, response.refreshToken);
+        // Re-registra o handler de falha do refresh após um novo login para garantir
+        // que o AuthContext receba notificações caso o httpClient tenha sido
+        // limpo anteriormente (ex: logout deixou handler nulo).
+        try {
+          console.debug('[AuthContext] Re-registrando onRefreshFail após login');
+          httpClient.setOnRefreshFail(handleRefreshFail);
+        } catch (e) {
+          console.warn('[AuthContext] Falha ao re-registrar onRefreshFail:', e);
+        }
       }
 
       // Salva email/senha se lembrarMe estiver ativo
@@ -225,6 +349,13 @@ export const AuthProvider = ({ children }) => {
       } else {
         // Novo sistema com access + refresh tokens
         httpClient.setTokens(response.accessToken, response.refreshToken);
+        // Re-registra handler após registro também
+        try {
+          console.debug('[AuthContext] Re-registrando onRefreshFail após register');
+          httpClient.setOnRefreshFail(handleRefreshFail);
+        } catch (e) {
+          console.warn('[AuthContext] Falha ao re-registrar onRefreshFail (register):', e);
+        }
       }
       
       // ✅ Só seta isAuthenticated DEPOIS que tudo deu certo
@@ -259,6 +390,18 @@ export const AuthProvider = ({ children }) => {
       
       // Limpa ambos os tokens
       httpClient.setTokens(null, null);
+      // Reseta flags internas do httpClient relacionadas a refresh
+      try {
+        httpClient.setOnRefreshFail(null);
+        // Garante que qualquer sinalização de notificação também seja limpa
+        try {
+          httpClient._notifiedRefreshFail = false;
+        } catch (e) {
+          // ignore se não existir
+        }
+      } catch (e) {
+        // ignore
+      }
       
       // Limpa o AsyncStorage
       await AsyncStorage.removeItem('user');
@@ -268,6 +411,8 @@ export const AuthProvider = ({ children }) => {
       // Limpa o estado
       setUser(null);
       setIsAuthenticated(false);
+      // Se estivermos no fluxo de inicialização, garante que loading seja false
+      setLoading(false);
     } catch (error) {
       // Silencioso
     }

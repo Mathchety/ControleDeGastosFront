@@ -3,10 +3,17 @@ import { View, Text, StyleSheet, Animated, ActivityIndicator, Platform, StatusBa
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export default function ProcessingNotification({ visible, message = "Processando nota fiscal..." }) {
+export default function ProcessingNotification({
+  visible,
+  message = 'Processando nota fiscal...',
+  progressDuration = null, // ms, if set animates progress bar over this duration
+  progressColor = '#667eea',
+  isOffline = false,
+}) {
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(-100)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
 
   // Calcula o top baseado na Dynamic Island/Notch/StatusBar
   // insets.top detecta automaticamente o tamanho da ilha, notch ou status bar
@@ -39,6 +46,16 @@ export default function ProcessingNotification({ visible, message = "Processando
           }),
         ])
       ).start();
+
+      // Se houver duração de progresso, anima a barra de 0->1
+      if (progressDuration && progressDuration > 0) {
+        progressAnim.setValue(0);
+        Animated.timing(progressAnim, {
+          toValue: 1,
+          duration: progressDuration,
+          useNativeDriver: false,
+        }).start();
+      }
     } else {
       // Animação de slide para cima (esconder)
       Animated.timing(slideAnim, {
@@ -46,10 +63,16 @@ export default function ProcessingNotification({ visible, message = "Processando
         duration: 300,
         useNativeDriver: true,
       }).start();
+      // reset progress
+      progressAnim.setValue(0);
     }
   }, [visible]);
 
   if (!visible) return null;
+
+  // Ajusta aparência quando for aviso offline
+  const accentColor = isOffline ? '#fb923c' : progressColor; // laranja para offline
+  const titleText = isOffline ? 'Sem conexão' : 'Processando...';
 
   return (
     <Animated.View
@@ -61,21 +84,32 @@ export default function ProcessingNotification({ visible, message = "Processando
             { translateY: slideAnim },
             { scale: pulseAnim }
           ],
+          // Borda laranja visível quando offline
+          borderLeftWidth: isOffline ? 6 : 0,
+          borderLeftColor: isOffline ? '#fb923c' : 'transparent',
         },
       ]}
     >
       <View style={styles.content}>
-        <ActivityIndicator size="small" color="#667eea" style={styles.loader} />
+        <ActivityIndicator size="small" color={accentColor} style={styles.loader} />
         <View style={styles.textContainer}>
-          <Text style={styles.title}>Processando...</Text>
+          <Text style={[styles.title, isOffline ? { color: '#b45309' } : null]}>{titleText}</Text>
           <Text style={styles.message}>{message}</Text>
         </View>
-        <Ionicons name="hourglass-outline" size={24} color="#667eea" />
+        <Ionicons name={isOffline ? 'alert-circle-outline' : 'hourglass-outline'} size={24} color={accentColor} />
       </View>
       
       {/* Barra de progresso animada */}
       <View style={styles.progressBar}>
-        <Animated.View style={styles.progressFill} />
+        <Animated.View
+          style={[
+            styles.progressFill,
+            {
+              backgroundColor: accentColor,
+              width: progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+            },
+          ]}
+        />
       </View>
     </Animated.View>
   );

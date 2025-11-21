@@ -64,7 +64,10 @@ export default function HistoryScreen({ navigation }) {
     try {
       setFilterLoading(true); // ⚡ Ativa loading ao trocar filtro
       const today = new Date();
-      const formatDate = (date) => date.toISOString().split('T')[0]; // YYYY-MM-DD
+      const formatDate = (date) => {
+        const { formatDateToBrazil } = require('../utils/dateUtils');
+        return formatDateToBrazil(date);
+      };
 
       switch (filterType) {
         case 'week':
@@ -196,16 +199,18 @@ export default function HistoryScreen({ navigation }) {
 
   const renderReceiptCard = ({ item, index }) => {
     const storeName = storeNameList[index] || item.storeName || 'Loja';
-    const date = dateList[index] 
+      const date = dateList[index] 
       ? new Date(dateList[index]).toLocaleDateString('pt-BR', { 
           day: '2-digit', 
           month: '2-digit', 
-          year: 'numeric' 
+          year: 'numeric',
+          timeZone: 'America/Sao_Paulo'
         })
       : item.date;
     const itemCount = itemCountList[index] || item.itemCount || 0;
-    const total = parseFloat(item.total || 0);
-    const discount = parseFloat(item.discount || 0);
+  const total = parseFloat(item.total || 0);
+  const discount = parseFloat(item.discount || 0);
+  const subtotal = parseFloat(item.subtotal || 0);
 
     return (
       <TouchableOpacity
@@ -243,9 +248,12 @@ export default function HistoryScreen({ navigation }) {
             {discount > 0 && (
               <View style={styles.statItem}>
                 <Ionicons name="pricetag-outline" size={16} color="#10b981" />
-                <Text style={styles.receiptDiscount}>
-                  - R$ {discount.toFixed(2)}
-                </Text>
+                <View style={{ marginLeft: moderateScale(6) }}>
+                  <Text style={styles.receiptDiscountLabel}>Desconto</Text>
+                  <Text style={styles.receiptDiscount}>
+                    - R$ {discount.toFixed(2)}
+                  </Text>
+                </View>
               </View>
             )}
             <View style={styles.statItem}>
@@ -316,7 +324,7 @@ export default function HistoryScreen({ navigation }) {
             filterType === 'custom' && styles.customPeriodTextActive
           ]}>
             {filterType === 'custom' 
-              ? `${startDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - ${endDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`
+              ? `${startDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })} - ${endDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })}`
               : 'Período customizado'
             }
           </Text>
@@ -491,6 +499,18 @@ const styles = StyleSheet.create({
   receiptDiscount: {
     fontSize: moderateScale(14),
     color: '#10b981',
+    fontWeight: '700',
+    marginLeft: moderateScale(6),
+  },
+  receiptDiscountLabel: {
+    fontSize: moderateScale(12),
+    color: '#10b981',
+    fontWeight: '600',
+    lineHeight: moderateScale(14),
+  },
+  receiptSubtotal: {
+    fontSize: moderateScale(14),
+    color: '#666',
     fontWeight: '700',
     marginLeft: moderateScale(6),
   },
