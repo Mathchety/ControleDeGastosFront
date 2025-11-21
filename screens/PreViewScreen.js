@@ -507,7 +507,10 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         zIndex: 10,
-        overflow: 'hidden',
+        // Avoid forcing overflow hidden on Android — some devices (Samsung, Poco)
+        // can exhibit a gray/frozen screen when combining large gradients,
+        // borderRadius and overflow: 'hidden'. Keep hidden on iOS where it's safe.
+        overflow: Platform.OS === 'ios' ? 'hidden' : 'visible',
     },
     headerGradient: {
         position: 'absolute',
@@ -515,13 +518,17 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
-        borderBottomLeftRadius: theme.radius.xl,
-        borderBottomRightRadius: theme.radius.xl,
+        // Apply rounded corners only on iOS to avoid Android GPU rendering bugs
+        borderBottomLeftRadius: Platform.OS === 'ios' ? theme.radius.xl : 0,
+        borderBottomRightRadius: Platform.OS === 'ios' ? theme.radius.xl : 0,
     },
     headerContent: {
         flex: 1,
         justifyContent: 'flex-start',
-        paddingTop: Platform.OS === 'ios' ? moderateScale(15) : StatusBar.currentHeight + moderateScale(5),
+        // Guard StatusBar.currentHeight on Android — fallback if undefined
+        paddingTop: Platform.OS === 'ios'
+            ? moderateScale(15)
+            : (StatusBar.currentHeight ? StatusBar.currentHeight + moderateScale(5) : moderateScale(20)),
         paddingBottom: moderateScale(5),
         zIndex: 1,
     },
