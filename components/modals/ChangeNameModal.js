@@ -83,13 +83,13 @@ export const ChangeNameModal = ({ visible, onClose, onSubmit, currentName }) => 
 
                     {/* Body */}
                     <View style={styles.body}>
-                        <Text style={styles.label}>Novo Nome</Text>
+                        <Text style={styles.label}>Novo Nome <Text style={styles.requiredAsterisk}>*</Text></Text>
                         <TextInput
                             style={styles.input}
                             placeholder="Digite seu nome completo"
                             value={name}
                             onChangeText={setName}
-                            maxLength={7}
+                            maxLength={50}
                             autoCapitalize="words"
                             editable={!loading}
                         />
@@ -168,6 +168,11 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#333',
         marginBottom: moderateScale(8),
+    },
+    requiredAsterisk: {
+        color: theme.colors.danger,
+        fontWeight: '700',
+        marginLeft: moderateScale(4),
     },
     input: {
         backgroundColor: '#f5f5f5',

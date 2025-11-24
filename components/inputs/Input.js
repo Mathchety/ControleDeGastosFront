@@ -18,6 +18,7 @@ export const Input = forwardRef(({
     onToggle,
     style,
     error,
+    required = false,
     maxLength = 255,
     autoCapitalize = 'none',
     onFocus: externalOnFocus,
@@ -93,6 +94,9 @@ export const Input = forwardRef(({
                         style={styles.inputIcon} 
                     />
                 )}
+                {required && (
+                    <Text style={styles.requiredAsterisk} accessibilityLabel="Campo obrigatório">*</Text>
+                )}
                 <TextInput
                     ref={ref}
                     style={styles.input}
@@ -162,5 +166,12 @@ const styles = StyleSheet.create({
         marginTop: moderateScale(3),
         marginLeft: moderateScale(12),
         fontWeight: '500',
+    },
+    requiredAsterisk: {
+        color: theme.colors.danger,
+        fontWeight: '700',
+        marginRight: moderateScale(6),
+        fontSize: moderateScale(16),
+        alignSelf: 'center',
     },
 });

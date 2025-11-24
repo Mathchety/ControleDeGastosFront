@@ -158,7 +158,7 @@ export const ChangeEmailModal = ({ visible, onClose, onRequestChange, onConfirmC
                                     <Text style={styles.currentEmail}>{currentEmail}</Text>
                                 </View>
 
-                                <Text style={styles.label}>Novo Email</Text>
+                                <Text style={styles.label}>Novo Email <Text style={styles.requiredAsterisk}>*</Text></Text>
                                 <TextInput
                                     style={styles.input}
                                     placeholder="Digite o novo email"
@@ -212,7 +212,7 @@ export const ChangeEmailModal = ({ visible, onClose, onRequestChange, onConfirmC
                                     Digite o código de 6 dígitos enviado para seu email atual
                                 </Text>
 
-                                <Text style={styles.label}>Código de Verificação (Email Atual)</Text>
+                                <Text style={styles.label}>Código de Verificação (Email Atual) <Text style={styles.requiredAsterisk}>*</Text></Text>
                                 <TextInput
                                     style={[styles.input, styles.codeInput]}
                                     placeholder="000000"
@@ -262,7 +262,7 @@ export const ChangeEmailModal = ({ visible, onClose, onRequestChange, onConfirmC
                                     Digite o código de 6 dígitos enviado para seu novo email
                                 </Text>
 
-                                <Text style={styles.label}>Código de Verificação (Novo Email)</Text>
+                                <Text style={styles.label}>Código de Verificação (Novo Email) <Text style={styles.requiredAsterisk}>*</Text></Text>
                                 <TextInput
                                     style={[styles.input, styles.codeInput]}
                                     placeholder="000000"
@@ -361,6 +361,11 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#333',
         marginBottom: moderateScale(8),
+    },
+    requiredAsterisk: {
+        color: theme.colors.danger,
+        fontWeight: '700',
+        marginLeft: moderateScale(4),
     },
     currentEmailContainer: {
         backgroundColor: '#f5f5f5',

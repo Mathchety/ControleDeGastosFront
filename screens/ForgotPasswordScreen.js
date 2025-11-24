@@ -163,6 +163,7 @@ export default function ForgotPasswordScreen({ navigation, route }) {
                                 autoCapitalize="none"
                                 maxLength={100}
                                 onFocus={scrollToBottom}
+                                required
                             />
                         </View>
 

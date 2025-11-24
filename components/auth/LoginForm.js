@@ -151,6 +151,7 @@ export const LoginForm = ({ onSuccess, onForgotPassword }) => {
                             returnKeyType="next"
                             onSubmitEditing={() => passwordInputRef.current?.focus()}
                             blurOnSubmit={false}
+                            required
                         />
 
                         <Input
@@ -163,6 +164,7 @@ export const LoginForm = ({ onSuccess, onForgotPassword }) => {
                             onFocus={scrollToBottom}
                             returnKeyType="go"
                             onSubmitEditing={handleLogin}
+                            required
                         />
 
                         <TouchableOpacity 

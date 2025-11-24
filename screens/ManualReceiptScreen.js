@@ -357,7 +357,7 @@ export default function ManualReceiptScreen({ navigation }) {
                         <Text style={styles.sectionTitle}>Informações da Nota</Text>
                         
                         <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Estabelecimento</Text>
+                            <Text style={styles.label}>Estabelecimento <Text style={styles.requiredAsterisk}>*</Text></Text>
                             <TextInput
                                 style={styles.input}
                                 value={storeName}
@@ -553,7 +553,7 @@ export default function ManualReceiptScreen({ navigation }) {
                             >
                                 {/* Nome do Produto */}
                                 <View style={styles.formGroup}>
-                                    <Text style={styles.formLabel}>Produto</Text>
+                                    <Text style={styles.formLabel}>Produto <Text style={styles.requiredAsterisk}>*</Text></Text>
                                     <TextInput
                                         style={styles.formInput}
                                         value={newItem.productName}
@@ -621,13 +621,13 @@ export default function ManualReceiptScreen({ navigation }) {
 
                                 {/* Quantidade */}
                                 <View style={styles.formGroup}>
-                                    <Text style={styles.formLabel}>
-                                        {newItem.unity === 'KG'
-                                            ? 'Peso'
-                                            : newItem.unity === 'ML'
-                                            ? 'Volume'
-                                            : 'Quantidade'}
-                                    </Text>
+                    <Text style={styles.formLabel}>
+                        {newItem.unity === 'KG'
+                            ? 'Peso'
+                            : newItem.unity === 'ML'
+                            ? 'Volume'
+                            : 'Quantidade'} <Text style={styles.requiredAsterisk}>*</Text>
+                        </Text>
                                     <TextInput
                                         style={styles.formInput}
                                         value={newItem.quantity}
@@ -644,7 +644,7 @@ export default function ManualReceiptScreen({ navigation }) {
 
                                 {/* Total */}
                                 <View style={styles.formGroup}>
-                                    <Text style={styles.formLabel}>Total (R$)</Text>
+                                    <Text style={styles.formLabel}>Total (R$) <Text style={styles.requiredAsterisk}>*</Text></Text>
                                     <TextInput
                                         style={styles.formInput}
                                         value={newItem.total}
@@ -661,7 +661,7 @@ export default function ManualReceiptScreen({ navigation }) {
 
                                 {/* Categoria */}
                                 <View style={styles.formGroup}>
-                                    <Text style={styles.formLabel}>Categoria</Text>
+                                    <Text style={styles.formLabel}>Categoria <Text style={styles.requiredAsterisk}>*</Text></Text>
                                     {loadingCategories ? (
                                         <ActivityIndicator color="#667eea" style={styles.categoryLoader} />
                                     ) : (
@@ -1060,6 +1060,11 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#666',
         marginBottom: moderateScale(8),
+    },
+    requiredAsterisk: {
+        color: theme.colors.danger,
+        fontWeight: '700',
+        marginLeft: moderateScale(4),
     },
     formInput: {
         backgroundColor: '#f8f9fa',

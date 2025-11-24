@@ -220,7 +220,7 @@ export default function ResetPasswordLoggedScreen({ navigation, route }) {
                     {/* Formulário */}
                     <View style={styles.form}>
                         {/* Código de Verificação */}
-                        <Text style={styles.label}>Código de Verificação</Text>
+                        <Text style={styles.label}>Código de Verificação <Text style={styles.requiredAsterisk}>*</Text></Text>
                         <View style={styles.codeContainer}>
                             {code.map((digit, index) => (
                                 <TextInput
@@ -250,7 +250,7 @@ export default function ResetPasswordLoggedScreen({ navigation, route }) {
                         </TouchableOpacity>
 
                         {/* Nova Senha */}
-                        <Text style={styles.label}>Nova Senha</Text>
+                        <Text style={styles.label}>Nova Senha <Text style={styles.requiredAsterisk}>*</Text></Text>
                         <View style={styles.inputContainer}>
                             <Ionicons name="lock-closed-outline" size={20} color="#999" style={styles.inputIcon} />
                             <TextInput
@@ -273,7 +273,7 @@ export default function ResetPasswordLoggedScreen({ navigation, route }) {
                         </View>
 
                         {/* Confirmar Senha */}
-                        <Text style={styles.label}>Confirmar Senha</Text>
+                        <Text style={styles.label}>Confirmar Senha <Text style={styles.requiredAsterisk}>*</Text></Text>
                         <View style={styles.inputContainer}>
                             <Ionicons name="lock-closed-outline" size={20} color="#999" style={styles.inputIcon} />
                             <TextInput
@@ -438,6 +438,11 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#333',
         marginBottom: moderateScale(isSmallDevice ? 6 : 8),
+    },
+    requiredAsterisk: {
+        color: '#ef4444',
+        fontWeight: '700',
+        marginLeft: moderateScale(4),
     },
     codeContainer: {
         flexDirection: 'row',

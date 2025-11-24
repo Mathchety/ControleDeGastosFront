@@ -12,6 +12,7 @@ import {
     Keyboard,
     Animated,
     ScrollView,
+    Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -56,6 +57,7 @@ const AnimatedForm = React.memo(({ isRegisterView, onSuccess, navigation }) => {
     const [nameRegister, setNameRegister] = useState('');
     const [emailRegister, setEmailRegister] = useState('');
     const [passwordRegister, setPasswordRegister] = useState('');
+    const [termsAccepted, setTermsAccepted] = useState(false);
 
     // 🔐 Carrega credenciais salvas de forma segura
     useEffect(() => {
@@ -140,6 +142,10 @@ const AnimatedForm = React.memo(({ isRegisterView, onSuccess, navigation }) => {
      * handleRegister - Função integrada com API
      */
     const handleRegister = async () => {
+        if (!termsAccepted) {
+            setError({ visible: true, message: 'Por favor, aceite os Termos de Uso e Política de Privacidade.', type: 'warning' });
+            return;
+        }
         if (!nameRegister || !emailRegister || !passwordRegister) {
             setError({
                 visible: true,
@@ -209,6 +215,7 @@ const AnimatedForm = React.memo(({ isRegisterView, onSuccess, navigation }) => {
                         placeholder="Nome completo"
                         value={nameRegister}
                         onChangeText={setNameRegister}
+                        required
                     />
 
                     <Input
@@ -218,6 +225,7 @@ const AnimatedForm = React.memo(({ isRegisterView, onSuccess, navigation }) => {
                         autoCapitalize="none"
                         value={emailRegister}
                         onChangeText={setEmailRegister}
+                        required
                     />
 
                     <Input
@@ -226,7 +234,26 @@ const AnimatedForm = React.memo(({ isRegisterView, onSuccess, navigation }) => {
                         secureTextEntry
                         value={passwordRegister}
                         onChangeText={setPasswordRegister}
+                        required
                     />
+
+                    {/* Termos LGPD - checkbox + link + aceitar */}
+                    <View style={styles.termsBlock}> 
+                            <View style={styles.termsTopRow}>
+                                <TouchableOpacity onPress={() => setTermsAccepted(!termsAccepted)} style={styles.checkboxLarge} activeOpacity={0.7} accessibilityRole="checkbox" accessibilityState={{ checked: termsAccepted }}>
+                                {termsAccepted ? (
+                                    <Ionicons name="checkbox" size={20} color="#007bff" />
+                                ) : (
+                                    <Ionicons name="square-outline" size={20} color="#666" />
+                                )}
+                            </TouchableOpacity>
+                                <View style={styles.termsTextRow}>
+                                    <Text style={styles.termsText}>Li e aceito os </Text>
+                                    <Text style={styles.termsLink} onPress={() => navigation.navigate('Terms')}>Termos de Uso e Política de Privacidade</Text>
+                                </View>
+                        </View>
+                    </View>
+
 
                     <PrimaryButton
                         title="Registrar"
@@ -267,6 +294,7 @@ const AnimatedForm = React.memo(({ isRegisterView, onSuccess, navigation }) => {
                     autoCapitalize="none"
                     value={emailLogin}
                     onChangeText={setEmailLogin}
+                    required
                 />
 
                 <Input
@@ -275,6 +303,7 @@ const AnimatedForm = React.memo(({ isRegisterView, onSuccess, navigation }) => {
                     secureTextEntry
                     value={passwordLogin}
                     onChangeText={setPasswordLogin}
+                    required
                 />
 
                 {/* 🔒 Checkbox Lembrar-me */}
@@ -642,6 +671,37 @@ const styles = StyleSheet.create({
         color: '#007bff',
         fontWeight: '700',
     },
+    /* Styles for terms block (register form) */
+    termsBlock: {
+        width: '100%',
+        marginTop: moderateScale(8),
+    },
+    termsTopRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    checkboxLarge: {
+        marginRight: moderateScale(10),
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: moderateScale(32),
+        height: moderateScale(32),
+    },
+    termsTextRow: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+    },
+    termsText: {
+        color: '#333',
+        fontSize: moderateScale(13),
+    },
+    termsLink: {
+        color: '#007bff',
+        textDecorationLine: 'underline',
+    },
+    /* accept button removed - only checkbox + link remain */
 });
 
 export default AuthScreen;

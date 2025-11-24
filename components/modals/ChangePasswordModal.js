@@ -115,7 +115,7 @@ export const ChangePasswordModal = ({ visible, onClose, onSuccess }) => {
                         <View style={styles.form}>
                             {/* Senha Atual */}
                             <View style={styles.inputContainer}>
-                                <Text style={styles.label}>Senha Atual</Text>
+                                <Text style={styles.label}>Senha Atual <Text style={styles.requiredAsterisk}>*</Text></Text>
                                 <View style={styles.passwordInputWrapper}>
                                     <TextInput
                                         style={styles.passwordInput}
@@ -142,7 +142,7 @@ export const ChangePasswordModal = ({ visible, onClose, onSuccess }) => {
 
                             {/* Nova Senha */}
                             <View style={styles.inputContainer}>
-                                <Text style={styles.label}>Nova Senha</Text>
+                                <Text style={styles.label}>Nova Senha <Text style={styles.requiredAsterisk}>*</Text></Text>
                                 <View style={styles.passwordInputWrapper}>
                                     <TextInput
                                         style={styles.passwordInput}
@@ -169,7 +169,7 @@ export const ChangePasswordModal = ({ visible, onClose, onSuccess }) => {
 
                             {/* Confirmar Nova Senha */}
                             <View style={styles.inputContainer}>
-                                <Text style={styles.label}>Confirmar Nova Senha</Text>
+                                <Text style={styles.label}>Confirmar Nova Senha <Text style={styles.requiredAsterisk}>*</Text></Text>
                                 <View style={styles.passwordInputWrapper}>
                                     <TextInput
                                         style={styles.passwordInput}
@@ -284,6 +284,11 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#1a1a1a',
         marginBottom: moderateScale(8),
+    },
+    requiredAsterisk: {
+        color: theme.colors.danger,
+        fontWeight: '700',
+        marginLeft: moderateScale(4),
     },
     passwordInputWrapper: {
         flexDirection: 'row',

@@ -107,7 +107,10 @@ export default function ChangePasswordScreen({ navigation }) {
                     {/* Formulário */}
                     <View style={styles.form}>
                         {/* Senha Atual */}
-                        <Text style={styles.label}>Senha Atual</Text>
+                        <View style={styles.labelRow}>
+                            <Text style={styles.label}>Senha Atual</Text>
+                            <Text style={styles.requiredAsterisk}>*</Text>
+                        </View>
                         <View style={styles.inputContainer}>
                             <Ionicons name="lock-closed-outline" size={20} color="#999" style={styles.inputIcon} />
                             <TextInput
@@ -130,7 +133,10 @@ export default function ChangePasswordScreen({ navigation }) {
                         </View>
 
                         {/* Nova Senha */}
-                        <Text style={styles.label}>Nova Senha</Text>
+                        <View style={styles.labelRow}>
+                            <Text style={styles.label}>Nova Senha</Text>
+                            <Text style={styles.requiredAsterisk}>*</Text>
+                        </View>
                         <View style={styles.inputContainer}>
                             <Ionicons name="lock-closed-outline" size={20} color="#999" style={styles.inputIcon} />
                             <TextInput
@@ -153,7 +159,10 @@ export default function ChangePasswordScreen({ navigation }) {
                         </View>
 
                         {/* Confirmar Nova Senha */}
-                        <Text style={styles.label}>Confirmar Nova Senha</Text>
+                        <View style={styles.labelRow}>
+                            <Text style={styles.label}>Confirmar Nova Senha</Text>
+                            <Text style={styles.requiredAsterisk}>*</Text>
+                        </View>
                         <View style={styles.inputContainer}>
                             <Ionicons name="lock-closed-outline" size={20} color="#999" style={styles.inputIcon} />
                             <TextInput
@@ -248,6 +257,16 @@ const styles = StyleSheet.create({
         color: '#333',
         marginBottom: moderateScale(10),
         marginTop: moderateScale(10),
+    },
+    labelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    requiredAsterisk: {
+        color: '#e53935',
+        marginLeft: moderateScale(6),
+        fontSize: fontScale(16),
+        fontWeight: '700',
     },
     inputContainer: {
         flexDirection: 'row',

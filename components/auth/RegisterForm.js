@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Dimensions, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Dimensions, Keyboard, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { PrimaryButton } from '../buttons';
 import { Input } from '../inputs';
 import { LoadingModal } from '../modals';
 import { moderateScale } from '../../utils/responsive';
+import { useNavigation } from '@react-navigation/native';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const isSmallDevice = SCREEN_HEIGHT < 700; // iPhone SE, iPhone 8, etc.
@@ -16,11 +17,13 @@ const isSmallDevice = SCREEN_HEIGHT < 700; // iPhone SE, iPhone 8, etc.
  */
 export const RegisterForm = ({ onSuccess }) => {
     const { register } = useAuth();
+    const navigation = useNavigation();
     const [loading, setLoading] = useState(false);
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
+    const [termsAccepted, setTermsAccepted] = useState(false);
 
     const scrollRef = useRef(null);
 
@@ -65,6 +68,11 @@ export const RegisterForm = ({ onSuccess }) => {
 
     const handleRegister = async () => {
         setErrorMessage(''); // Limpa mensagem de erro anterior
+        // Validação do aceite dos termos (LGPD)
+        if (!termsAccepted) {
+            setErrorMessage('Para criar a conta é necessário aceitar os Termos de Uso e a Política de Privacidade.');
+            return;
+        }
         
         if (!name || !email || !password) {
             setErrorMessage("Por favor, preencha todos os campos.");
@@ -99,7 +107,7 @@ export const RegisterForm = ({ onSuccess }) => {
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={{ flex: 1 }}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? (isSmallDevice ? 80 : 0) : 24}
             >
                 <ScrollView 
                     ref={scrollRef} 
@@ -131,6 +139,7 @@ export const RegisterForm = ({ onSuccess }) => {
                             value={name}
                             onChangeText={setName}
                             onFocus={scrollToBottom}
+                            required
                         />
 
                         <Input
@@ -141,6 +150,7 @@ export const RegisterForm = ({ onSuccess }) => {
                             value={email}
                             onChangeText={setEmail}
                             onFocus={scrollToBottom}
+                            required
                         />
 
                         <Input
@@ -150,15 +160,38 @@ export const RegisterForm = ({ onSuccess }) => {
                             value={password}
                             onChangeText={setPassword}
                             onFocus={scrollToBottom}
+                            required
                         />
 
-                        <PrimaryButton
-                            title="Registrar"
-                            icon="arrow-forward"
-                            onPress={handleRegister}
-                            loading={loading}
-                            colors={['#007bff', '#0056b3']}
-                        />
+                        <View style={{ marginTop: moderateScale(8) }}>
+                            <View style={styles.termsBlock}>
+                                <View style={styles.termsTopRow}>
+                                    <TouchableOpacity onPress={() => setTermsAccepted(!termsAccepted)} style={styles.checkboxLarge}>
+                                        {termsAccepted ? (
+                                            <Ionicons name="checkbox" size={22} color="#007bff" />
+                                        ) : (
+                                            <Ionicons name="square-outline" size={22} color="#666" />
+                                        )}
+                                    </TouchableOpacity>
+                                    <View style={styles.termsTextRow}>
+                                        <Text style={styles.termsText}>Li e aceito os </Text>
+                                        <Text style={styles.termsLink} onPress={() => navigation.navigate('Terms')}>Termos de Uso e Política de Privacidade</Text>
+                                    </View>
+                                </View>
+
+                            </View>
+
+                            <PrimaryButton
+                                title="Registrar"
+                                icon="arrow-forward"
+                                onPress={handleRegister}
+                                loading={loading}
+                                disabled={!termsAccepted || loading}
+                                colors={termsAccepted ? ['#007bff', '#0056b3'] : ['#e6e9ef', '#cbd5e1']}
+                            />
+                        </View>
+
+                        {/* Term details moved to separate screen (Terms). */}
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
@@ -171,7 +204,8 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         paddingHorizontal: moderateScale(16),
         paddingTop: isSmallDevice ? moderateScale(8) : moderateScale(20),
-        paddingBottom: isSmallDevice ? moderateScale(250) : moderateScale(300),
+        // Menor paddingBottom em telas pequenas para evitar que o conteúdo seja empurrado para fora da tela
+        paddingBottom: isSmallDevice ? moderateScale(120) : moderateScale(300),
     },
     formContainer: {
         backgroundColor: '#fff',
@@ -218,5 +252,78 @@ const styles = StyleSheet.create({
         fontSize: isSmallDevice ? moderateScale(12) : moderateScale(13),
         fontWeight: '500',
         lineHeight: isSmallDevice ? 18 : 20,
+    },
+    termsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: moderateScale(12),
+    },
+    checkbox: {
+        marginRight: moderateScale(8),
+    },
+    checkboxLarge: {
+        marginRight: moderateScale(10),
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: moderateScale(32),
+        height: moderateScale(32),
+    },
+    emptyBox: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: moderateScale(28),
+        height: moderateScale(28),
+        borderRadius: moderateScale(4),
+        borderWidth: 0,
+    },
+    termsTextRow: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+    },
+    termsBlock: {
+        width: '100%',
+    },
+    termsTopRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    termsText: {
+        flex: 1,
+        color: '#333',
+        fontSize: isSmallDevice ? moderateScale(12) : moderateScale(13),
+    },
+    termsLink: {
+        color: '#007bff',
+        textDecorationLine: 'underline',
+    },
+    termsContainer: {
+        padding: moderateScale(16),
+        backgroundColor: '#fff',
+        paddingBottom: moderateScale(40),
+    },
+    termsTitle: {
+        fontSize: moderateScale(18),
+        fontWeight: '700',
+        marginBottom: moderateScale(12),
+    },
+    termsBody: {
+        color: '#333',
+        fontSize: moderateScale(14),
+        marginBottom: moderateScale(10),
+        lineHeight: 20,
+    },
+    termsClose: {
+        marginTop: moderateScale(12),
+        alignSelf: 'center',
+        paddingVertical: moderateScale(10),
+        paddingHorizontal: moderateScale(20),
+        backgroundColor: '#007bff',
+        borderRadius: 8,
+    },
+    termsCloseText: {
+        color: '#fff',
+        fontWeight: '600',
     },
 });
