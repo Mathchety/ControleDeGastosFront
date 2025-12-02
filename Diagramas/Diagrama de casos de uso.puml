@@ -1,37 +1,32 @@
-@startuml Diagrama de casos de uso
 @startuml DiagramaCasosUso
+title Diagrama de Casos de Uso
 left to right direction
 skinparam packageStyle rectangle
 
 ' Actors
 actor "Usuário" as User
-actor "Administrador" as Admin
 
 rectangle "Aplicação Controle de Gastos" {
-	usecase "Login\n(Lembrar-me)" as UC_Login
-	usecase "Registrar Conta" as UC_Register
+    usecase "Logar" as UC_Login
+    usecase "Registrar Conta" as UC_Register
 
-	usecase "Escanear QR Code" as UC_Scan
-	usecase "Visualizar Preview" as UC_Preview
-	usecase "Confirmar Nota" as UC_Confirm
-	usecase "Adicionar Nota Manual" as UC_Manual
+    usecase "Escanear QR Code" as UC_Scan
+    usecase "Visualizar Preview" as UC_Preview
+    usecase "Confirmar Nota" as UC_Confirm
+    usecase "Adicionar Nota Manual" as UC_Manual
 
-	usecase "Ver Histórico" as UC_History
-	usecase "Visualizar Detalhes da Nota" as UC_ViewDetail
-	usecase "Editar Nota" as UC_EditReceipt
-	usecase "Excluir Nota" as UC_DeleteReceipt
+    usecase "Ver Histórico" as UC_History
+    usecase "Visualizar Detalhes da Nota" as UC_ViewDetail
+    usecase "Excluir Nota" as UC_DeleteReceipt
 
-	usecase "Gerenciar Categorias" as UC_ManageCategories
-	usecase "Editar Item" as UC_EditItem
+    usecase "Gerenciar Categorias" as UC_ManageCategories
+    usecase "Visualizar Estatísticas" as UC_Stats
 
-	usecase "Visualizar Estatísticas" as UC_Stats
+    usecase "Gerenciar Perfil" as UC_Profile
+    usecase "Alterar Avatar" as UC_Avatar
+    usecase "Alterar Senha / Email" as UC_Credentials
 
-	usecase "Gerenciar Perfil" as UC_Profile
-	usecase "Alterar Avatar" as UC_Avatar
-	usecase "Alterar Senha / Email" as UC_Credentials
-
-	usecase "Configurações / Excluir Conta" as UC_Settings
-	usecase "Modo Offline (Cache/Leitura)" as UC_Offline
+    usecase "Configurações / Excluir Conta" as UC_Settings
 }
 
 ' Primary relationships
@@ -45,11 +40,9 @@ User --> UC_Manual
 
 User --> UC_History
 User --> UC_ViewDetail
-User --> UC_EditReceipt
 User --> UC_DeleteReceipt
 
 User --> UC_ManageCategories
-User --> UC_EditItem
 
 User --> UC_Stats
 
@@ -58,23 +51,13 @@ User --> UC_Avatar
 User --> UC_Credentials
 
 User --> UC_Settings
-User --> UC_Offline
 
-' Admin responsibilities
-Admin --> UC_ManageCategories
-Admin --> UC_Settings
 
-' Notes
-note right of UC_Login
-	A opção "Lembrar-me" persiste credenciais
-	e pode ser desativada quando campos do
-	perfil são alterados.
-end note
+' Include / Extend relationships
+UC_Scan ..> UC_Preview : <<include>>
+UC_Confirm ..> UC_Preview : <<include>>
+UC_Profile ..> UC_Credentials : <<include>>
 
-note left of UC_Offline
-	Modo leitura/offline permite visualizar
-	recibos em cache, mas bloqueia edição/exclusão.
-end note
+
 
 @enduml
-

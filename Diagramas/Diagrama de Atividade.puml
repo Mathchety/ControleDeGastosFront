@@ -1,0 +1,113 @@
+@startuml DiagramaAtividade
+title Diagrama de Atividade - Controle de Gastos
+
+start
+
+:Abrir App / Splash;
+if (Credenciais salvas e "Lembrar-me" ativo?) then (sim)
+	:Autenticar automaticamente;
+else (não)
+	:Mostrar tela de Login;
+	if (Usuário submete credenciais válidas?) then (sim)
+		:Autenticar usuário;
+	else (não)
+		:Exibir erro de login;
+		stop
+	endif
+endif
+
+:Exibir tela Principal (Home);
+
+partition "Escanear / Preview" {
+	:Abrir Scanner (QR);
+	:Ler QR -> obter preview;
+	if (Preview obtido?) then (sim)
+		:Exibir Preview da nota;
+		if (Nota já salva no servidor?) then (sim)
+			if (Online?) then (sim)
+				:Permitir editar itens (API update);
+			else (não)
+				:Modo somente leitura (edição bloqueada);
+			endif
+		else (nova nota)
+			:Permitir editar itens localmente;
+		endif
+
+		if (Usuário confirma nota?) then (sim)
+			if (Online?) then (sim)
+				:Enviar nota ao servidor (salvar);
+				:Navegar para Home / Histórico;
+			else (não)
+				:Mostrar aviso offline e bloquear confirmação;
+			endif
+		else (não)
+			:Voltar / continuar editando;
+		endif
+	else (não)
+		:Exibir erro de leitura;
+	endif
+}
+
+partition "Nota Manual" {
+	:Abrir tela Adicionar Nota Manual;
+	:Adicionar itens e validar campos;
+	if (Valores válidos?) then (sim)
+		if (Online?) then (sim)
+			:Enviar nota manual para servidor;
+		else (não)
+			:Alertar usuário (salvar offline não implementado);
+		endif
+	else (não)
+		:Exibir mensagens de validação;
+	endif
+}
+
+partition "Histórico" {
+	:Abrir Histórico;
+	:Listar notas (cache + servidor);
+	:Selecionar nota -> Visualizar Detalhes;
+	if (Online?) then (sim)
+		:Permitir editar/excluir;
+	else (não)
+		:Somente leitura (edição bloqueada);
+	endif
+}
+
+partition "Categorias" {
+	:Abrir Gerenciar Categorias;
+	if (Online?) then (sim)
+		:Criar / Editar / Excluir (API);
+	else (não)
+		:Bloquear ações de alteração;
+	endif
+}
+
+partition "Perfil" {
+	:Abrir Perfil;
+	:Exibir nome, email, avatar;
+	if (Usuário edita campos?) then (sim)
+		if (Online?) then (sim)
+			:Salvar mudanças via API;
+			note right
+				Ao modificar nome/email/senha,
+				desativar o flag "Lembrar-me" para
+				forçar re-login quando necessário.
+			end note
+		else (não)
+			:Bloquear edição (offline);
+		endif
+	endif
+}
+
+partition "Config / Logout" {
+	:Abrir Configurações;
+	if (Usuário escolhe Logout?) then (sim)
+		:Limpar sessão e voltar para Login;
+	endif
+}
+
+stop
+
+
+@enduml
+
